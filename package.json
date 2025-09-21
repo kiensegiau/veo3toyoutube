@@ -1,0 +1,26 @@
+{
+  "name": "puppeteer-request-logger",
+  "version": "1.0.0",
+  "description": "Puppeteer script để lưu tất cả requests của Chrome",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --inspect index.js",
+    "continuous": "node continuous.js",
+    "server": "node server.js",
+    "install-deps": "npm install"
+  },
+  "keywords": ["puppeteer", "chrome", "requests", "logging"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer-core": "^21.0.0",
+    "fs": "^0.0.1-security",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

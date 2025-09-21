@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug API</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug Google Labs API</h1>
+    
+    <div>
+        <button onclick="testConnection()">1. Test Connection</button>
+        <button onclick="testHistory()">2. Test History API</button>
+        <button onclick="testCreateVideo()">3. Test Create Video</button>
+    </div>
+    
+    <div id="output"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            output.appendChild(div);
+            console.log(message);
+        }
+
+        async function testConnection() {
+            log('🔍 Testing connection to localhost:3000...');
+            
+            try {
+                const response = await fetch('http://localhost:3000/', {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    log('✅ Connection successful! Server is running.', 'success');
+                } else {
+                    log(`❌ Connection failed. Status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Connection error: ${error.message}`, 'error');
+                log('💡 Possible causes:', 'info');
+                log('   - Server not running', 'info');
+                log('   - Browser blocking localhost', 'info');
+                log('   - Firewall blocking port 3000', 'info');
+            }
+        }
+
+        async function testHistory() {
+            log('📋 Testing /api/history endpoint...');
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/history', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ History API working! Found ${data.totalRequests} requests.`, 'success');
+                    log(`📊 Response: ${JSON.stringify(data, null, 2)}`, 'info');
+                } else {
+                    log(`❌ History API failed. Status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ History API error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCreateVideo() {
+            log('🎬 Testing /api/create-video endpoint...');
+            
+            try {
+                const testData = {
+                    prompt: 'test cat',
+                    aspectRatio: 'VIDEO_ASPECT_RATIO_PORTRAIT',
+                    videoModel: 'veo_3_0_t2v_fast_portrait',
+                    authorization: 'Bearer test-token'
+                };
+                
+                const response = await fetch('http://localhost:3000/api/create-video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Create Video API working!`, 'success');
+                    log(`📊 Response: ${JSON.stringify(data, null, 2)}`, 'info');
+                } else {
+                    log(`❌ Create Video API failed. Status: ${response.status}`, 'error');
+                    log(`📊 Error: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Create Video API error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            log('🚀 Debug page loaded. Click buttons to test APIs.', 'info');
+        });
+    </script>
+</body>
+</html>

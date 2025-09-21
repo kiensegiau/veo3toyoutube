@@ -1,0 +1,6 @@
+2025/09/21-14:15:07.676 e430 Reusing MANIFEST C:\Users\PC\Documents\web\chrome-user-data\Default\Local Storage\leveldb/MANIFEST-000001
+2025/09/21-14:15:07.682 e430 Recovering log #3
+2025/09/21-14:15:07.684 e430 Reusing old log C:\Users\PC\Documents\web\chrome-user-data\Default\Local Storage\leveldb/000003.log 
+2025/09/21-14:16:07.698 21e34 Level-0 table #5: started
+2025/09/21-14:16:07.701 21e34 Level-0 table #5: 44577 bytes OK
+2025/09/21-14:16:07.703 21e34 Delete type=0 #3
