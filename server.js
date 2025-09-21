@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const path = require('path');
+const fs = require('fs');
+const https = require('https');
+const url = require('url');
 
 const app = express();
 const PORT = 3000;
@@ -35,6 +38,94 @@ let requestHistory = [];
 let currentOperationName = null;
 let currentCookies = null;
 let tokenExpiryTime = null;
+
+// File paths for persistent storage
+const STORAGE_FILE = 'server-storage.json';
+
+// Load data from file on startup
+function loadStorageData() {
+    try {
+        if (fs.existsSync(STORAGE_FILE)) {
+            const data = JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf8'));
+            currentCookies = data.currentCookies || null;
+            tokenExpiryTime = data.tokenExpiryTime || null;
+            currentOperationName = data.currentOperationName || null;
+            requestHistory = data.requestHistory || [];
+            
+            console.log('📁 Storage data loaded from file');
+            if (currentCookies) {
+                console.log('🍪 Cookies loaded from storage');
+            }
+            if (tokenExpiryTime) {
+                console.log(`⏰ Token expiry loaded: ${new Date(tokenExpiryTime).toLocaleString('vi-VN')}`);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error loading storage data:', error);
+    }
+}
+
+// Save data to file
+function saveStorageData() {
+    try {
+        const data = {
+            currentCookies,
+            tokenExpiryTime,
+            currentOperationName,
+            requestHistory,
+            lastUpdated: new Date().toISOString()
+        };
+        fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
+        console.log('💾 Storage data saved to file');
+    } catch (error) {
+        console.error('❌ Error saving storage data:', error);
+    }
+}
+
+// Function để cập nhật file cookies.json gốc
+function updateCookiesJsonFile(cookieString) {
+    try {
+        // Đọc file cookies.json hiện tại
+        let cookiesData = [];
+        if (fs.existsSync('cookies.json')) {
+            const fileContent = fs.readFileSync('cookies.json', 'utf8');
+            cookiesData = JSON.parse(fileContent);
+        }
+        
+        // Parse cookie string thành array
+        const cookiePairs = cookieString.split(';');
+        const newCookies = cookiePairs.map(pair => {
+            const [name, value] = pair.trim().split('=');
+            return {
+                domain: "labs.google",
+                name: name,
+                value: value,
+                expirationDate: Date.now() + (24 * 60 * 60 * 1000), // 24 giờ
+                hostOnly: true,
+                httpOnly: false,
+                path: "/",
+                sameSite: "lax",
+                secure: true,
+                session: false,
+                storeId: "0"
+            };
+        });
+        
+        // Lọc bỏ cookies cũ từ labs.google và thêm cookies mới
+        const filteredCookies = cookiesData.filter(cookie => 
+            !cookie.domain.includes('labs.google')
+        );
+        
+        const updatedCookies = [...filteredCookies, ...newCookies];
+        
+        // Ghi lại file cookies.json
+        fs.writeFileSync('cookies.json', JSON.stringify(updatedCookies, null, 2));
+        console.log('🍪 Updated cookies.json file with new cookies');
+        
+    } catch (error) {
+        console.error('❌ Error updating cookies.json:', error);
+    }
+}
 
 // Hàm kiểm tra và tự động làm mới token
 async function checkAndRefreshTokenIfNeeded() {
@@ -77,6 +168,9 @@ async function checkAndRefreshTokenIfNeeded() {
                 // Cập nhật thời gian hết hạn mới
                 tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000);
                 console.log(`⏰ Token expiry updated to: ${new Date(tokenExpiryTime).toLocaleString('vi-VN')}`);
+                
+                // Lưu vào file
+                saveStorageData();
                 
                 return true;
             } else {
@@ -126,6 +220,9 @@ app.post('/api/create-video', async (req, res) => {
         // Lưu thời gian hết hạn token (ước tính 1.5 giờ từ bây giờ)
         tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
         console.log(`⏰ Token expiry set to: ${new Date(tokenExpiryTime).toLocaleString('vi-VN')}`);
+        
+        // Lưu vào file
+        saveStorageData();
 
         // Tạo request body
         const requestBody = {
@@ -174,6 +271,9 @@ app.post('/api/create-video', async (req, res) => {
         if (responseData.operations && responseData.operations[0]) {
             currentOperationName = responseData.operations[0].operation.name;
             console.log(`🔑 Operation name saved: ${currentOperationName}`);
+            
+            // Lưu vào file
+            saveStorageData();
         }
 
         // Lưu request vào history
@@ -262,10 +362,18 @@ app.post('/api/check-status', async (req, res) => {
         let status = 'PENDING';
         let errorMessage = null;
         
+        // Kiểm tra cả responses và operations
+        let videoResponse = null;
+        
         if (responseData.responses && responseData.responses.length > 0) {
-            const videoResponse = responseData.responses[0];
+            videoResponse = responseData.responses[0];
             console.log(`📊 Video response status: ${videoResponse.status}`);
-            
+        } else if (responseData.operations && responseData.operations.length > 0) {
+            videoResponse = responseData.operations[0];
+            console.log(`📊 Operation status: ${videoResponse.status}`);
+        }
+        
+        if (videoResponse) {
             if (videoResponse.status === 'MEDIA_GENERATION_STATUS_COMPLETED' || 
                 videoResponse.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
                 status = 'COMPLETED';
@@ -297,6 +405,13 @@ app.post('/api/check-status', async (req, res) => {
         }
 
         console.log(`📊 Final status: ${status}, URL: ${videoUrl ? 'Found' : 'Not found'}`);
+
+        // Nếu video đã hoàn thành hoặc thất bại, clear operation name
+        if (status === 'COMPLETED' || status === 'FAILED') {
+            console.log('✅ Video processing finished, clearing operation name');
+            currentOperationName = null;
+            saveStorageData();
+        }
 
         res.json({
             success: true,
@@ -335,6 +450,10 @@ app.delete('/api/history', (req, res) => {
     currentOperationName = null;
     currentCookies = null;
     tokenExpiryTime = null;
+    
+    // Lưu vào file
+    saveStorageData();
+    
     res.json({
         success: true,
         message: 'History cleared'
@@ -501,6 +620,16 @@ app.post('/api/get-new-token', async (req, res) => {
                 const newToken = `Bearer ${sessionData.access_token}`;
                 console.log('✅ New token extracted from session');
                 
+                // Cập nhật cookies và thời gian hết hạn
+                currentCookies = cookies;
+                tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
+                
+                // Lưu vào file
+                saveStorageData();
+                
+                // Cập nhật file cookies.json gốc
+                updateCookiesJsonFile(cookies);
+                
                 res.json({
                     success: true,
                     message: 'New token obtained successfully',
@@ -512,6 +641,17 @@ app.post('/api/get-new-token', async (req, res) => {
                 const authHeader = sessionResponse.headers.get('authorization');
                 if (authHeader) {
                     console.log('✅ New token extracted from headers');
+                    
+                    // Cập nhật cookies và thời gian hết hạn
+                    currentCookies = cookies;
+                    tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
+                    
+                    // Lưu vào file
+                    saveStorageData();
+                    
+                    // Cập nhật file cookies.json gốc
+                    updateCookiesJsonFile(cookies);
+                    
                     res.json({
                         success: true,
                         message: 'New token obtained successfully',
@@ -564,6 +704,12 @@ app.listen(PORT, () => {
     console.log(`   POST /api/check-status - Kiểm tra trạng thái video`);
     console.log(`   GET  /api/history - Xem lịch sử requests`);
     console.log(`   DELETE /api/history - Xóa lịch sử`);
+    console.log(`   GET  /api/token-status - Kiểm tra trạng thái token`);
+    console.log(`   POST /api/refresh-token - Làm mới token`);
+    console.log(`   POST /api/get-new-token - Lấy token mới từ cookies`);
+    
+    // Load storage data on startup
+    loadStorageData();
 });
 
 module.exports = app;

@@ -262,35 +262,7 @@
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="authorization">🔑 Authorization Token:</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="authorization" name="authorization" 
-                               placeholder="Bearer token..." 
-                               value="Bearer ya29.a0AQQ_BDQScX75jq1Y430fmcvVvQU-tforXT5ChnkYfRVPawiDzNrzEfWbrfDerVm17niKPezE4TS8rQ0hf7B60ZUxYpLu0wSuwRPM_RCbgyvoqXYA8oq00cH-u5gv0OORY5q-UFbxJEXvVF4QhMy34UtXPHWLjnWUmjN5Ru6XQFQMf2IhVC39glYSUJ-tmAa-qINzZoPDmuyIkVR3vkaKriebmcqpR95vMtGQtuQrnkdeLtgDeNJFe1RF_EW-2XtX1WQz93OtfjYssp99jnQKKDRiIAC6W_EcnS8O-biT-CxeGURUYUn0tleeWl1USWpsNFBxTGkHC6dX9uX77Kd54D03TOTmInKAbhzOz2wvXPcaCgYKAcASARYSFQHGX2MiUBJtgW8hZvVttsjTgTzSEQ0370" 
-                               style="flex: 1;">
-                        <button type="button" class="btn btn-secondary" onclick="autoRefreshToken()" style="white-space: nowrap;">
-                            🔄 Tự Động Làm Mới
-                        </button>
-                    </div>
-                    <small style="color: #666; margin-top: 5px; display: block;">
-                        Token hết hạn sau 1-2 giờ. Nhấn nút để tự động làm mới token.
-                    </small>
-                </div>
 
-                <div class="form-group">
-                    <label for="cookies">🍪 Cookies (Để tự động làm mới token):</label>
-                    <textarea id="cookies" name="cookies" 
-                              placeholder="Paste cookies từ Google Labs (F12 > Network > session request > Headers > Cookie)..." 
-                              rows="4" 
-                              style="width: 100%; padding: 12px 15px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 12px; resize: vertical; font-family: monospace;"></textarea>
-                    <small style="color: #666; margin-top: 5px; display: block;">
-                        Copy toàn bộ chuỗi cookies từ Google Labs để tự động làm mới token khi hết hạn.
-                    </small>
-                    <button type="button" onclick="pasteSampleCookies()" style="margin-top: 5px; padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                        📋 Paste Sample Cookies
-                    </button>
-                </div>
 
                 <div class="form-group">
                     <div id="tokenStatus" style="padding: 10px; border-radius: 8px; background: #f8f9fa; border: 1px solid #e9ecef; margin-bottom: 15px;">
@@ -450,13 +422,24 @@
                 
                 const result = await response.json();
                 
-                if (result.success && result.data) {
+                if (result.success) {
                     // Kiểm tra xem có video URL không
-                    const videoUrl = extractVideoUrl(result.data);
+                    const videoUrl = result.videoUrl || extractVideoUrl(result.data);
                     if (videoUrl) {
                         showVideoResult(videoUrl);
                         stopPolling();
                         updatePollingMessage('✅ Video đã sẵn sàng!');
+                        return;
+                    }
+                    
+                    // Nếu video đã hoàn thành hoặc thất bại, dừng polling
+                    if (result.videoStatus === 'COMPLETED' || result.videoStatus === 'FAILED') {
+                        stopPolling();
+                        if (result.videoStatus === 'FAILED') {
+                            updatePollingMessage('❌ Video generation failed: ' + (result.errorMessage || 'Unknown error'));
+                        } else {
+                            updatePollingMessage('✅ Video processing finished');
+                        }
                         return;
                     }
                 } else if (result.needsNewToken) {
@@ -677,8 +660,8 @@
                         <li>Mở Developer Tools (F12)</li>
                         <li>Vào tab Network</li>
                         <li>Tạo một video bất kỳ</li>
-                        <li>Tìm request có header "authorization"</li>
-                        <li>Copy giá trị Bearer token</li>
+                        <li>Tìm request có header "Cookie"</li>
+                        <li>Copy toàn bộ chuỗi cookies</li>
                         <li>Dán vào form bên trên</li>
                     </ol>
                     <p><em>Token thường hết hạn sau 1-2 giờ sử dụng</em></p>
@@ -804,9 +787,7 @@
                 
                 const result = await response.json();
                 
-                if (result.success && result.authorization) {
-                    // Cập nhật token mới vào form
-                    document.getElementById('authorization').value = result.authorization;
+                if (result.success) {
                     showSuccess('Token đã được làm mới thành công!');
                     // Cập nhật token status
                     setTimeout(() => {
@@ -827,42 +808,7 @@
             }
         }
 
-        // Paste sample cookies
-        function pasteSampleCookies() {
-            const sampleCookies = `_ga=GA1.1.1141188300.1758386580;__Host-next-auth.csrf-token=7b7d41fb3651fc73ecff34c820f8a8d561ab7ac436968567b601dc805a2f8849%7C52587fcdd287f443fc19016f823c38a88e164f785e290971d14d7038bccdd753;__Secure-next-auth.callback-url=https%3A%2F%2Flabs.google%2Ffx%2Ftools%2Fflow;email=kiendrive0%40gmail.com;EMAIL=%22kiendrive0%40gmail.com%22;_ga_5K7X2T4V16=GS2.1.s1758440091$o2$g0$t1758440091$j60$l0$h0;_ga_X2GNH8R5NS=GS2.1.s1758444237$o4$g1$t1758444238$j59$l0$h1853044157;__Secure-next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..3o4ucPpmESYYr06n.rlSTWc211OUJIpHVLemx1u-OUePULKRbHI3k6JM583PJAjHYO6Qgf3x-jP2JWie4qo3cr35TEVeHONRsoKNcTd9238JKCMEx_0hnemtfaOtWKgSu3OSn09FVfa6nNdedQSYj4xCGFqK7L73AzA5NsSpa1CLBJHQ5kD1ohEd3pDQ1yY401vqo7L7YQ_jmNYU_RELKQij0or3rO-6vVrOz6fXJhlC5n_kAg9QzCM8r3YGId8KLLn4gNM3jqcExCghCrb7ynISRXsA9_9WA7EANpI54-dKDPVxh8tRJjp0Ea65LR2Xe-Vc-ElFpgWQQrGdiPO0xxe4QN0YenCgPvenbtHQhYgJsNFuobRMwLjEyIGufRnht1s1pPZSiSIKQupQzdNBw8crhGKBmgDqWy74OvA3UYCpfL7eLvSxj3-rlY_Qhc9i2XuBbmSMCeHwVDLyV4ATswVoMcDt27c01PaB-pcd5zL9C6BptU-m4pcTq4JF19aJkAv8xZj73hqKRn6eWbTihr4f-_mzUb_a9u-agrANjuNk25tpMvevjgcJASeSGRttoAAWCyTuMi37Nzrfxx9QbdA5rOjCUEwmMe3JCv-0pbSlV0pxs0cxnbolp7KN5Q7ffwxzrdoeQXjzsBH7Ebn5DFuviP6f1mpxCbqXPO5cm9hrThZ43DKFdMOHB0vbVDjjarjQmDwpm8POjFnzP7AHpMBnvnuxMBK9EgzZp2F9EaVGDu990rT3chaFx7PqVn-HddjLSQGTMUoGIrS1rk1ROrUSxnLfaYcWzjR9mELZMCJ6wVDmcfDHZEyJlHGGIU2VyKTiaAN-6TqEtYmXTnZhJR98vVv4acagGEzrpxP9cTPT2OrbqBE6k49lsxjR1PBvDsnsCOmUA4Ro2-n_f3y_z6YLEUsn3IWwaQvXvSG9GmTQZnb8RWh1s4l-46DVhAZPmI2NVDIaOjDoIxEwoDTOzWxrcqctRpSZFFgDTyfThx0yGjQ.UBTLn9zN7zT4ZqYGsgfoEw`;
-            
-            document.getElementById('cookies').value = sampleCookies;
-            showSuccess('✅ Sample cookies đã được paste! Bây giờ bạn có thể nhấn "🔄 Tự Động Làm Mới" để lấy token mới.<br><br><strong>Lưu ý:</strong> Cookies mẫu có thể đã hết hạn. Nếu gặp lỗi, hãy lấy cookies mới từ Google Labs.');
-        }
 
-        // Mở Google Labs để lấy cookies
-        function openGoogleLabs() {
-            window.open('https://labs.google/fx/tools/flow/project/f6dc28c9-5dda-480d-a363-6114365e1a6a', '_blank');
-            
-            // Hiển thị hướng dẫn
-            const responseDiv = document.getElementById('response');
-            responseDiv.innerHTML = `
-                <div class="success">
-                    <strong>🍪 Hướng dẫn lấy cookies:</strong>
-                    <ol>
-                        <li>Tab Google Labs đã mở</li>
-                        <li>Nhấn F12 để mở Developer Tools</li>
-                        <li>Vào tab <strong>Network</strong></li>
-                        <li>Refresh trang (F5) hoặc tạo một video</li>
-                        <li>Tìm request <code>session</code> hoặc <code>auth</code></li>
-                        <li>Click vào request đó</li>
-                        <li>Vào tab <strong>Headers</strong></li>
-                        <li>Tìm <code>Cookie</code> trong Request Headers</li>
-                        <li>Copy toàn bộ giá trị cookie</li>
-                        <li>Dán vào ô Cookies bên trên</li>
-                        <li>Nhấn "🔄 Tự Động Làm Mới" để lấy token mới</li>
-                    </ol>
-                    <p><em>Cookies sẽ giúp tự động làm mới token khi hết hạn</em></p>
-                    <p><strong>Lưu ý:</strong> Cookies thường có format: <code>name1=value1; name2=value2; ...</code></p>
-                    <p><strong>Hoặc:</strong> Nhấn nút "📋 Paste Sample Cookies" để sử dụng cookies mẫu</p>
-                </div>
-            `;
-        }
 
         // Dừng polling và token monitoring khi rời khỏi trang
         window.addEventListener('beforeunload', () => {
