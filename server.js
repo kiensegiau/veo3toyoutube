@@ -127,6 +127,56 @@ function updateCookiesJsonFile(cookieString) {
     }
 }
 
+// Function để tải video về máy
+function downloadVideo(videoUrl, operationName) {
+    return new Promise((resolve, reject) => {
+        try {
+            // Tạo tên file với đuôi .mp4
+            const fileName = `${operationName}.mp4`;
+            const filePath = path.join(__dirname, 'public', 'videos', fileName);
+            
+            // Tạo thư mục videos nếu chưa có
+            const videosDir = path.join(__dirname, 'public', 'videos');
+            if (!fs.existsSync(videosDir)) {
+                fs.mkdirSync(videosDir, { recursive: true });
+            }
+            
+            console.log(`📥 Đang tải video: ${videoUrl}`);
+            console.log(`💾 Lưu tại: ${filePath}`);
+            
+            const file = fs.createWriteStream(filePath);
+            
+            https.get(videoUrl, (response) => {
+                response.pipe(file);
+                
+                file.on('finish', () => {
+                    file.close();
+                    console.log(`✅ Video đã được tải về: ${fileName}`);
+                    resolve({
+                        success: true,
+                        fileName: fileName,
+                        filePath: `/videos/${fileName}`,
+                        localPath: filePath
+                    });
+                });
+                
+                file.on('error', (err) => {
+                    fs.unlink(filePath, () => {}); // Xóa file nếu có lỗi
+                    console.error('❌ Lỗi tải video:', err);
+                    reject(err);
+                });
+            }).on('error', (err) => {
+                console.error('❌ Lỗi tải video:', err);
+                reject(err);
+            });
+            
+        } catch (error) {
+            console.error('❌ Lỗi tải video:', error);
+            reject(error);
+        }
+    });
+}
+
 // Hàm kiểm tra và tự động làm mới token
 async function checkAndRefreshTokenIfNeeded() {
     if (!currentCookies || !tokenExpiryTime) {
@@ -413,6 +463,17 @@ app.post('/api/check-status', async (req, res) => {
             saveStorageData();
         }
 
+        // Nếu video hoàn thành, tải video về máy
+        let downloadInfo = null;
+        if (status === 'COMPLETED' && videoUrl && operationName) {
+            try {
+                downloadInfo = await downloadVideo(videoUrl, operationName);
+            } catch (error) {
+                console.error('❌ Lỗi tải video:', error);
+                downloadInfo = { success: false, error: error.message };
+            }
+        }
+
         res.json({
             success: true,
             data: responseData,
@@ -420,6 +481,7 @@ app.post('/api/check-status', async (req, res) => {
             videoStatus: status,
             videoUrl: videoUrl,
             errorMessage: errorMessage,
+            downloadInfo: downloadInfo,
             message: status === 'COMPLETED' ? 'Video đã sẵn sàng!' : 
                     status === 'FAILED' ? `Video generation failed: ${errorMessage}` : 
                     'Video đang được tạo...'

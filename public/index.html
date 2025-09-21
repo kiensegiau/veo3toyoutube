@@ -426,7 +426,12 @@
                     // Kiểm tra xem có video URL không
                     const videoUrl = result.videoUrl || extractVideoUrl(result.data);
                     if (videoUrl) {
-                        showVideoResult(videoUrl);
+                        // Kiểm tra xem có video đã tải về không
+                        if (result.downloadInfo && result.downloadInfo.success) {
+                            showVideoResult(videoUrl, result.downloadInfo);
+                        } else {
+                            showVideoResult(videoUrl);
+                        }
                         stopPolling();
                         updatePollingMessage('✅ Video đã sẵn sàng!');
                         return;
@@ -631,17 +636,37 @@
         }
 
         // Hiển thị video result
-        function showVideoResult(videoUrl) {
+        function showVideoResult(videoUrl, downloadInfo = null) {
             const videoResultDiv = document.getElementById('videoResult');
+            
+            let downloadSection = '';
+            if (downloadInfo && downloadInfo.success) {
+                downloadSection = `
+                    <div class="download-info" style="background: #d4edda; border: 1px solid #c3e6cb; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                        <h4>📥 Video đã được tải về máy:</h4>
+                        <p><strong>Tên file:</strong> ${downloadInfo.fileName}</p>
+                        <p><strong>Đường dẫn:</strong> <a href="${downloadInfo.filePath}" target="_blank">${downloadInfo.filePath}</a></p>
+                        <video controls style="width: 100%; max-width: 500px;">
+                            <source src="${downloadInfo.filePath}" type="video/mp4">
+                            Trình duyệt của bạn không hỗ trợ video tag.
+                        </video>
+                    </div>
+                `;
+            }
+            
             videoResultDiv.innerHTML = `
                 <div class="video-result">
                     <h3>🎉 Video đã sẵn sàng!</h3>
-                    <p><strong>Video URL:</strong> <a href="${videoUrl}" target="_blank">${videoUrl}</a></p>
-                    <video controls>
-                        <source src="${videoUrl}" type="video/mp4">
-                        Trình duyệt của bạn không hỗ trợ video tag.
-                    </video>
-                    <p><em>Nhấn vào link để mở video trong tab mới</em></p>
+                    ${downloadSection}
+                    <div class="original-video" style="margin-top: 20px;">
+                        <h4>🌐 Video gốc từ Google:</h4>
+                        <p><strong>Video URL:</strong> <a href="${videoUrl}" target="_blank">${videoUrl}</a></p>
+                        <video controls style="width: 100%; max-width: 500px;">
+                            <source src="${videoUrl}" type="video/mp4">
+                            Trình duyệt của bạn không hỗ trợ video tag.
+                        </video>
+                        <p><em>Nhấn vào link để mở video trong tab mới</em></p>
+                    </div>
                 </div>
             `;
         }
