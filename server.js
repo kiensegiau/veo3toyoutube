@@ -32,6 +32,7 @@ const GOOGLE_LABS_CONFIG = {
 
 // Store for tracking requests
 let requestHistory = [];
+let currentOperationName = null;
 
 // Routes
 app.get('/', (req, res) => {
@@ -49,6 +50,12 @@ app.post('/api/create-video', async (req, res) => {
         } = req.body;
 
         console.log(`🎬 Tạo video với prompt: "${prompt}"`);
+        console.log('📝 Received form data:', { 
+            prompt, 
+            aspectRatio, 
+            videoModel, 
+            authorization: authorization ? 'Bearer token provided' : 'No token' 
+        });
 
         // Tạo request body
         const requestBody = {
@@ -82,6 +89,12 @@ app.post('/api/create-video', async (req, res) => {
 
         const responseData = await response.json();
 
+        // Lưu operation name từ response
+        if (responseData.operations && responseData.operations[0]) {
+            currentOperationName = responseData.operations[0].operation.name;
+            console.log(`🔑 Operation name saved: ${currentOperationName}`);
+        }
+
         // Lưu request vào history
         const requestRecord = {
             id: Date.now().toString(),
@@ -91,7 +104,8 @@ app.post('/api/create-video', async (req, res) => {
             videoModel: videoModel,
             requestBody: requestBody,
             response: responseData,
-            status: response.status
+            status: response.status,
+            operationName: currentOperationName
         };
 
         requestHistory.push(requestRecord);
@@ -103,7 +117,8 @@ app.post('/api/create-video', async (req, res) => {
             success: true,
             message: `Video generation request sent for: "${prompt}"`,
             data: responseData,
-            requestId: requestRecord.id
+            requestId: requestRecord.id,
+            operationName: currentOperationName
         });
 
     } catch (error) {
@@ -119,11 +134,12 @@ app.post('/api/create-video', async (req, res) => {
 // API endpoint để kiểm tra trạng thái video
 app.post('/api/check-status', async (req, res) => {
     try {
-        const { 
-            operationName = 'c55a3b418cf00edfa62d09b58e521b74',
-            sceneId = '21ea2896-9983-4283-b90a-7de0bf5422af',
-            authorization = 'Bearer ya29.a0AQQ_BDQScX75jq1Y430fmcvVvQU-tforXT5ChnkYfRVPawiDzNrzEfWbrfDerVm17niKPezE4TS8rQ0hf7B60ZUxYpLu0wSuwRPM_RCbgyvoqXYA8oq00cH-u5gv0OORY5q-UFbxJEXvVF4QhMy34UtXPHWLjnWUmjN5Ru6XQFQMf2IhVC39glYSUJ-tmAa-qINzZoPDmuyIkVR3vkaKriebmcqpR95vMtGQtuQrnkdeLtgDeNJFe1RF_EW-2XtX1WQz93OtfjYssp99jnQKKDRiIAC6W_EcnS8O-biT-CxeGURUYUn0tleeWl1USWpsNFBxTGkHC6dX9uX77Kd54D03TOTmInKAbhzOz2wvXPcaCgYKAcASARYSFQHGX2MiUBJtgW8hZvVttsjTgTzSEQ0370'
-        } = req.body;
+        // Sử dụng operation name từ request gần nhất
+        const operationName = currentOperationName || 'c55a3b418cf00edfa62d09b58e521b74';
+        const sceneId = '21ea2896-9983-4283-b90a-7de0bf5422af';
+        const authorization = 'Bearer ya29.a0AQQ_BDQScX75jq1Y430fmcvVvQU-tforXT5ChnkYfRVPawiDzNrzEfWbrfDerVm17niKPezE4TS8rQ0hf7B60ZUxYpLu0wSuwRPM_RCbgyvoqXYA8oq00cH-u5gv0OORY5q-UFbxJEXvVF4QhMy34UtXPHWLjnWUmjN5Ru6XQFQMf2IhVC39glYSUJ-tmAa-qINzZoPDmuyIkVR3vkaKriebmcqpR95vMtGQtuQrnkdeLtgDeNJFe1RF_EW-2XtX1WQz93OtfjYssp99jnQKKDRiIAC6W_EcnS8O-biT-CxeGURUYUn0tleeWl1USWpsNFBxTGkHC6dX9uX77Kd54D03TOTmInKAbhzOz2wvXPcaCgYKAcASARYSFQHGX2MiUBJtgW8hZvVttsjTgTzSEQ0370';
+
+        console.log(`🔍 Checking status with operation: ${operationName}`);
 
         const requestBody = {
             operations: [{
@@ -146,10 +162,43 @@ app.post('/api/check-status', async (req, res) => {
 
         const responseData = await response.json();
 
+        // Kiểm tra xem video đã sẵn sàng chưa
+        let videoUrl = null;
+        let status = 'PENDING';
+        let errorMessage = null;
+        
+        if (responseData.responses && responseData.responses.length > 0) {
+            const videoResponse = responseData.responses[0];
+            if (videoResponse.status === 'MEDIA_GENERATION_STATUS_COMPLETED') {
+                status = 'COMPLETED';
+                // Tìm video URL trong response
+                if (videoResponse.videoUrl) {
+                    videoUrl = videoResponse.videoUrl;
+                } else if (videoResponse.video && videoResponse.video.url) {
+                    videoUrl = videoResponse.video.url;
+                } else if (videoResponse.mediaUrl) {
+                    videoUrl = videoResponse.mediaUrl;
+                }
+            } else if (videoResponse.status === 'MEDIA_GENERATION_STATUS_FAILED') {
+                status = 'FAILED';
+                if (videoResponse.error) {
+                    errorMessage = videoResponse.error.message;
+                }
+            }
+        }
+
+        console.log(`📊 Video status: ${status}, URL: ${videoUrl ? 'Found' : 'Not found'}`);
+
         res.json({
             success: true,
             data: responseData,
-            status: response.status
+            status: response.status,
+            videoStatus: status,
+            videoUrl: videoUrl,
+            errorMessage: errorMessage,
+            message: status === 'COMPLETED' ? 'Video đã sẵn sàng!' : 
+                    status === 'FAILED' ? `Video generation failed: ${errorMessage}` : 
+                    'Video đang được tạo...'
         });
 
     } catch (error) {
@@ -174,6 +223,7 @@ app.get('/api/history', (req, res) => {
 // API endpoint để xóa lịch sử
 app.delete('/api/history', (req, res) => {
     requestHistory = [];
+    currentOperationName = null;
     res.json({
         success: true,
         message: 'History cleared'

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Form</title>
+</head>
+<body>
+    <h1>Test Form Data</h1>
+    <form id="testForm">
+        <div>
+            <label for="prompt">Prompt:</label>
+            <input type="text" id="prompt" name="prompt" value="test video">
+        </div>
+        <div>
+            <label for="aspectRatio">Aspect Ratio:</label>
+            <select id="aspectRatio" name="aspectRatio">
+                <option value="VIDEO_ASPECT_RATIO_PORTRAIT">Portrait</option>
+                <option value="VIDEO_ASPECT_RATIO_LANDSCAPE">Landscape</option>
+            </select>
+        </div>
+        <div>
+            <label for="videoModel">Video Model:</label>
+            <select id="videoModel" name="videoModel">
+                <option value="veo_3_0_t2v_fast_portrait">Fast Portrait</option>
+                <option value="veo_3_0_t2v_standard">Standard</option>
+            </select>
+        </div>
+        <div>
+            <label for="authorization">Authorization:</label>
+            <input type="text" id="authorization" name="authorization" value="Bearer test123">
+        </div>
+        <button type="submit">Test Submit</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('testForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            console.log('Form data:', data);
+            document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        });
+    </script>
+</body>
+</html>

@@ -187,6 +187,48 @@
             margin-top: 15px;
             border-left: 4px solid #28a745;
         }
+
+        .video-result {
+            background: #e8f5e8;
+            color: #155724;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 4px solid #28a745;
+            text-align: center;
+        }
+
+        .video-result video {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .video-result a {
+            color: #155724;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .video-result a:hover {
+            text-decoration: underline;
+        }
+
+        .polling-status {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .polling-status.active {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left-color: #17a2b8;
+        }
     </style>
 </head>
 <body>
@@ -229,6 +271,8 @@
 
                 <button type="submit" class="btn btn-success">🎬 Tạo Video</button>
                 <button type="button" class="btn btn-secondary" onclick="checkStatus()">📊 Kiểm tra trạng thái</button>
+                <button type="button" class="btn" onclick="startPolling()">🔄 Kiểm tra liên tục</button>
+                <button type="button" class="btn btn-secondary" onclick="stopPolling()">⏹️ Dừng kiểm tra</button>
                 <button type="button" class="btn" onclick="loadHistory()">📋 Xem lịch sử</button>
                 <button type="button" class="btn btn-secondary" onclick="clearHistory()">🗑️ Xóa lịch sử</button>
             </form>
@@ -238,12 +282,21 @@
                 <p>Đang xử lý...</p>
             </div>
 
+            <div id="pollingStatus" class="polling-status" style="display: none;">
+                <strong>🔄 Đang kiểm tra trạng thái video...</strong>
+                <p id="pollingMessage">Chờ video được tạo...</p>
+            </div>
+
             <div id="response"></div>
+            <div id="videoResult"></div>
             <div id="history"></div>
         </div>
     </div>
 
     <script>
+        let pollingInterval = null;
+        let currentRequestId = null;
+
         // Xử lý form submit
         document.getElementById('videoForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -253,6 +306,7 @@
             
             showLoading(true);
             clearResponse();
+            clearVideoResult();
             
             try {
                 const response = await fetch('http://localhost:3000/api/create-video', {
@@ -268,6 +322,12 @@
                 if (result.success) {
                     showSuccess(`Video generation request sent for: "${data.prompt}"`);
                     showResponse(result);
+                    
+                    // Lưu request ID để polling
+                    currentRequestId = result.requestId;
+                    
+                    // Tự động bắt đầu polling
+                    startPolling();
                 } else {
                     showError(result.message || 'Có lỗi xảy ra');
                 }
@@ -298,6 +358,98 @@
                 showError('Lỗi kiểm tra trạng thái: ' + error.message);
             } finally {
                 showLoading(false);
+            }
+        }
+
+        // Bắt đầu polling
+        function startPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            
+            showPollingStatus(true);
+            updatePollingMessage('Bắt đầu kiểm tra trạng thái video...');
+            
+            // Kiểm tra mỗi 1 giây
+            pollingInterval = setInterval(async () => {
+                await checkVideoStatus();
+            }, 1000);
+        }
+
+        // Dừng polling
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+            showPollingStatus(false);
+            updatePollingMessage('Đã dừng kiểm tra trạng thái');
+        }
+
+        // Kiểm tra trạng thái video
+        async function checkVideoStatus() {
+            try {
+                const response = await fetch('http://localhost:3000/api/check-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    // Kiểm tra xem có video URL không
+                    const videoUrl = extractVideoUrl(result.data);
+                    if (videoUrl) {
+                        showVideoResult(videoUrl);
+                        stopPolling();
+                        updatePollingMessage('✅ Video đã sẵn sàng!');
+                        return;
+                    }
+                }
+                
+                updatePollingMessage(`Đang kiểm tra... (${new Date().toLocaleTimeString('vi-VN')})`);
+                
+            } catch (error) {
+                console.error('Lỗi kiểm tra trạng thái:', error);
+                updatePollingMessage('Lỗi kiểm tra trạng thái: ' + error.message);
+            }
+        }
+
+        // Trích xuất video URL từ response
+        function extractVideoUrl(data) {
+            try {
+                // Tìm video URL trong response data
+                if (data.responses && data.responses.length > 0) {
+                    const response = data.responses[0];
+                    if (response.videoUrl) {
+                        return response.videoUrl;
+                    }
+                    if (response.video && response.video.url) {
+                        return response.video.url;
+                    }
+                    if (response.mediaUrl) {
+                        return response.mediaUrl;
+                    }
+                }
+                
+                // Tìm trong các trường khác
+                if (data.videoUrl) {
+                    return data.videoUrl;
+                }
+                if (data.video && data.video.url) {
+                    return data.video.url;
+                }
+                if (data.mediaUrl) {
+                    return data.mediaUrl;
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Lỗi trích xuất video URL:', error);
+                return null;
             }
         }
 
@@ -411,9 +563,51 @@
             document.getElementById('response').innerHTML = '';
         }
 
+        // Xóa video result
+        function clearVideoResult() {
+            document.getElementById('videoResult').innerHTML = '';
+        }
+
+        // Hiển thị polling status
+        function showPollingStatus(show) {
+            const statusDiv = document.getElementById('pollingStatus');
+            statusDiv.style.display = show ? 'block' : 'none';
+            if (show) {
+                statusDiv.classList.add('active');
+            } else {
+                statusDiv.classList.remove('active');
+            }
+        }
+
+        // Cập nhật polling message
+        function updatePollingMessage(message) {
+            document.getElementById('pollingMessage').textContent = message;
+        }
+
+        // Hiển thị video result
+        function showVideoResult(videoUrl) {
+            const videoResultDiv = document.getElementById('videoResult');
+            videoResultDiv.innerHTML = `
+                <div class="video-result">
+                    <h3>🎉 Video đã sẵn sàng!</h3>
+                    <p><strong>Video URL:</strong> <a href="${videoUrl}" target="_blank">${videoUrl}</a></p>
+                    <video controls>
+                        <source src="${videoUrl}" type="video/mp4">
+                        Trình duyệt của bạn không hỗ trợ video tag.
+                    </video>
+                    <p><em>Nhấn vào link để mở video trong tab mới</em></p>
+                </div>
+            `;
+        }
+
         // Tải lịch sử khi trang load
         window.addEventListener('load', () => {
             loadHistory();
+        });
+
+        // Dừng polling khi rời khỏi trang
+        window.addEventListener('beforeunload', () => {
+            stopPolling();
         });
     </script>
 </body>
