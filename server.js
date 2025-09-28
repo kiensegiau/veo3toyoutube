@@ -40,7 +40,7 @@ let currentOperationName = null;
 let currentCookies = null;
 let tokenExpiryTime = null;
 // Track downloaded operations to prevent duplicate downloads
-const downloadedOperations = new Set();
+let downloadedOperations = new Set();
 // Map operation -> prompt for traceability
 const operationToPrompt = new Map();
 // Map operation -> last logged status to reduce log noise
@@ -58,6 +58,7 @@ function loadStorageData() {
             tokenExpiryTime = data.tokenExpiryTime || null;
             currentOperationName = data.currentOperationName || null;
             requestHistory = data.requestHistory || [];
+            downloadedOperations = new Set(data.downloadedOperations || []);
             
             console.log('📁 Storage data loaded from file');
             if (currentCookies) {
@@ -80,6 +81,7 @@ function saveStorageData() {
             tokenExpiryTime,
             currentOperationName,
             requestHistory,
+            downloadedOperations: Array.from(downloadedOperations),
             lastUpdated: new Date().toISOString()
         };
         fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
