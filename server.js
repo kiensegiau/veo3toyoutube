@@ -207,7 +207,7 @@ async function checkAndRefreshTokenIfNeeded() {
                     'sec-fetch-site': 'same-origin',
                     'cookie': currentCookies
                 },
-                referrer: 'https://labs.google/fx/tools/flow/project/f6dc28c9-5dda-480d-a363-6114365e1a6a',
+                referrer: 'https://labs.google/fx/tools/flow/project/47cbfda6-db06-47d8-9b06-1cb5dcc40356',
                 credentials: 'include'
             });
 
@@ -241,43 +241,21 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// API endpoint để tạo video từ text
+// API endpoint để tạo video từ text (chỉ nhận prompt, còn lại mặc định)
 app.post('/api/create-video', async (req, res) => {
     try {
-        const { 
-            prompt = 'cat', 
-            aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT',
-            videoModel = 'veo_3_0_t2v_fast_portrait',
-            authorization = 'Bearer ya29.a0AQQ_BDQScX75jq1Y430fmcvVvQU-tforXT5ChnkYfRVPawiDzNrzEfWbrfDerVm17niKPezE4TS8rQ0hf7B60ZUxYpLu0wSuwRPM_RCbgyvoqXYA8oq00cH-u5gv0OORY5q-UFbxJEXvVF4QhMy34UtXPHWLjnWUmjN5Ru6XQFQMf2IhVC39glYSUJ-tmAa-qINzZoPDmuyIkVR3vkaKriebmcqpR95vMtGQtuQrnkdeLtgDeNJFe1RF_EW-2XtX1WQz93OtfjYssp99jnQKKDRiIAC6W_EcnS8O-biT-CxeGURUYUn0tleeWl1USWpsNFBxTGkHC6dX9uX77Kd54D03TOTmInKAbhzOz2wvXPcaCgYKAcASARYSFQHGX2MiUBJtgW8hZvVttsjTgTzSEQ0370',
-            cookies = null
-        } = req.body;
+        const { prompt = 'cat' } = req.body;
+
+        const aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT';
+        const videoModel = 'veo_3_0_t2v_fast_portrait';
+        const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSmHMCsjst08D1lbD9c9Kulmsv_47Dfpf7IhVVqyQCnUWujtZLHqEq2iPq2DAonE6Wfqwwi2kV3QcacyUMgdhuPwvav5nds7oraZsh_jsLtQSEZqbq8u_iitJ_FG2C0lCJ6yRtDaZpKxl7pLoZGGUWwWpyXmn3RU55cjP7bn5AWI3PftW-sN9vWVA5arBWlt-Rhmd_8ZdoqEpTiNJAi0HMktnI4VBCLIFnQjiEbqnG0yfDEe0vnE2Fn0IYbnzb9qkChdwD8cqAjKWL-tcGvk_JhVom095GGp-u-qa3pqvf7FyZemlClhrTGLRCLZz1mhZy_rkCh9QdNOV88lGEU53FWR_ewQVbH0FkbaCgYKASoSARYSFQHGX2MibJ4eqg_dzfhkZg1y4i2PeQ0367';
 
         console.log(`🎬 Tạo video với prompt: "${prompt}"`);
-        console.log('📝 Received form data:', { 
-            prompt, 
-            aspectRatio, 
-            videoModel, 
-            authorization: authorization ? 'Bearer token provided' : 'No token',
-            cookies: cookies ? 'Cookies provided' : 'No cookies'
-        });
 
-        // Lưu cookies nếu có
-        if (cookies) {
-            currentCookies = cookies;
-            console.log('🍪 Cookies saved for auto-refresh');
-        }
-
-        // Lưu thời gian hết hạn token (ước tính 1.5 giờ từ bây giờ)
-        tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
-        console.log(`⏰ Token expiry set to: ${new Date(tokenExpiryTime).toLocaleString('vi-VN')}`);
-        
-        // Lưu vào file
-        saveStorageData();
-
-        // Tạo request body
+        // Tạo request body (mặc định cho mọi thông số ngoài prompt)
         const requestBody = {
             clientContext: {
-                projectId: "f6dc28c9-5dda-480d-a363-6114365e1a6a",
+                projectId: "47cbfda6-db06-47d8-9b06-1cb5dcc40356",
                 tool: "PINHOLE",
                 userPaygateTier: "PAYGATE_TIER_ONE"
             },
@@ -289,7 +267,7 @@ app.post('/api/create-video', async (req, res) => {
                 },
                 videoModelKey: videoModel,
                 metadata: {
-                    sceneId: "21ea2896-9983-4283-b90a-7de0bf5422af"
+                    sceneId: "230cd0fb-ce97-4a26-87a5-3b707b33ea60"
                 }
             }]
         };
@@ -369,9 +347,9 @@ app.post('/api/check-status', async (req, res) => {
         await checkAndRefreshTokenIfNeeded();
 
         // Sử dụng operation name từ request gần nhất
-        const operationName = currentOperationName || 'c55a3b418cf00edfa62d09b58e521b74';
-        const sceneId = '21ea2896-9983-4283-b90a-7de0bf5422af';
-        const authorization = 'Bearer ya29.a0AQQ_BDQScX75jq1Y430fmcvVvQU-tforXT5ChnkYfRVPawiDzNrzEfWbrfDerVm17niKPezE4TS8rQ0hf7B60ZUxYpLu0wSuwRPM_RCbgyvoqXYA8oq00cH-u5gv0OORY5q-UFbxJEXvVF4QhMy34UtXPHWLjnWUmjN5Ru6XQFQMf2IhVC39glYSUJ-tmAa-qINzZoPDmuyIkVR3vkaKriebmcqpR95vMtGQtuQrnkdeLtgDeNJFe1RF_EW-2XtX1WQz93OtfjYssp99jnQKKDRiIAC6W_EcnS8O-biT-CxeGURUYUn0tleeWl1USWpsNFBxTGkHC6dX9uX77Kd54D03TOTmInKAbhzOz2wvXPcaCgYKAcASARYSFQHGX2MiUBJtgW8hZvVttsjTgTzSEQ0370';
+        const operationName = currentOperationName || '68f5eaa4f87ccc2150734fe733aaa768';
+        const sceneId = '230cd0fb-ce97-4a26-87a5-3b707b33ea60';
+        const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSmHMCsjst08D1lbD9c9Kulmsv_47Dfpf7IhVVqyQCnUWujtZLHqEq2iPq2DAonE6Wfqwwi2kV3QcacyUMgdhuPwvav5nds7oraZsh_jsLtQSEZqbq8u_iitJ_FG2C0lCJ6yRtDaZpKxl7pLoZGGUWwWpyXmn3RU55cjP7bn5AWI3PftW-sN9vWVA5arBWlt-Rhmd_8ZdoqEpTiNJAi0HMktnI4VBCLIFnQjiEbqnG0yfDEe0vnE2Fn0IYbnzb9qkChdwD8cqAjKWL-tcGvk_JhVom095GGp-u-qa3pqvf7FyZemlClhrTGLRCLZz1mhZy_rkCh9QdNOV88lGEU53FWR_ewQVbH0FkbaCgYKASoSARYSFQHGX2MibJ4eqg_dzfhkZg1y4i2PeQ0367';
 
         console.log(`🔍 Checking status with operation: ${operationName}`);
 

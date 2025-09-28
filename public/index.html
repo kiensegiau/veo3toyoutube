@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Labs Video Generator</title>
+    <title>AI Video Generator</title>
     <style>
         * {
             margin: 0;
@@ -28,7 +28,7 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background: #0f172a;
             color: white;
             padding: 30px;
             text-align: center;
@@ -76,7 +76,7 @@
         }
 
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0ea5e9;
             color: white;
             border: none;
             padding: 15px 30px;
@@ -97,13 +97,11 @@
             transform: translateY(0);
         }
 
-        .btn-secondary {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
+        .btn-secondary { background: #64748b; }
+        .btn-danger { background: #ef4444; }
+        .btn-success { background: #22c55e; }
 
-        .btn-success {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        }
+        /* removed old gradient success */
 
         .response {
             margin-top: 30px;
@@ -234,56 +232,20 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎬 Google Labs Video Generator</h1>
-            <p>Tạo video AI từ text với Google Labs PINHOLE</p>
+            <h1>🎬 AI Video Generator</h1>
+            <p>Tạo video từ văn bản – đơn giản, nhanh, chuyên nghiệp</p>
         </div>
 
         <div class="content">
             <form id="videoForm">
                 <div class="form-group">
-                    <label for="prompt">📝 Text Prompt (Mô tả video bạn muốn tạo):</label>
-                    <input type="text" id="prompt" name="prompt" placeholder="Ví dụ: cat, dog, beautiful sunset, dancing robot..." value="cat">
-                </div>
-
-                <div class="form-group">
-                    <label for="aspectRatio">📐 Tỷ lệ khung hình:</label>
-                    <select id="aspectRatio" name="aspectRatio">
-                        <option value="VIDEO_ASPECT_RATIO_PORTRAIT">Portrait (Dọc)</option>
-                        <option value="VIDEO_ASPECT_RATIO_LANDSCAPE">Landscape (Ngang)</option>
-                        <option value="VIDEO_ASPECT_RATIO_SQUARE">Square (Vuông)</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="videoModel">🤖 Model AI:</label>
-                    <select id="videoModel" name="videoModel">
-                        <option value="veo_3_0_t2v_fast_portrait">Veo 3.0 Fast Portrait</option>
-                        <option value="veo_3_0_t2v_standard">Veo 3.0 Standard</option>
-                    </select>
-                </div>
-
-
-
-                <div class="form-group">
-                    <div id="tokenStatus" style="padding: 10px; border-radius: 8px; background: #f8f9fa; border: 1px solid #e9ecef; margin-bottom: 15px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span><strong>🔑 Token Status:</strong></span>
-                            <button type="button" onclick="checkTokenStatus()" style="padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                                Kiểm tra
-                            </button>
-                        </div>
-                        <div id="tokenInfo" style="margin-top: 8px; font-size: 14px; color: #666;">
-                            Chưa có thông tin token
-                        </div>
-                    </div>
+                    <label for="prompt">📝 Mô tả video bạn muốn tạo</label>
+                    <input type="text" id="prompt" name="prompt" placeholder="Ví dụ: a cat playing piano in space" value="cat">
                 </div>
 
                 <button type="submit" class="btn btn-success">🎬 Tạo Video</button>
-                <button type="button" class="btn btn-secondary" onclick="checkStatus()">📊 Kiểm tra trạng thái</button>
-                <button type="button" class="btn" onclick="startPolling()">🔄 Kiểm tra liên tục</button>
-                <button type="button" class="btn btn-secondary" onclick="stopPolling()">⏹️ Dừng kiểm tra</button>
-                <button type="button" class="btn" onclick="loadHistory()">📋 Xem lịch sử</button>
-                <button type="button" class="btn btn-secondary" onclick="clearHistory()">🗑️ Xóa lịch sử</button>
+                <button type="button" class="btn btn-secondary" onclick="loadHistory()">📋 Lịch sử</button>
+                <button type="button" class="btn btn-danger" onclick="clearHistory()">🗑️ Xóa lịch sử</button>
             </form>
 
             <div class="loading" id="loading">
@@ -292,8 +254,8 @@
             </div>
 
             <div id="pollingStatus" class="polling-status" style="display: none;">
-                <strong>🔄 Đang kiểm tra trạng thái video...</strong>
-                <p id="pollingMessage">Chờ video được tạo...</p>
+                <strong>🔄 Đang tạo video...</strong>
+                <p id="pollingMessage">Vui lòng chờ, video đang được tạo...</p>
             </div>
 
             <div id="response"></div>
@@ -327,7 +289,7 @@
                 });
                 
                 const result = await response.json();
-                
+
                 if (result.success) {
                     showSuccess(`Video generation request sent for: "${data.prompt}"`);
                     showResponse(result);
@@ -335,24 +297,10 @@
                     // Lưu request ID để polling
                     currentRequestId = result.requestId;
                     
-                    // Tự động bắt đầu polling
+                    // Tự động bắt đầu kiểm tra trạng thái
                     startPolling();
                 } else {
-                    if (result.needsNewToken) {
-                        // Thử tự động làm mới token nếu có cookies
-                        const cookies = document.getElementById('cookies').value.trim();
-                        if (cookies) {
-                            await autoRefreshToken();
-                            // Thử lại tạo video
-                            setTimeout(() => {
-                                document.getElementById('videoForm').dispatchEvent(new Event('submit'));
-                            }, 1000);
-                        } else {
-                            showTokenExpiredError(result.message);
-                        }
-                    } else {
-                        showError(result.message || 'Có lỗi xảy ra');
-                    }
+                    showError(result.message || 'Có lỗi xảy ra');
                 }
             } catch (error) {
                 showError('Lỗi kết nối: ' + error.message);
@@ -445,18 +393,6 @@
                         } else {
                             updatePollingMessage('✅ Video processing finished');
                         }
-                        return;
-                    }
-                } else if (result.needsNewToken) {
-                    // Thử tự động làm mới token nếu có cookies
-                    const cookies = document.getElementById('cookies').value.trim();
-                    if (cookies) {
-                        await autoRefreshToken();
-                        // Tiếp tục polling với token mới
-                        return;
-                    } else {
-                        stopPolling();
-                        showTokenExpiredError(result.message);
                         return;
                     }
                 }
@@ -671,174 +607,22 @@
             `;
         }
 
-        // Hiển thị lỗi token hết hạn
-        function showTokenExpiredError(message) {
-            const responseDiv = document.getElementById('response');
-            responseDiv.innerHTML = `
-                <div class="error">
-                    <strong>🔑 Token hết hạn:</strong> ${message}
-                    <br><br>
-                    <strong>Hướng dẫn cập nhật token:</strong>
-                    <ol>
-                        <li>Mở <a href="https://labs.google/" target="_blank">Google Labs</a></li>
-                        <li>Đăng nhập và vào PINHOLE tool</li>
-                        <li>Mở Developer Tools (F12)</li>
-                        <li>Vào tab Network</li>
-                        <li>Tạo một video bất kỳ</li>
-                        <li>Tìm request có header "Cookie"</li>
-                        <li>Copy toàn bộ chuỗi cookies</li>
-                        <li>Dán vào form bên trên</li>
-                    </ol>
-                    <p><em>Token thường hết hạn sau 1-2 giờ sử dụng</em></p>
-                </div>
-            `;
-        }
+        // (đã bỏ logic token/cookies để giao diện gọn gàng hơn)
 
-        // Kiểm tra token status
-        async function checkTokenStatus() {
-            try {
-                const response = await fetch('http://localhost:3000/api/token-status');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                
-                const tokenInfo = document.getElementById('tokenInfo');
-                
-                if (!result.success || !result.hasToken) {
-                    tokenInfo.innerHTML = '<span style="color: #dc3545;">❌ Chưa có token hoặc chưa tạo video</span>';
-                    return;
-                }
-
-                const status = result.isExpired ? '🔴 Hết hạn' : 
-                              result.isNearExpiry ? '🟡 Sắp hết hạn' : 
-                              '🟢 Còn hiệu lực';
-                
-                const timeLeft = result.timeUntilExpiryMinutes > 0 ? 
-                    `${result.timeUntilExpiryMinutes} phút` : 
-                    'Đã hết hạn';
-                
-                const autoRefreshStatus = result.canAutoRefresh ? 
-                    '✅ Có thể tự động làm mới' : 
-                    '❌ Không thể tự động làm mới';
-                
-                tokenInfo.innerHTML = `
-                    <div style="margin-bottom: 5px;">
-                        <strong>Trạng thái:</strong> ${status}
-                    </div>
-                    <div style="margin-bottom: 5px;">
-                        <strong>Thời gian còn lại:</strong> ${timeLeft}
-                    </div>
-                    <div style="margin-bottom: 5px;">
-                        <strong>Hết hạn lúc:</strong> ${new Date(result.expiryTime).toLocaleString('vi-VN')}
-                    </div>
-                    <div style="margin-bottom: 5px;">
-                        <strong>Tự động làm mới:</strong> ${autoRefreshStatus}
-                    </div>
-                `;
-                
-                // Cập nhật màu nền dựa trên trạng thái
-                const tokenStatus = document.getElementById('tokenStatus');
-                if (result.isExpired) {
-                    tokenStatus.style.background = '#f8d7da';
-                    tokenStatus.style.borderColor = '#f5c6cb';
-                } else if (result.isNearExpiry) {
-                    tokenStatus.style.background = '#fff3cd';
-                    tokenStatus.style.borderColor = '#ffeaa7';
-                } else {
-                    tokenStatus.style.background = '#d4edda';
-                    tokenStatus.style.borderColor = '#c3e6cb';
-                }
-                
-            } catch (error) {
-                console.error('Token status check error:', error);
-                document.getElementById('tokenInfo').innerHTML = 
-                    '<span style="color: #dc3545;">❌ Lỗi khi kiểm tra token: ' + error.message + '</span>';
-            }
-        }
-
-        // Tự động kiểm tra token status mỗi 5 phút
-        let tokenCheckInterval = null;
-        
-        function startTokenMonitoring() {
-            if (tokenCheckInterval) {
-                clearInterval(tokenCheckInterval);
-            }
-            
-            tokenCheckInterval = setInterval(() => {
-                checkTokenStatus();
-            }, 5 * 60 * 1000); // 5 phút
-        }
-        
-        function stopTokenMonitoring() {
-            if (tokenCheckInterval) {
-                clearInterval(tokenCheckInterval);
-                tokenCheckInterval = null;
-            }
-        }
+        // (đã bỏ chức năng kiểm tra/làm mới token định kỳ)
 
         // Tải lịch sử khi trang load
         window.addEventListener('load', () => {
             loadHistory();
-            checkTokenStatus();
-            startTokenMonitoring();
         });
 
-        // Tự động làm mới token
-        async function autoRefreshToken() {
-            const cookies = document.getElementById('cookies').value.trim();
-            
-            if (!cookies) {
-                showError('Vui lòng nhập cookies để tự động làm mới token');
-                return;
-            }
-
-            showLoading(true);
-            
-            try {
-                const response = await fetch('http://localhost:3000/api/get-new-token', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ cookies: cookies })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showSuccess('Token đã được làm mới thành công!');
-                    // Cập nhật token status
-                    setTimeout(() => {
-                        checkTokenStatus();
-                    }, 1000);
-                } else {
-                    if (result.message && result.message.includes('invalid')) {
-                        showError('❌ Cookies đã hết hạn hoặc không hợp lệ. Vui lòng lấy cookies mới từ Google Labs.');
-                    } else {
-                        showError(result.message || 'Không thể làm mới token');
-                    }
-                }
-            } catch (error) {
-                console.error('Auto refresh token error:', error);
-                showError('Lỗi khi làm mới token: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
-        }
+        // (đã bỏ API làm mới token)
 
 
 
         // Dừng polling và token monitoring khi rời khỏi trang
         window.addEventListener('beforeunload', () => {
             stopPolling();
-            stopTokenMonitoring();
         });
     </script>
 </body>
