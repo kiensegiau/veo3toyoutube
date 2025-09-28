@@ -239,8 +239,8 @@
         <div class="content">
             <form id="videoForm">
                 <div class="form-group">
-                    <label for="prompt">📝 Mô tả video bạn muốn tạo</label>
-                    <input type="text" id="prompt" name="prompt" placeholder="Ví dụ: a cat playing piano in space" value="cat">
+                    <label for="prompts">📝 Mô tả video bạn muốn tạo (mỗi dòng một prompt)</label>
+                    <textarea id="prompts" name="prompts" rows="6" placeholder="Ví dụ:\na cat playing piano in space\na dog surfing a wave\na robot dancing in the rain">cat</textarea>
                 </div>
 
                 <button type="submit" class="btn btn-success">🎬 Tạo Video</button>
@@ -259,54 +259,34 @@
             </div>
 
             <div id="response"></div>
+            <div id="batchTable" style="margin-top: 20px;"></div>
             <div id="videoResult"></div>
             <div id="history"></div>
         </div>
     </div>
 
     <script>
-        let pollingInterval = null;
+        let pollingInterval = null; // dùng cho chế độ cũ (đơn lẻ)
         let currentRequestId = null;
+        const rowIntervals = {}; // id -> setInterval handle
+        const opByRow = {}; // id -> operationName
 
         // Xử lý form submit
         document.getElementById('videoForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData);
-            
-            showLoading(true);
+            const raw = document.getElementById('prompts').value || '';
+            const prompts = raw.split('\n').map(s => s.trim()).filter(Boolean);
+
+            if (prompts.length === 0) {
+                showError('Vui lòng nhập ít nhất một prompt.');
+                return;
+            }
+
             clearResponse();
             clearVideoResult();
-            
-            try {
-                const response = await fetch('http://localhost:3000/api/create-video', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-
-                if (result.success) {
-                    showSuccess(`Video generation request sent for: "${data.prompt}"`);
-                    showResponse(result);
-                    
-                    // Lưu request ID để polling
-                    currentRequestId = result.requestId;
-                    
-                    // Tự động bắt đầu kiểm tra trạng thái
-                    startPolling();
-                } else {
-                    showError(result.message || 'Có lỗi xảy ra');
-                }
-            } catch (error) {
-                showError('Lỗi kết nối: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+            renderBatchTable(prompts);
+            await sendAllPromptsWithDelay(prompts, 1000);
         });
 
         // Kiểm tra trạng thái
@@ -403,6 +383,104 @@
                 console.error('Lỗi kiểm tra trạng thái:', error);
                 updatePollingMessage('Lỗi kiểm tra trạng thái: ' + error.message);
             }
+        }
+
+        // Hiển thị bảng batch
+        function renderBatchTable(prompts) {
+            const container = document.getElementById('batchTable');
+            let html = '<div class="history"><h3>📦 Hàng đợi tạo video</h3>';
+            html += '<table style="width:100%; border-collapse: collapse; background: #fff;">';
+            html += '<thead><tr style="text-align:left; background:#f8f9fa;"><th style="padding:8px; border-bottom:1px solid #e5e7eb;">#</th><th style="padding:8px; border-bottom:1px solid #e5e7eb;">Prompt</th><th style="padding:8px; border-bottom:1px solid #e5e7eb;">Trạng thái</th><th style="padding:8px; border-bottom:1px solid #e5e7eb;">Chi tiết</th></tr></thead>';
+            html += '<tbody id="batchRows">';
+            prompts.forEach((p, i) => {
+                html += `<tr id="row-${i}">
+                    <td style="padding:8px; border-bottom:1px solid #f1f5f9;">${i+1}</td>
+                    <td style="padding:8px; border-bottom:1px solid #f1f5f9;">${escapeHtml(p)}<div id="op-${i}" style="color:#64748b; font-size:12px; margin-top:4px;"></div></td>
+                    <td style="padding:8px; border-bottom:1px solid #f1f5f9;" id="status-${i}">⏳ Chờ</td>
+                    <td style="padding:8px; border-bottom:1px solid #f1f5f9;" id="detail-${i}">-</td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        function updateRowStatus(index, status, detailHtml) {
+            const s = document.getElementById(`status-${index}`);
+            const d = document.getElementById(`detail-${index}`);
+            if (s) s.textContent = status;
+            if (d) d.innerHTML = detailHtml || '-';
+        }
+
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        function escapeHtml(s) {
+            return s
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Gửi tất cả prompts với delay giữa các request, không đợi hoàn tất
+        async function sendAllPromptsWithDelay(prompts, delayMs) {
+            for (let i = 0; i < prompts.length; i++) {
+                const prompt = prompts[i];
+                try {
+                    updateRowStatus(i, '🚀 Đang gửi yêu cầu', '-');
+                    const createRes = await fetch('http://localhost:3000/api/create-video', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt })
+                    });
+                    const createData = await createRes.json();
+                    if (!createRes.ok || !createData.success) {
+                        updateRowStatus(i, '❌ Lỗi tạo yêu cầu', escapeHtml(createData.message || 'Unknown error'));
+                    } else {
+                        updateRowStatus(i, '🔎 Đang tạo...', 'Đang chờ video hoàn tất');
+                        if (createData.operationName) {
+                            opByRow[i] = createData.operationName;
+                            const opEl = document.getElementById(`op-${i}`);
+                            if (opEl) opEl.textContent = `operation: ${createData.operationName}`;
+                            startRowPolling(i, createData.operationName);
+                        }
+                    }
+                } catch (err) {
+                    updateRowStatus(i, '❌ Lỗi', escapeHtml(err.message));
+                }
+                // Nghỉ delay giữa các lần gửi
+                await sleep(delayMs);
+            }
+        }
+
+        function startRowPolling(index, operationName) {
+            if (rowIntervals[index]) clearInterval(rowIntervals[index]);
+            rowIntervals[index] = setInterval(async () => {
+                try {
+                    const statusRes = await fetch('http://localhost:3000/api/check-status', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ operationName })
+                    });
+                    const statusData = await statusRes.json();
+                    if (statusData.videoStatus === 'COMPLETED') {
+                        const videoUrl = statusData.videoUrl || (statusData.downloadInfo && statusData.downloadInfo.filePath) || '';
+                        const localInfo = statusData.downloadInfo && statusData.downloadInfo.success
+                            ? `<div><strong>Local:</strong> <a href="${statusData.downloadInfo.filePath}" target="_blank">${statusData.downloadInfo.filePath}</a></div>`
+                            : '';
+                        const link = videoUrl ? `<div><strong>URL:</strong> <a href="${videoUrl}" target="_blank">Mở video</a></div>` : '';
+                        updateRowStatus(index, '✅ Hoàn tất', `${localInfo}${link}` || 'Đã xong');
+                        clearInterval(rowIntervals[index]);
+                    } else if (statusData.videoStatus === 'FAILED') {
+                        updateRowStatus(index, '❌ Thất bại', escapeHtml(statusData.errorMessage || 'Unknown error'));
+                        clearInterval(rowIntervals[index]);
+                    } else {
+                        updateRowStatus(index, '⏳ Đang tạo...', 'Vui lòng chờ...');
+                    }
+                } catch (e) {
+                    updateRowStatus(index, '⚠️ Lỗi tạm thời', escapeHtml(e.message));
+                }
+            }, 1500);
         }
 
         // Trích xuất video URL từ response

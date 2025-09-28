@@ -4,6 +4,7 @@ const fetch = require('node-fetch');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const crypto = require('crypto');
 const url = require('url');
 
 const app = express();
@@ -38,6 +39,12 @@ let requestHistory = [];
 let currentOperationName = null;
 let currentCookies = null;
 let tokenExpiryTime = null;
+// Track downloaded operations to prevent duplicate downloads
+const downloadedOperations = new Set();
+// Map operation -> prompt for traceability
+const operationToPrompt = new Map();
+// Map operation -> last logged status to reduce log noise
+const operationLastStatus = new Map();
 
 // File paths for persistent storage
 const STORAGE_FILE = 'server-storage.json';
@@ -267,10 +274,12 @@ app.post('/api/create-video', async (req, res) => {
                 },
                 videoModelKey: videoModel,
                 metadata: {
-                    sceneId: "230cd0fb-ce97-4a26-87a5-3b707b33ea60"
+                    sceneId: crypto.randomUUID()
                 }
             }]
         };
+
+        console.log('🧾 Create request body (sent to Labs):', JSON.stringify(requestBody, null, 2));
 
         // Gọi Google Labs API
         const response = await fetch(`${GOOGLE_LABS_CONFIG.baseUrl}/video:batchAsyncGenerateVideoText`, {
@@ -283,6 +292,22 @@ app.post('/api/create-video', async (req, res) => {
         });
 
         const responseData = await response.json();
+        // Log đầy đủ phản hồi gốc từ Google Labs cho request tạo video
+        try {
+            console.log('🧾 Create response (raw from Labs):');
+            console.log(JSON.stringify(responseData, null, 2));
+            // Đồng thời lưu ra file để dễ xem nếu console bị cắt bớt
+            const logsDir = path.join(__dirname, 'logs');
+            if (!fs.existsSync(logsDir)) {
+                fs.mkdirSync(logsDir, { recursive: true });
+            }
+            const opName = (responseData.operations && responseData.operations[0] && responseData.operations[0].operation && responseData.operations[0].operation.name) || 'unknown_operation';
+            const fileName = `create-response-${Date.now()}-${opName}.json`;
+            fs.writeFileSync(path.join(logsDir, fileName), JSON.stringify(responseData, null, 2));
+            console.log(`📝 Saved create response to logs/${fileName}`);
+        } catch (logError) {
+            console.error('❌ Error saving logs:', logError);
+        }
 
         // Kiểm tra token hết hạn
         if (response.status === 401 || (responseData.error && responseData.error.message && responseData.error.message.includes('token'))) {
@@ -298,6 +323,8 @@ app.post('/api/create-video', async (req, res) => {
         // Lưu operation name từ response
         if (responseData.operations && responseData.operations[0]) {
             currentOperationName = responseData.operations[0].operation.name;
+            // Map operation -> prompt để đối chiếu
+            operationToPrompt.set(currentOperationName, prompt);
             console.log(`🔑 Operation name saved: ${currentOperationName}`);
             
             // Lưu vào file
@@ -346,9 +373,17 @@ app.post('/api/check-status', async (req, res) => {
         // Kiểm tra và tự động làm mới token nếu cần
         await checkAndRefreshTokenIfNeeded();
 
-        // Sử dụng operation name từ request gần nhất
-        const operationName = currentOperationName || '68f5eaa4f87ccc2150734fe733aaa768';
-        const sceneId = '230cd0fb-ce97-4a26-87a5-3b707b33ea60';
+        // Cho phép truyền operationName để hỗ trợ nhiều yêu cầu song song
+        const { operationName: opFromClient } = req.body || {};
+        // Sử dụng operation name từ client nếu có, nếu không dùng cái đang lưu gần nhất
+        const operationName = opFromClient || currentOperationName || null;
+        if (!operationName) {
+            return res.status(400).json({
+                success: false,
+                message: 'operationName is required',
+            });
+        }
+        const sceneId = 'b1faf88f-abdb-413a-adcb-764e381e77a1';
         const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSmHMCsjst08D1lbD9c9Kulmsv_47Dfpf7IhVVqyQCnUWujtZLHqEq2iPq2DAonE6Wfqwwi2kV3QcacyUMgdhuPwvav5nds7oraZsh_jsLtQSEZqbq8u_iitJ_FG2C0lCJ6yRtDaZpKxl7pLoZGGUWwWpyXmn3RU55cjP7bn5AWI3PftW-sN9vWVA5arBWlt-Rhmd_8ZdoqEpTiNJAi0HMktnI4VBCLIFnQjiEbqnG0yfDEe0vnE2Fn0IYbnzb9qkChdwD8cqAjKWL-tcGvk_JhVom095GGp-u-qa3pqvf7FyZemlClhrTGLRCLZz1mhZy_rkCh9QdNOV88lGEU53FWR_ewQVbH0FkbaCgYKASoSARYSFQHGX2MibJ4eqg_dzfhkZg1y4i2PeQ0367';
 
         console.log(`🔍 Checking status with operation: ${operationName}`);
@@ -395,13 +430,45 @@ app.post('/api/check-status', async (req, res) => {
         
         if (responseData.responses && responseData.responses.length > 0) {
             videoResponse = responseData.responses[0];
-            console.log(`📊 Video response status: ${videoResponse.status}`);
+        // no-op: will log selectively below
         } else if (responseData.operations && responseData.operations.length > 0) {
             videoResponse = responseData.operations[0];
-            console.log(`📊 Operation status: ${videoResponse.status}`);
+            // no-op: will log selectively below
+        }
+        
+        // Debug: Log toàn bộ response để kiểm tra
+        console.log(`🔍 Full response for operation ${operationName}:`, JSON.stringify(responseData, null, 2));
+        
+        // Tìm đúng operation trong response dựa trên operationName
+        if (responseData.operations && responseData.operations.length > 0) {
+            console.log(`🔍 Looking for operation: ${operationName}`);
+            console.log(`🔍 Available operations:`, responseData.operations.map(op => op.operation?.name));
+            
+            const targetOperation = responseData.operations.find(op => 
+                op.operation && op.operation.name === operationName
+            );
+            
+            if (targetOperation) {
+                videoResponse = targetOperation;
+                console.log(`✅ Found target operation ${operationName}:`, targetOperation.status);
+            } else {
+                console.log(`❌ Operation ${operationName} not found in response!`);
+                console.log(`📋 Available operations:`, responseData.operations.map(op => ({
+                    name: op.operation?.name,
+                    status: op.status
+                })));
+                // Không dùng operation khác, trả về PENDING
+                videoResponse = null;
+            }
         }
         
         if (videoResponse) {
+            const last = operationLastStatus.get(operationName);
+            if (last !== videoResponse.status) {
+                console.log(`🎬 ${operationName} -> ${videoResponse.status}`);
+                operationLastStatus.set(operationName, videoResponse.status);
+            }
+            
             if (videoResponse.status === 'MEDIA_GENERATION_STATUS_COMPLETED' || 
                 videoResponse.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
                 status = 'COMPLETED';
@@ -409,10 +476,13 @@ app.post('/api/check-status', async (req, res) => {
                 // Tìm video URL trong response
                 if (videoResponse.videoUrl) {
                     videoUrl = videoResponse.videoUrl;
+                    console.log(`🎥 Found video URL directly: ${videoUrl}`);
                 } else if (videoResponse.video && videoResponse.video.url) {
                     videoUrl = videoResponse.video.url;
+                    console.log(`🎥 Found video URL in video.url: ${videoUrl}`);
                 } else if (videoResponse.mediaUrl) {
                     videoUrl = videoResponse.mediaUrl;
+                    console.log(`🎥 Found video URL in mediaUrl: ${videoUrl}`);
                 } else if (videoResponse.operation && videoResponse.operation.metadata && videoResponse.operation.metadata.video) {
                     // Tìm video URL trong metadata
                     const videoData = videoResponse.operation.metadata.video;
@@ -424,31 +494,43 @@ app.post('/api/check-status', async (req, res) => {
                         console.log(`🎥 Found video URL in servingBaseUri: ${videoUrl}`);
                     }
                 }
+                
+                if (videoUrl) {
+                    console.log(`✅ Video ready for operation ${operationName}: ${videoUrl}`);
+                } else {
+                    console.log(`⚠️ No video URL found for operation ${operationName}`);
+                }
             } else if (videoResponse.status === 'MEDIA_GENERATION_STATUS_FAILED') {
                 status = 'FAILED';
                 if (videoResponse.error) {
                     errorMessage = videoResponse.error.message;
                 }
+                console.log(`❌ Video failed for operation ${operationName}: ${errorMessage}`);
+            } else {
+                console.log(`⏳ Video still processing for operation ${operationName}: ${videoResponse.status}`);
             }
+        } else {
+            console.log(`⚠️ No video response found for operation ${operationName}`);
         }
 
         console.log(`📊 Final status: ${status}, URL: ${videoUrl ? 'Found' : 'Not found'}`);
 
-        // Nếu video đã hoàn thành hoặc thất bại, clear operation name
-        if (status === 'COMPLETED' || status === 'FAILED') {
-            console.log('✅ Video processing finished, clearing operation name');
-            currentOperationName = null;
-            saveStorageData();
-        }
+        // Nếu client truyền operationName thì không can thiệp biến toàn cục
+        // Giữ nguyên currentOperationName để không ảnh hưởng các request khác đang chạy
 
         // Nếu video hoàn thành, tải video về máy
         let downloadInfo = null;
         if (status === 'COMPLETED' && videoUrl && operationName) {
+            if (downloadedOperations.has(operationName)) {
+                console.log(`⚠️ Video for operation ${operationName} already downloaded, skipping.`);
+            } else {
             try {
                 downloadInfo = await downloadVideo(videoUrl, operationName);
+                downloadedOperations.add(operationName);
             } catch (error) {
                 console.error('❌ Lỗi tải video:', error);
                 downloadInfo = { success: false, error: error.message };
+            }
             }
         }
 
@@ -460,6 +542,8 @@ app.post('/api/check-status', async (req, res) => {
             videoUrl: videoUrl,
             errorMessage: errorMessage,
             downloadInfo: downloadInfo,
+            operationName: operationName,
+            prompt: operationToPrompt.get(operationName) || null,
             message: status === 'COMPLETED' ? 'Video đã sẵn sàng!' : 
                     status === 'FAILED' ? `Video generation failed: ${errorMessage}` : 
                     'Video đang được tạo...'
