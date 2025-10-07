@@ -46,6 +46,27 @@ const operationToPrompt = new Map();
 // Map operation -> last logged status to reduce log noise
 const operationLastStatus = new Map();
 
+// Helper: normalize any input (string/object/array/number) to a text prompt
+function normalizeInputToPrompt(input, defaultValue = 'cat') {
+    if (input === undefined || input === null) {
+        return defaultValue;
+    }
+    if (typeof input === 'string') {
+        return input.trim() || defaultValue;
+    }
+    try {
+        // Compact JSON to a single-line string for use as text prompt
+        return JSON.stringify(input);
+    } catch (_) {
+        return String(input);
+    }
+}
+
+// Auto batch poll config
+const AUTO_BATCH_POLL = process.env.AUTO_BATCH_POLL !== 'false';
+const AUTO_BATCH_INTERVAL_MS = Number(process.env.AUTO_BATCH_INTERVAL_MS || 15000);
+let isBatchPolling = false;
+
 // File paths for persistent storage
 const STORAGE_FILE = 'server-storage.json';
 
@@ -253,7 +274,9 @@ app.get('/', (req, res) => {
 // API endpoint để tạo video từ text (chỉ nhận prompt, còn lại mặc định)
 app.post('/api/create-video', async (req, res) => {
     try {
-        const { prompt = 'cat' } = req.body;
+        // Cho phép client gửi "input" là JSON hoặc text; chuyển thành text prompt
+        const rawInput = (req.body && (req.body.input !== undefined ? req.body.input : req.body.prompt)) ?? 'cat';
+        const prompt = normalizeInputToPrompt(rawInput, 'cat');
 
         const aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT';
         const videoModel = 'veo_3_0_t2v_portrait';
@@ -347,6 +370,8 @@ app.post('/api/create-video', async (req, res) => {
         };
 
         requestHistory.push(requestRecord);
+        // Persist history immediately so auto-poll survives restarts
+        saveStorageData();
 
         console.log(`✅ Video generation request sent for: "${prompt}"`);
         console.log(`📊 Response status: ${response.status}`);
@@ -522,13 +547,15 @@ app.post('/api/check-status', async (req, res) => {
 
         // Nếu video hoàn thành, tải video về máy
         let downloadInfo = null;
-        if (status === 'COMPLETED' && videoUrl && operationName) {
+            if (status === 'COMPLETED' && videoUrl && operationName) {
             if (downloadedOperations.has(operationName)) {
                 console.log(`⚠️ Video for operation ${operationName} already downloaded, skipping.`);
             } else {
             try {
                 downloadInfo = await downloadVideo(videoUrl, operationName);
                 downloadedOperations.add(operationName);
+                // Persist state so we don't redownload after restart
+                saveStorageData();
             } catch (error) {
                 console.error('❌ Lỗi tải video:', error);
                 downloadInfo = { success: false, error: error.message };
@@ -556,6 +583,141 @@ app.post('/api/check-status', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error checking video status',
+            error: error.message
+        });
+    }
+});
+
+// API endpoint batch: kiểm tra nhiều operation cùng lúc và tải về nếu hoàn tất
+app.post('/api/check-status-batch', async (req, res) => {
+    try {
+        await checkAndRefreshTokenIfNeeded();
+
+        const { operationNames } = req.body || {};
+
+        // Nếu không truyền, tự gom tất cả operation đã từng tạo nhưng chưa tải về
+        let targets = Array.isArray(operationNames) && operationNames.length > 0
+            ? operationNames
+            : Array.from(new Set(
+                (requestHistory || [])
+                    .map(r => r.operationName)
+                    .filter(Boolean)
+                    .filter(name => !downloadedOperations.has(name))
+              ));
+
+        if (!targets || targets.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No operations to check',
+                items: []
+            });
+        }
+
+        const sceneId = 'de9f5b99-d622-4082-86ee-6328493bf4f3';
+        const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSnBX7lJ4bxR-J3fc9-iXuwJd1NKbx1qdOUG6_Fw0j8h65RMxSd5pjjYqupyAcjY0xieKFByxiTIUtxYh8RnM_6tVf8UdHKeoSkhdrAClhNdO_CBa94faAQo_Rq2Y66mIu7YVavsoutsn7UvpTTNfVaXfwbaI6JnJn-TyOb5w8pP_TULOP8uxWNaH7ojKdLwVbAqcBe0Vd3J51hpz4Wp1E2oYvRaxxh7qMIna5ve2tJ3AiJIhBEEvDUjbiksBr3c1Vtun1GaViob2AL-gOxyuAIxW9SrWz4gHxbqL9TFcF1taS5qg42GKjKq5b86VkmSjXC3Le4P80e8FoXZTzZK6ZLrfxC6j9F2XnbnxeJaCgYKAY8SARYSFQHGX2MiwvuTZP7Xac8hSylpUmwIqQ0371';
+
+        console.log(`🔍 Batch checking ${targets.length} operations`);
+
+        const requestBody = {
+            operations: targets.map(name => ({
+                operation: { name },
+                sceneId: sceneId,
+                status: 'MEDIA_GENERATION_STATUS_PENDING'
+            }))
+        };
+
+        const response = await fetch(`${GOOGLE_LABS_CONFIG.baseUrl}/video:batchCheckAsyncVideoGenerationStatus`, {
+            method: 'POST',
+            headers: { ...GOOGLE_LABS_CONFIG.headers, 'authorization': authorization },
+            body: JSON.stringify(requestBody)
+        });
+
+        const responseData = await response.json();
+
+        if (response.status === 401 || (responseData.error && responseData.error.message && responseData.error.message.includes('token'))) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authorization token expired. Please update your token in the form.',
+                error: 'TOKEN_EXPIRED',
+                needsNewToken: true
+            });
+        }
+
+        const operations = Array.isArray(responseData.operations) ? responseData.operations : [];
+        const byName = new Map();
+        for (const op of operations) {
+            const name = op && op.operation && op.operation.name;
+            if (name) byName.set(name, op);
+        }
+
+        const results = [];
+        for (const name of targets) {
+            const op = byName.get(name);
+            let status = 'PENDING';
+            let videoUrl = null;
+            let errorMessage = null;
+
+            if (op) {
+                const last = operationLastStatus.get(name);
+                if (last !== op.status) {
+                    console.log(`🎬 ${name} -> ${op.status}`);
+                    operationLastStatus.set(name, op.status);
+                }
+
+                if (op.status === 'MEDIA_GENERATION_STATUS_COMPLETED' || op.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
+                    status = 'COMPLETED';
+                    // Tìm url
+                    if (op.videoUrl) videoUrl = op.videoUrl;
+                    else if (op.video && op.video.url) videoUrl = op.video.url;
+                    else if (op.mediaUrl) videoUrl = op.mediaUrl;
+                    else if (op.operation && op.operation.metadata && op.operation.metadata.video) {
+                        const videoData = op.operation.metadata.video;
+                        if (videoData.fifeUrl) videoUrl = videoData.fifeUrl;
+                        else if (videoData.servingBaseUri) videoUrl = videoData.servingBaseUri;
+                    }
+                } else if (op.status === 'MEDIA_GENERATION_STATUS_FAILED') {
+                    status = 'FAILED';
+                    errorMessage = op.error ? op.error.message : null;
+                }
+            }
+
+            let downloadInfo = null;
+            if (status === 'COMPLETED' && videoUrl && name) {
+                if (downloadedOperations.has(name)) {
+                    console.log(`⚠️ Video for operation ${name} already downloaded, skipping.`);
+                } else {
+                    try {
+                        downloadInfo = await downloadVideo(videoUrl, name);
+                        downloadedOperations.add(name);
+                        // Persist to avoid redownloads after restart
+                        saveStorageData();
+                    } catch (e) {
+                        console.error('❌ Lỗi tải video:', e);
+                        downloadInfo = { success: false, error: e.message };
+                    }
+                }
+            }
+
+            results.push({
+                operationName: name,
+                videoStatus: status,
+                videoUrl,
+                errorMessage,
+                downloadInfo,
+                prompt: operationToPrompt.get(name) || null
+            });
+        }
+
+        res.json({
+            success: true,
+            status: response.status,
+            items: results
+        });
+    } catch (error) {
+        console.error('❌ Error batch checking status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error batch checking video status',
             error: error.message
         });
     }
@@ -836,6 +998,92 @@ app.listen(PORT, () => {
     
     // Load storage data on startup
     loadStorageData();
+
+    // Auto background batch poll unfinished operations
+    if (AUTO_BATCH_POLL) {
+        console.log(`⏱️ Auto batch polling enabled (interval ${AUTO_BATCH_INTERVAL_MS} ms)`);
+        setInterval(async () => {
+            if (isBatchPolling) return; // avoid overlap
+            isBatchPolling = true;
+            try {
+                // Tập các operation chưa tải về trong history
+                const pending = Array.from(new Set(
+                    (requestHistory || [])
+                        .map(r => r.operationName)
+                        .filter(Boolean)
+                        .filter(name => !downloadedOperations.has(name))
+                ));
+
+                if (pending.length === 0) {
+                    isBatchPolling = false;
+                    return;
+                }
+
+                console.log(`⏱️ Auto batch polling ${pending.length} operations...`);
+
+                const sceneId = 'de9f5b99-d622-4082-86ee-6328493bf4f3';
+                const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSnBX7lJ4bxR-J3fc9-iXuwJd1NKbx1qdOUG6_Fw0j8h65RMxSd5pjjYqupyAcjY0xieKFByxiTIUtxYh8RnM_6tVf8UdHKeoSkhdrAClhNdO_CBa94faAQo_Rq2Y66mIu7YVavsoutsn7UvpTTNfVaXfwbaI6JnJn-TyOb5w8pP_TULOP8uxWNaH7ojKdLwVbAqcBe0Vd3J51hpz4Wp1E2oYvRaxxh7qMIna5ve2tJ3AiJIhBEEvDUjbiksBr3c1Vtun1GaViob2AL-gOxyuAIxW9SrWz4gHxbqL9TFcF1taS5qg42GKjKq5b86VkmSjXC3Le4P80e8FoXZTzZK6ZLrfxC6j9F2XnbnxeJaCgYKAY8SARYSFQHGX2MiwvuTZP7Xac8hSylpUmwIqQ0371';
+
+                // Best-effort refresh before polling
+                try { await checkAndRefreshTokenIfNeeded(); } catch (_) {}
+
+                const requestBody = {
+                    operations: pending.map(name => ({
+                        operation: { name },
+                        sceneId: sceneId,
+                        status: 'MEDIA_GENERATION_STATUS_PENDING'
+                    }))
+                };
+
+                const response = await fetch(`${GOOGLE_LABS_CONFIG.baseUrl}/video:batchCheckAsyncVideoGenerationStatus`, {
+                    method: 'POST',
+                    headers: { ...GOOGLE_LABS_CONFIG.headers, 'authorization': authorization },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const responseData = await response.json();
+                const operations = Array.isArray(responseData.operations) ? responseData.operations : [];
+                const byName = new Map();
+                for (const op of operations) {
+                    const name = op && op.operation && op.operation.name;
+                    if (name) byName.set(name, op);
+                }
+
+                for (const name of pending) {
+                    const op = byName.get(name);
+                    if (!op) continue;
+
+                    if (op.status === 'MEDIA_GENERATION_STATUS_COMPLETED' || op.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
+                        let videoUrl = null;
+                        if (op.videoUrl) videoUrl = op.videoUrl;
+                        else if (op.video && op.video.url) videoUrl = op.video.url;
+                        else if (op.mediaUrl) videoUrl = op.mediaUrl;
+                        else if (op.operation && op.operation.metadata && op.operation.metadata.video) {
+                            const videoData = op.operation.metadata.video;
+                            if (videoData.fifeUrl) videoUrl = videoData.fifeUrl;
+                            else if (videoData.servingBaseUri) videoUrl = videoData.servingBaseUri;
+                        }
+
+                        if (videoUrl && !downloadedOperations.has(name)) {
+                            try {
+                                await downloadVideo(videoUrl, name);
+                                downloadedOperations.add(name);
+                                saveStorageData();
+                            } catch (e) {
+                                console.error('❌ Auto-poll download error:', e);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('❌ Auto batch poll error:', e);
+            } finally {
+                isBatchPolling = false;
+            }
+        }, AUTO_BATCH_INTERVAL_MS);
+    } else {
+        console.log('⏱️ Auto batch polling disabled');
+    }
 });
 
 module.exports = app;
