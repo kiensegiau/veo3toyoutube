@@ -206,7 +206,7 @@ async function checkAndRefreshTokenIfNeeded() {
                     'accept': '*/*',
                     'accept-language': 'vi,en-US;q=0.9,en;q=0.8,fr-FR;q=0.7,fr;q=0.6',
                     'content-type': 'application/json',
-                    'if-none-match': '"1yz198yxsxhs"',
+                    'if-none-match': '"4342okzyx0hz"',
                     'priority': 'u=1, i',
                     'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
                     'sec-ch-ua-mobile': '?0',
@@ -216,7 +216,7 @@ async function checkAndRefreshTokenIfNeeded() {
                     'sec-fetch-site': 'same-origin',
                     'cookie': currentCookies
                 },
-                referrer: 'https://labs.google/fx/tools/flow/project/47cbfda6-db06-47d8-9b06-1cb5dcc40356',
+                referrer: 'https://labs.google/fx/tools/flow/project/42bd5064-e313-4f9e-9a0c-40865bf79b88',
                 credentials: 'include'
             });
 
@@ -256,17 +256,17 @@ app.post('/api/create-video', async (req, res) => {
         const { prompt = 'cat' } = req.body;
 
         const aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT';
-        const videoModel = 'veo_3_0_t2v_fast_portrait';
-        const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSmHMCsjst08D1lbD9c9Kulmsv_47Dfpf7IhVVqyQCnUWujtZLHqEq2iPq2DAonE6Wfqwwi2kV3QcacyUMgdhuPwvav5nds7oraZsh_jsLtQSEZqbq8u_iitJ_FG2C0lCJ6yRtDaZpKxl7pLoZGGUWwWpyXmn3RU55cjP7bn5AWI3PftW-sN9vWVA5arBWlt-Rhmd_8ZdoqEpTiNJAi0HMktnI4VBCLIFnQjiEbqnG0yfDEe0vnE2Fn0IYbnzb9qkChdwD8cqAjKWL-tcGvk_JhVom095GGp-u-qa3pqvf7FyZemlClhrTGLRCLZz1mhZy_rkCh9QdNOV88lGEU53FWR_ewQVbH0FkbaCgYKASoSARYSFQHGX2MibJ4eqg_dzfhkZg1y4i2PeQ0367';
+        const videoModel = 'veo_3_0_t2v_portrait';
+        const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSnBX7lJ4bxR-J3fc9-iXuwJd1NKbx1qdOUG6_Fw0j8h65RMxSd5pjjYqupyAcjY0xieKFByxiTIUtxYh8RnM_6tVf8UdHKeoSkhdrAClhNdO_CBa94faAQo_Rq2Y66mIu7YVavsoutsn7UvpTTNfVaXfwbaI6JnJn-TyOb5w8pP_TULOP8uxWNaH7ojKdLwVbAqcBe0Vd3J51hpz4Wp1E2oYvRaxxh7qMIna5ve2tJ3AiJIhBEEvDUjbiksBr3c1Vtun1GaViob2AL-gOxyuAIxW9SrWz4gHxbqL9TFcF1taS5qg42GKjKq5b86VkmSjXC3Le4P80e8FoXZTzZK6ZLrfxC6j9F2XnbnxeJaCgYKAY8SARYSFQHGX2MiwvuTZP7Xac8hSylpUmwIqQ0371';
 
         console.log(`🎬 Tạo video với prompt: "${prompt}"`);
 
         // Tạo request body (mặc định cho mọi thông số ngoài prompt)
         const requestBody = {
             clientContext: {
-                projectId: "47cbfda6-db06-47d8-9b06-1cb5dcc40356",
+                projectId: "42bd5064-e313-4f9e-9a0c-40865bf79b88",
                 tool: "PINHOLE",
-                userPaygateTier: "PAYGATE_TIER_ONE"
+                userPaygateTier: "PAYGATE_TIER_TWO"
             },
             requests: [{
                 aspectRatio: aspectRatio,
@@ -385,8 +385,8 @@ app.post('/api/check-status', async (req, res) => {
                 message: 'operationName is required',
             });
         }
-        const sceneId = 'b1faf88f-abdb-413a-adcb-764e381e77a1';
-        const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSmHMCsjst08D1lbD9c9Kulmsv_47Dfpf7IhVVqyQCnUWujtZLHqEq2iPq2DAonE6Wfqwwi2kV3QcacyUMgdhuPwvav5nds7oraZsh_jsLtQSEZqbq8u_iitJ_FG2C0lCJ6yRtDaZpKxl7pLoZGGUWwWpyXmn3RU55cjP7bn5AWI3PftW-sN9vWVA5arBWlt-Rhmd_8ZdoqEpTiNJAi0HMktnI4VBCLIFnQjiEbqnG0yfDEe0vnE2Fn0IYbnzb9qkChdwD8cqAjKWL-tcGvk_JhVom095GGp-u-qa3pqvf7FyZemlClhrTGLRCLZz1mhZy_rkCh9QdNOV88lGEU53FWR_ewQVbH0FkbaCgYKASoSARYSFQHGX2MibJ4eqg_dzfhkZg1y4i2PeQ0367';
+        const sceneId = 'de9f5b99-d622-4082-86ee-6328493bf4f3';
+        const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSnBX7lJ4bxR-J3fc9-iXuwJd1NKbx1qdOUG6_Fw0j8h65RMxSd5pjjYqupyAcjY0xieKFByxiTIUtxYh8RnM_6tVf8UdHKeoSkhdrAClhNdO_CBa94faAQo_Rq2Y66mIu7YVavsoutsn7UvpTTNfVaXfwbaI6JnJn-TyOb5w8pP_TULOP8uxWNaH7ojKdLwVbAqcBe0Vd3J51hpz4Wp1E2oYvRaxxh7qMIna5ve2tJ3AiJIhBEEvDUjbiksBr3c1Vtun1GaViob2AL-gOxyuAIxW9SrWz4gHxbqL9TFcF1taS5qg42GKjKq5b86VkmSjXC3Le4P80e8FoXZTzZK6ZLrfxC6j9F2XnbnxeJaCgYKAY8SARYSFQHGX2MiwvuTZP7Xac8hSylpUmwIqQ0371';
 
         console.log(`🔍 Checking status with operation: ${operationName}`);
 
@@ -644,7 +644,7 @@ app.post('/api/refresh-token', async (req, res) => {
                 'sec-fetch-site': 'same-origin',
                 'cookie': currentCookies
             },
-            referrer: 'https://labs.google/fx/tools/flow/project/f6dc28c9-5dda-480d-a363-6114365e1a6a',
+            referrer: 'https://labs.google/fx/tools/flow/project/42bd5064-e313-4f9e-9a0c-40865bf79b88',
             credentials: 'include'
         });
 
@@ -731,7 +731,7 @@ app.post('/api/get-new-token', async (req, res) => {
                 'sec-fetch-site': 'same-origin',
                 'cookie': cookies
             },
-            referrer: 'https://labs.google/fx/tools/flow/project/f6dc28c9-5dda-480d-a363-6114365e1a6a',
+            referrer: 'https://labs.google/fx/tools/flow/project/42bd5064-e313-4f9e-9a0c-40865bf79b88',
             credentials: 'include'
         });
 
