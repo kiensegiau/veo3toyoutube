@@ -73,7 +73,7 @@ function updateCookies() {
 // Kiểm tra trạng thái token
 function checkTokenStatus() {
     console.log('\n🔍 Đang kiểm tra trạng thái token...');
-    exec('curl -s http://localhost:3000/api/token-status', (error, stdout, stderr) => {
+    exec('curl -s http://localhost:8888/api/token-status', (error, stdout, stderr) => {
         if (error) {
             console.log('❌ Server không hoạt động hoặc không thể kết nối');
         } else {

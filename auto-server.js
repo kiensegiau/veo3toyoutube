@@ -99,7 +99,7 @@ async function refreshToken() {
         console.log('🍪 Đã lấy cookies từ file cookies.json');
         
         // Gọi API để lấy token mới
-        const response = await fetch('http://localhost:3000/api/get-new-token', {
+        const response = await fetch('http://localhost:8888/api/get-new-token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -192,7 +192,7 @@ function startServer() {
             console.log('📝 Server:', output.trim());
             
             // Kiểm tra nếu server đã khởi động thành công
-            if (output.includes('Server đang chạy tại http://localhost:3000')) {
+            if (output.includes('Server đang chạy tại http://localhost:8888')) {
                 console.log('✅ Server đã khởi động thành công');
                 setTimeout(() => resolve(true), 3000); // Đợi 3 giây
             }
@@ -204,7 +204,7 @@ function startServer() {
             
             // Nếu lỗi port đã được sử dụng, dừng tất cả processes và thử lại
             if (errorOutput.includes('EADDRINUSE')) {
-                console.log('⚠️ Port 3000 đã được sử dụng, đang dừng tất cả processes...');
+                console.log('⚠️ Port 8888 đã được sử dụng, đang dừng tất cả processes...');
                 killAllNodeProcesses().then(() => {
                     console.log('🔄 Thử khởi động lại server...');
                     setTimeout(() => startServer(), 3000);

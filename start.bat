@@ -16,7 +16,7 @@ echo 🔄 Đang khởi động hệ thống tự động làm mới token...
 start /B node auto-refresh.js
 
 echo ✅ Hệ thống đã được khởi động
-echo 📋 Server: http://localhost:3000
+echo 📋 Server: http://localhost:8888
 echo 🔄 Hệ thống sẽ tự động làm mới token mỗi 30 phút
 echo ⏹️ Nhấn Ctrl+C để dừng
 

@@ -271,12 +271,31 @@
         const rowIntervals = {}; // id -> setInterval handle
         const opByRow = {}; // id -> operationName
 
+        // Chuyển input (multiline hoặc JSON) thành mảng prompts
+        function parseInputToPrompts(raw) {
+            const trimmed = (raw || '').trim();
+            if (!trimmed) return [];
+            // Thử parse JSON: hỗ trợ format có story_prompts[].prompt
+            try {
+                const obj = JSON.parse(trimmed);
+                if (obj && Array.isArray(obj.story_prompts)) {
+                    const prompts = obj.story_prompts
+                        .map(item => (item && (item.prompt || item.text || item.description)) || '')
+                        .filter(s => typeof s === 'string' && s.trim().length > 0)
+                        .map(s => s.trim());
+                    if (prompts.length > 0) return prompts;
+                }
+            } catch (_) { /* không phải JSON, fallback dòng */ }
+            // Fallback: mỗi dòng một prompt
+            return trimmed.split('\n').map(s => s.trim()).filter(Boolean);
+        }
+
         // Xử lý form submit
         document.getElementById('videoForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const raw = document.getElementById('prompts').value || '';
-            const prompts = raw.split('\n').map(s => s.trim()).filter(Boolean);
+            const prompts = parseInputToPrompts(raw);
 
             if (prompts.length === 0) {
                 showError('Vui lòng nhập ít nhất một prompt.');
@@ -295,7 +314,7 @@
             clearResponse();
             
             try {
-                const response = await fetch('http://localhost:3000/api/check-status', {
+                const response = await fetch('http://localhost:8888/api/check-status', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -340,7 +359,7 @@
         // Kiểm tra trạng thái video
         async function checkVideoStatus() {
             try {
-                const response = await fetch('http://localhost:3000/api/check-status', {
+                const response = await fetch('http://localhost:8888/api/check-status', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -428,7 +447,7 @@
                 const prompt = prompts[i];
                 try {
                     updateRowStatus(i, '🚀 Đang gửi yêu cầu', '-');
-                    const createRes = await fetch('http://localhost:3000/api/create-video', {
+                    const createRes = await fetch('http://localhost:8888/api/create-video', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ prompt })
@@ -457,7 +476,7 @@
             if (rowIntervals[index]) clearInterval(rowIntervals[index]);
             rowIntervals[index] = setInterval(async () => {
                 try {
-                    const statusRes = await fetch('http://localhost:3000/api/check-status', {
+                    const statusRes = await fetch('http://localhost:8888/api/check-status', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ operationName })
@@ -523,7 +542,7 @@
             showLoading(true);
             
             try {
-                const response = await fetch('http://localhost:3000/api/history');
+                const response = await fetch('http://localhost:8888/api/history');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -542,7 +561,7 @@
         async function clearHistory() {
             if (confirm('Bạn có chắc muốn xóa toàn bộ lịch sử?')) {
                 try {
-                    const response = await fetch('http://localhost:3000/api/history', {
+                    const response = await fetch('http://localhost:8888/api/history', {
                         method: 'DELETE'
                     });
                     

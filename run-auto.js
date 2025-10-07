@@ -151,7 +151,7 @@ async function refreshToken() {
         console.log('🍪 Đã lấy cookies từ file cookies.json');
         
         // Gọi API để lấy token mới
-        const response = await fetch('http://localhost:3000/api/get-new-token', {
+        const response = await fetch('http://localhost:8888/api/get-new-token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -187,7 +187,7 @@ async function refreshToken() {
 // Function để kiểm tra trạng thái token
 async function checkTokenStatus() {
     try {
-        const response = await fetch('http://localhost:3000/api/token-status');
+        const response = await fetch('http://localhost:8888/api/token-status');
         const data = await response.json();
         
         if (data.success) {
