@@ -279,7 +279,7 @@ app.post('/api/create-video', async (req, res) => {
         const prompt = normalizeInputToPrompt(rawInput, 'cat');
 
         const aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT';
-        const videoModel = 'veo_3_0_t2v_portrait';
+        const videoModel = 'veo_3_0_t2v_fast_portrait_ultra';
         const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSnBX7lJ4bxR-J3fc9-iXuwJd1NKbx1qdOUG6_Fw0j8h65RMxSd5pjjYqupyAcjY0xieKFByxiTIUtxYh8RnM_6tVf8UdHKeoSkhdrAClhNdO_CBa94faAQo_Rq2Y66mIu7YVavsoutsn7UvpTTNfVaXfwbaI6JnJn-TyOb5w8pP_TULOP8uxWNaH7ojKdLwVbAqcBe0Vd3J51hpz4Wp1E2oYvRaxxh7qMIna5ve2tJ3AiJIhBEEvDUjbiksBr3c1Vtun1GaViob2AL-gOxyuAIxW9SrWz4gHxbqL9TFcF1taS5qg42GKjKq5b86VkmSjXC3Le4P80e8FoXZTzZK6ZLrfxC6j9F2XnbnxeJaCgYKAY8SARYSFQHGX2MiwvuTZP7Xac8hSylpUmwIqQ0371';
 
         console.log(`🎬 Tạo video với prompt: "${prompt}"`);
@@ -410,7 +410,7 @@ app.post('/api/check-status', async (req, res) => {
                 message: 'operationName is required',
             });
         }
-        const sceneId = 'de9f5b99-d622-4082-86ee-6328493bf4f3';
+        const sceneId = '361d647b-e22b-4477-acc1-fe3aa18b5b68';
         const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSnBX7lJ4bxR-J3fc9-iXuwJd1NKbx1qdOUG6_Fw0j8h65RMxSd5pjjYqupyAcjY0xieKFByxiTIUtxYh8RnM_6tVf8UdHKeoSkhdrAClhNdO_CBa94faAQo_Rq2Y66mIu7YVavsoutsn7UvpTTNfVaXfwbaI6JnJn-TyOb5w8pP_TULOP8uxWNaH7ojKdLwVbAqcBe0Vd3J51hpz4Wp1E2oYvRaxxh7qMIna5ve2tJ3AiJIhBEEvDUjbiksBr3c1Vtun1GaViob2AL-gOxyuAIxW9SrWz4gHxbqL9TFcF1taS5qg42GKjKq5b86VkmSjXC3Le4P80e8FoXZTzZK6ZLrfxC6j9F2XnbnxeJaCgYKAY8SARYSFQHGX2MiwvuTZP7Xac8hSylpUmwIqQ0371';
 
         console.log(`🔍 Checking status with operation: ${operationName}`);
@@ -613,7 +613,7 @@ app.post('/api/check-status-batch', async (req, res) => {
             });
         }
 
-        const sceneId = 'de9f5b99-d622-4082-86ee-6328493bf4f3';
+        const sceneId = '361d647b-e22b-4477-acc1-fe3aa18b5b68';
         const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSnBX7lJ4bxR-J3fc9-iXuwJd1NKbx1qdOUG6_Fw0j8h65RMxSd5pjjYqupyAcjY0xieKFByxiTIUtxYh8RnM_6tVf8UdHKeoSkhdrAClhNdO_CBa94faAQo_Rq2Y66mIu7YVavsoutsn7UvpTTNfVaXfwbaI6JnJn-TyOb5w8pP_TULOP8uxWNaH7ojKdLwVbAqcBe0Vd3J51hpz4Wp1E2oYvRaxxh7qMIna5ve2tJ3AiJIhBEEvDUjbiksBr3c1Vtun1GaViob2AL-gOxyuAIxW9SrWz4gHxbqL9TFcF1taS5qg42GKjKq5b86VkmSjXC3Le4P80e8FoXZTzZK6ZLrfxC6j9F2XnbnxeJaCgYKAY8SARYSFQHGX2MiwvuTZP7Xac8hSylpUmwIqQ0371';
 
         console.log(`🔍 Batch checking ${targets.length} operations`);
@@ -1021,7 +1021,7 @@ app.listen(PORT, () => {
 
                 console.log(`⏱️ Auto batch polling ${pending.length} operations...`);
 
-                const sceneId = 'de9f5b99-d622-4082-86ee-6328493bf4f3';
+                const sceneId = '361d647b-e22b-4477-acc1-fe3aa18b5b68';
                 const authorization = process.env.LABS_AUTH || 'Bearer ya29.a0AQQ_BDSnBX7lJ4bxR-J3fc9-iXuwJd1NKbx1qdOUG6_Fw0j8h65RMxSd5pjjYqupyAcjY0xieKFByxiTIUtxYh8RnM_6tVf8UdHKeoSkhdrAClhNdO_CBa94faAQo_Rq2Y66mIu7YVavsoutsn7UvpTTNfVaXfwbaI6JnJn-TyOb5w8pP_TULOP8uxWNaH7ojKdLwVbAqcBe0Vd3J51hpz4Wp1E2oYvRaxxh7qMIna5ve2tJ3AiJIhBEEvDUjbiksBr3c1Vtun1GaViob2AL-gOxyuAIxW9SrWz4gHxbqL9TFcF1taS5qg42GKjKq5b86VkmSjXC3Le4P80e8FoXZTzZK6ZLrfxC6j9F2XnbnxeJaCgYKAY8SARYSFQHGX2MiwvuTZP7Xac8hSylpUmwIqQ0371';
 
                 // Best-effort refresh before polling
