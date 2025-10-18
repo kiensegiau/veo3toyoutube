@@ -257,16 +257,24 @@ async function getLabsCookies() {
         const path = require('path');
         const labsCookiesFile = path.join(__dirname, 'labs-cookies.txt');
         
+        console.log(`🔍 Kiểm tra file: ${labsCookiesFile}`);
+        
         if (!fs.existsSync(labsCookiesFile)) {
             console.log('❌ File labs-cookies.txt không tồn tại');
             return null;
         }
         
         const content = fs.readFileSync(labsCookiesFile, 'utf8');
+        console.log(`📄 File content length: ${content.length}`);
+        console.log(`📄 File content preview: ${content.substring(0, 200)}...`);
+        
         const lines = content.split('\n');
+        console.log(`📄 Total lines: ${lines.length}`);
         
         // Tìm dòng chứa cookies (bỏ qua dòng comment)
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            console.log(`📄 Line ${i}: ${line.substring(0, 50)}...`);
             if (line.trim() && !line.startsWith('#')) {
                 console.log(`🍪 Đọc Labs cookies từ file: ${line.substring(0, 100)}...`);
                 return line.trim();
@@ -416,7 +424,7 @@ app.post('/api/create-video', async (req, res) => {
         // Tạo request body (mặc định cho mọi thông số ngoài prompt)
         const requestBody = {
             clientContext: {
-                projectId: "42bd5064-e313-4f9e-9a0c-40865bf79b88",
+                projectId: "3ff8dd21-100f-444d-ba29-952225ae0d28", // Project ID mới từ F12
                 tool: "PINHOLE",
                 userPaygateTier: "PAYGATE_TIER_TWO"
             },
@@ -426,7 +434,7 @@ app.post('/api/create-video', async (req, res) => {
                 textInput: {
                     prompt: prompt
                 },
-                videoModelKey: videoModel,
+                videoModelKey: "veo_3_1_t2v_fast_portrait_ultra", // Veo 3.1 thay vì 3.0
                 metadata: {
                     sceneId: crypto.randomUUID()
                 }
@@ -435,12 +443,64 @@ app.post('/api/create-video', async (req, res) => {
 
         console.log('🧾 Create request body (sent to Labs):', JSON.stringify(requestBody, null, 2));
 
-        // Gọi Google Labs API với Labs cookies
+        // Thử lấy token thực sự từ session endpoint
+        console.log(`🔑 Đang lấy token từ session endpoint...`);
+        const sessionResponse = await fetch('https://labs.google/fx/api/auth/session', {
+            method: 'GET',
+            headers: {
+                'accept': '*/*',
+                'accept-language': 'vi,en-US;q=0.9,en;q=0.8,fr-FR;q=0.7,fr;q=0.6',
+                'content-type': 'application/json',
+                'cookie': labsCookies,
+                'referer': 'https://labs.google/fx/tools/flow',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-origin'
+            }
+        });
+        
+        let authToken = null;
+        console.log(`📊 Session response status: ${sessionResponse.status}`);
+        
+        if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            console.log(`📊 Session data:`, JSON.stringify(sessionData, null, 2));
+            
+            // Tìm token trong session data
+            if (sessionData && sessionData.user && sessionData.user.accessToken) {
+                authToken = `Bearer ${sessionData.user.accessToken}`;
+                console.log(`🔑 Found access token: ${authToken.substring(0, 50)}...`);
+            } else if (sessionData && sessionData.access_token) {
+                authToken = `Bearer ${sessionData.access_token}`;
+                console.log(`🔑 Found access token: ${authToken.substring(0, 50)}...`);
+            } else {
+                console.log(`❌ Không tìm thấy access token trong session data`);
+            }
+        } else {
+            console.log(`❌ Session response failed: ${sessionResponse.status}`);
+        }
+        
+        if (!authToken) {
+            console.log(`❌ Không tìm thấy access token, sử dụng cookies`);
+        }
+        
+        // Gọi Google Labs API với token hoặc cookies
         const response = await fetch(`${GOOGLE_LABS_CONFIG.baseUrl}/video:batchAsyncGenerateVideoText`, {
             method: 'POST',
             headers: {
-                ...GOOGLE_LABS_CONFIG.headers,
-                'Cookie': labsCookies
+                'accept': '*/*',
+                'accept-language': 'vi,en-US;q=0.9,en;q=0.8,fr-FR;q=0.7,fr;q=0.6',
+                'content-type': 'text/plain;charset=UTF-8', // Content-type từ F12
+                'priority': 'u=1, i',
+                'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"Windows"',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'cross-site',
+                'x-client-data': 'CLnnygE=', // Client data từ F12
+                'Cookie': labsCookies,
+                ...(authToken && { 'Authorization': authToken })
             },
             body: JSON.stringify(requestBody)
         });
@@ -535,6 +595,34 @@ app.post('/api/check-status', async (req, res) => {
             });
         }
 
+        // Lấy access token từ session endpoint
+        console.log(`🔑 Đang lấy token từ session endpoint...`);
+        const sessionResponse = await fetch('https://labs.google/fx/api/auth/session', {
+            method: 'GET',
+            headers: {
+                'accept': '*/*',
+                'accept-language': 'vi,en-US;q=0.9,en;q=0.8,fr-FR;q=0.7,fr;q=0.6',
+                'content-type': 'application/json',
+                'cookie': labsCookies,
+                'referer': 'https://labs.google/fx/tools/flow',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-origin'
+            }
+        });
+        
+        let authToken = null;
+        if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            if (sessionData && sessionData.user && sessionData.user.accessToken) {
+                authToken = `Bearer ${sessionData.user.accessToken}`;
+                console.log(`🔑 Found access token for check-status`);
+            } else if (sessionData && sessionData.access_token) {
+                authToken = `Bearer ${sessionData.access_token}`;
+                console.log(`🔑 Found access token for check-status`);
+            }
+        }
+
         // Cho phép truyền operationName để hỗ trợ nhiều yêu cầu song song
         const { operationName: opFromClient } = req.body || {};
         // Sử dụng operation name từ client nếu có, nếu không dùng cái đang lưu gần nhất
@@ -563,7 +651,8 @@ app.post('/api/check-status', async (req, res) => {
             method: 'POST',
             headers: {
                 ...GOOGLE_LABS_CONFIG.headers,
-                'Cookie': labsCookies
+                'Cookie': labsCookies,
+                ...(authToken && { 'Authorization': authToken })
             },
             body: JSON.stringify(requestBody)
         });
@@ -917,91 +1006,6 @@ app.get('/api/token-status', (req, res) => {
     });
 });
 
-// API endpoint để tự động làm mới token
-app.post('/api/refresh-token', async (req, res) => {
-    try {
-        if (!currentCookies) {
-            return res.status(400).json({
-                success: false,
-                message: 'No cookies available for token refresh'
-            });
-        }
-
-        console.log('🔄 Attempting to refresh token with cookies...');
-
-        // Thử lấy token mới từ Google Labs
-        const response = await fetch('https://labs.google/fx/api/auth/session', {
-            method: 'GET',
-            headers: {
-                'accept': '*/*',
-                'accept-language': 'vi,en-US;q=0.9,en;q=0.8,fr-FR;q=0.7,fr;q=0.6',
-                'content-type': 'application/json',
-                'if-none-match': '"1yz198yxsxhs"',
-                'priority': 'u=1, i',
-                'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"Windows"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'same-origin',
-                'cookie': currentCookies
-            },
-            referrer: 'https://labs.google/fx/tools/flow/project/42bd5064-e313-4f9e-9a0c-40865bf79b88',
-            credentials: 'include'
-        });
-
-        if (response.ok) {
-            const sessionData = await response.json();
-            console.log('✅ Session refreshed successfully');
-            
-            // Thử lấy token mới từ session
-            if (sessionData && sessionData.user && sessionData.user.accessToken) {
-                const newToken = `Bearer ${sessionData.user.accessToken}`;
-                console.log('🔑 New token extracted from session');
-                
-                res.json({
-                    success: true,
-                    message: 'Token refreshed successfully',
-                    authorization: newToken,
-                    sessionData: sessionData
-                });
-            } else {
-                // Nếu không có token trong session, thử lấy từ headers
-                const authHeader = response.headers.get('authorization');
-                if (authHeader) {
-                    console.log('🔑 New token extracted from headers');
-                    res.json({
-                        success: true,
-                        message: 'Token refreshed successfully',
-                        authorization: authHeader,
-                        sessionData: sessionData
-                    });
-                } else {
-                    res.json({
-                        success: true,
-                        message: 'Session refreshed but no new token found',
-                        sessionData: sessionData
-                    });
-                }
-            }
-        } else {
-            console.log('❌ Failed to refresh session');
-            res.status(401).json({
-                success: false,
-                message: 'Failed to refresh token. Cookies may be expired.',
-                needsNewCookies: true
-            });
-        }
-
-    } catch (error) {
-        console.error('❌ Error refreshing token:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error refreshing token',
-            error: error.message
-        });
-    }
-});
 
 // API endpoint để lấy token mới từ Google Labs
 app.post('/api/get-new-token', async (req, res) => {
@@ -1141,8 +1145,6 @@ app.listen(PORT, () => {
     console.log(`   GET  /api/history - Xem lịch sử requests`);
     console.log(`   DELETE /api/history - Xóa lịch sử`);
     console.log(`   GET  /api/token-status - Kiểm tra trạng thái token`);
-    console.log(`   POST /api/refresh-token - Làm mới token`);
-    console.log(`   POST /api/get-new-token - Lấy token mới từ cookies`);
     console.log(`   POST /api/extract-cookies - Tự động lấy cookies từ profile`);
     console.log(`   POST /api/extract-cookies-all - Lấy cookies từ tất cả profiles`);
     console.log(`   POST /api/open-labs-browser - Mở Chrome Labs riêng biệt`);
