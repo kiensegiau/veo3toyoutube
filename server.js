@@ -408,15 +408,31 @@ app.post('/api/create-video', async (req, res) => {
 
         const aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT';
         const videoModel = 'veo_3_0_t2v_fast_portrait_ultra';
-        // Sử dụng Labs cookies thay vì token cũ
-        const labsCookies = await getLabsCookies();
-        console.log(`🍪 Labs cookies result:`, labsCookies ? 'Found' : 'Not found');
-        if (!labsCookies) {
+        // Tự động lấy cookies mới từ Chrome Labs
+        console.log(`🔄 Tự động lấy cookies mới từ Chrome Labs...`);
+        const extractResult = await labsProfileManager.extractLabsCookies();
+        
+        if (!extractResult.success) {
             return res.status(400).json({
                 success: false,
-                message: 'Chưa có Labs cookies. Vui lòng mở Chrome Labs và lấy cookies trước.'
+                message: `Không thể lấy cookies từ Chrome Labs: ${extractResult.error}`
             });
         }
+        
+        const labsCookies = extractResult.cookies;
+        console.log(`🍪 Labs cookies mới:`, labsCookies ? 'Found' : 'Not found');
+        console.log(`🍪 Số lượng cookies: ${extractResult.cookieCount}`);
+        
+        // Cập nhật thời gian lấy cookies
+        labsProfileManager.lastExtractTime = new Date().toISOString();
+        
+        // Cập nhật currentCookies và lưu file
+        currentCookies = labsCookies;
+        tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
+        saveStorageData();
+        
+        // Lưu cookies vào file riêng
+        labsProfileManager.saveLabsCookies(labsCookies);
 
         console.log(`🎬 Tạo video với prompt: "${prompt}"`);
         console.log(`🍪 Sử dụng Labs cookies: ${labsCookies.substring(0, 100)}...`);
