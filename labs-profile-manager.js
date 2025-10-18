@@ -105,6 +105,10 @@ class LabsProfileManager {
             });
             
             console.log(`✅ Chrome Labs đã mở thành công`);
+            
+            // Tự động bật auto-extract mặc định 30 phút
+            this.enableAutoExtract(30);
+            
             return true;
             
         } catch (error) {
@@ -118,8 +122,13 @@ class LabsProfileManager {
      */
     async extractLabsCookies() {
         try {
-            if (!this.page) {
-                throw new Error('Chrome Labs chưa được mở');
+            // Nếu browser chưa mở, mở mới
+            if (!this.isLabsBrowserOpen()) {
+                console.log(`🚀 Chrome Labs chưa mở, đang mở...`);
+                const opened = await this.openLabsBrowser();
+                if (!opened) {
+                    throw new Error('Không thể mở Chrome Labs');
+                }
             }
 
             console.log(`🍪 Lấy cookies từ tab Google Labs...`);
@@ -135,11 +144,11 @@ class LabsProfileManager {
             }
 
             // Chờ để đảm bảo trang load hoàn toàn
-            await this.page.waitForTimeout(5000);
+            await this.page.waitForTimeout(3000);
             
             // Chờ thêm để đảm bảo cookies được load
             try {
-                await this.page.waitForSelector('body', { timeout: 10000 });
+                await this.page.waitForSelector('body', { timeout: 5000 });
                 console.log('✅ Trang đã load hoàn toàn');
             } catch (error) {
                 console.log('⚠️ Không thể chờ selector body, tiếp tục...');

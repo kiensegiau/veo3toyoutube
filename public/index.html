@@ -77,21 +77,14 @@
 
             <!-- Labs Profile Management -->
             <div class="section" style="background: #f0f9ff; border-left: 4px solid #0ea5e9;">
-                <h3 style="color: #0c4a6e;">🧪 Quản lý Labs Profile (Riêng biệt)</h3>
+                <h3 style="color: #0c4a6e;">🧪 Google Labs Auto Cookie System</h3>
                 <p style="color: #64748b; margin-bottom: 15px; font-size: 14px;">
-                    Chrome riêng biệt chỉ cho Google Labs - Tự động lấy cookies từ tab Labs
+                    Tự động lấy cookies từ Google Labs - Chạy mỗi 30 phút
                 </p>
                 <div class="btn-group">
                     <button type="button" class="btn btn-success" onclick="openLabsBrowser()">🚀 Mở Chrome Labs</button>
-                    <button type="button" class="btn btn-secondary" onclick="getLabsProfileInfo()">ℹ️ Thông tin Profile</button>
-                    <button type="button" class="btn" onclick="extractLabsCookies()">🍪 Lấy Cookies Labs</button>
-                    <button type="button" class="btn btn-secondary" onclick="testLabsCookies()">🧪 Test Cookies</button>
+                    <button type="button" class="btn" onclick="extractLabsCookies()">🍪 Lấy Cookies Ngay</button>
                     <button type="button" class="btn btn-danger" onclick="closeLabsBrowser()">🔒 Đóng Chrome Labs</button>
-                </div>
-                <div class="btn-group" style="margin-top: 10px;">
-                    <button type="button" class="btn btn-success" onclick="enableAutoExtract()">⏰ Bật Tự Động</button>
-                    <button type="button" class="btn btn-secondary" onclick="disableAutoExtract()">🛑 Tắt Tự Động</button>
-                    <button type="button" class="btn" onclick="autoExtractNow()">🔄 Lấy Ngay</button>
                 </div>
                 <div id="labsStatus" style="margin-top: 15px; padding: 10px; background: #f1f5f9; border-radius: 5px; font-size: 14px; color: #475569;">
                     Trạng thái: Chưa mở Chrome Labs
@@ -623,78 +616,6 @@
             }
         }
 
-        // Tự động lấy cookies
-        function enableAutoExtract() {
-            const intervalMinutes = prompt('Nhập khoảng thời gian (phút) để tự động lấy cookies (mặc định: 30):', '30');
-            if (intervalMinutes === null) return;
-            
-            const minutes = parseInt(intervalMinutes) || 30;
-            
-            fetch('/api/enable-auto-extract', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ intervalMinutes: minutes })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateLabsStatus(`✅ ${data.message}`);
-                    showMessage(`Tự động lấy cookies mỗi ${minutes} phút`, 'success');
-                } else {
-                    showMessage(`Lỗi: ${data.message}`, 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Lỗi kết nối', 'error');
-            });
-        }
-
-        function disableAutoExtract() {
-            fetch('/api/disable-auto-extract', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateLabsStatus(`🛑 ${data.message}`);
-                    showMessage('Đã tắt tự động lấy cookies', 'success');
-                } else {
-                    showMessage(`Lỗi: ${data.message}`, 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Lỗi kết nối', 'error');
-            });
-        }
-
-        function autoExtractNow() {
-            updateLabsStatus('🔄 Đang lấy cookies tự động...');
-            
-            fetch('/api/auto-extract-now', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateLabsStatus(`✅ Tự động lấy cookies thành công - ${data.cookieCount} cookies`);
-                    showMessage(`Lấy cookies thành công: ${data.cookieCount} cookies`, 'success');
-                } else {
-                    updateLabsStatus(`❌ Lỗi: ${data.message}`);
-                    showMessage(`Lỗi: ${data.message}`, 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                updateLabsStatus('❌ Lỗi kết nối');
-                showMessage('Lỗi kết nối', 'error');
-            });
-        }
         
         // YouTube Upload Functions
         async function uploadToYouTube() {

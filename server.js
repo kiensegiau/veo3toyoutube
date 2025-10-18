@@ -249,6 +249,38 @@ function downloadVideo(videoUrl, operationName) {
     });
 }
 
+// Hàm lấy Labs cookies
+async function getLabsCookies() {
+    try {
+        // Đọc từ file labs-cookies.txt
+        const fs = require('fs');
+        const path = require('path');
+        const labsCookiesFile = path.join(__dirname, 'labs-cookies.txt');
+        
+        if (!fs.existsSync(labsCookiesFile)) {
+            console.log('❌ File labs-cookies.txt không tồn tại');
+            return null;
+        }
+        
+        const content = fs.readFileSync(labsCookiesFile, 'utf8');
+        const lines = content.split('\n');
+        
+        // Tìm dòng chứa cookies (bỏ qua dòng comment)
+        for (const line of lines) {
+            if (line.trim() && !line.startsWith('#')) {
+                console.log(`🍪 Đọc Labs cookies từ file: ${line.substring(0, 100)}...`);
+                return line.trim();
+            }
+        }
+        
+        console.log('❌ Không tìm thấy cookies trong file');
+        return null;
+    } catch (error) {
+        console.error('❌ Lỗi đọc Labs cookies:', error);
+        return null;
+    }
+}
+
 // Hàm kiểm tra và tự động làm mới token
 async function checkAndRefreshTokenIfNeeded() {
     if (!currentCookies || !tokenExpiryTime) {
@@ -368,9 +400,18 @@ app.post('/api/create-video', async (req, res) => {
 
         const aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT';
         const videoModel = 'veo_3_0_t2v_fast_portrait_ultra';
-        const authorization = process.env.LABS_AUTH;
+        // Sử dụng Labs cookies thay vì token cũ
+        const labsCookies = await getLabsCookies();
+        console.log(`🍪 Labs cookies result:`, labsCookies ? 'Found' : 'Not found');
+        if (!labsCookies) {
+            return res.status(400).json({
+                success: false,
+                message: 'Chưa có Labs cookies. Vui lòng mở Chrome Labs và lấy cookies trước.'
+            });
+        }
 
         console.log(`🎬 Tạo video với prompt: "${prompt}"`);
+        console.log(`🍪 Sử dụng Labs cookies: ${labsCookies.substring(0, 100)}...`);
 
         // Tạo request body (mặc định cho mọi thông số ngoài prompt)
         const requestBody = {
@@ -394,12 +435,12 @@ app.post('/api/create-video', async (req, res) => {
 
         console.log('🧾 Create request body (sent to Labs):', JSON.stringify(requestBody, null, 2));
 
-        // Gọi Google Labs API
+        // Gọi Google Labs API với Labs cookies
         const response = await fetch(`${GOOGLE_LABS_CONFIG.baseUrl}/video:batchAsyncGenerateVideoText`, {
             method: 'POST',
             headers: {
                 ...GOOGLE_LABS_CONFIG.headers,
-                'authorization': authorization
+                'Cookie': labsCookies
             },
             body: JSON.stringify(requestBody)
         });
@@ -485,8 +526,14 @@ app.post('/api/create-video', async (req, res) => {
 // API endpoint để kiểm tra trạng thái video
 app.post('/api/check-status', async (req, res) => {
     try {
-        // Kiểm tra và tự động làm mới token nếu cần
-        await checkAndRefreshTokenIfNeeded();
+        // Sử dụng Labs cookies thay vì token cũ
+        const labsCookies = await getLabsCookies();
+        if (!labsCookies) {
+            return res.status(400).json({
+                success: false,
+                message: 'Chưa có Labs cookies. Vui lòng mở Chrome Labs và lấy cookies trước.'
+            });
+        }
 
         // Cho phép truyền operationName để hỗ trợ nhiều yêu cầu song song
         const { operationName: opFromClient } = req.body || {};
@@ -499,7 +546,6 @@ app.post('/api/check-status', async (req, res) => {
             });
         }
         const sceneId = '361d647b-e22b-4477-acc1-fe3aa18b5b68';
-        const authorization = process.env.LABS_AUTH;
 
         console.log(`🔍 Checking status with operation: ${operationName}`);
 
@@ -517,7 +563,7 @@ app.post('/api/check-status', async (req, res) => {
             method: 'POST',
             headers: {
                 ...GOOGLE_LABS_CONFIG.headers,
-                'authorization': authorization
+                'Cookie': labsCookies
             },
             body: JSON.stringify(requestBody)
         });
@@ -679,7 +725,14 @@ app.post('/api/check-status', async (req, res) => {
 // API endpoint batch: kiểm tra nhiều operation cùng lúc và tải về nếu hoàn tất
 app.post('/api/check-status-batch', async (req, res) => {
     try {
-        await checkAndRefreshTokenIfNeeded();
+        // Sử dụng Labs cookies thay vì token cũ
+        const labsCookies = await getLabsCookies();
+        if (!labsCookies) {
+            return res.status(400).json({
+                success: false,
+                message: 'Chưa có Labs cookies. Vui lòng mở Chrome Labs và lấy cookies trước.'
+            });
+        }
 
         const { operationNames } = req.body || {};
 
@@ -702,7 +755,6 @@ app.post('/api/check-status-batch', async (req, res) => {
         }
 
         const sceneId = '361d647b-e22b-4477-acc1-fe3aa18b5b68';
-        const authorization = process.env.LABS_AUTH;
 
         console.log(`🔍 Batch checking ${targets.length} operations`);
 
@@ -716,7 +768,7 @@ app.post('/api/check-status-batch', async (req, res) => {
 
         const response = await fetch(`${GOOGLE_LABS_CONFIG.baseUrl}/video:batchCheckAsyncVideoGenerationStatus`, {
             method: 'POST',
-            headers: { ...GOOGLE_LABS_CONFIG.headers, 'authorization': authorization },
+            headers: { ...GOOGLE_LABS_CONFIG.headers, 'Cookie': labsCookies },
             body: JSON.stringify(requestBody)
         });
 
@@ -1098,9 +1150,6 @@ app.listen(PORT, () => {
     console.log(`   POST /api/test-labs-cookies - Test Labs cookies`);
     console.log(`   POST /api/close-labs-browser - Đóng Labs browser`);
     console.log(`   GET  /api/labs-profile-info - Thông tin Labs profile`);
-    console.log(`   POST /api/enable-auto-extract - Bật tự động lấy cookies`);
-    console.log(`   POST /api/disable-auto-extract - Tắt tự động lấy cookies`);
-    console.log(`   POST /api/auto-extract-now - Lấy cookies tự động ngay`);
     
     // Load storage data on startup
     loadStorageData();
@@ -1135,10 +1184,13 @@ app.listen(PORT, () => {
                 }
 
                 const sceneId = '361d647b-e22b-4477-acc1-fe3aa18b5b68';
-                const authorization = process.env.LABS_AUTH;
-
-                // Best-effort refresh before polling
-                try { await checkAndRefreshTokenIfNeeded(); } catch (_) {}
+                
+                // Sử dụng Labs cookies thay vì token cũ
+                const labsCookies = await getLabsCookies();
+                if (!labsCookies) {
+                    console.log('⚠️ Không có Labs cookies, bỏ qua auto polling');
+                    return;
+                }
 
                 const requestBody = {
                     operations: pending.map(name => ({
@@ -1150,7 +1202,7 @@ app.listen(PORT, () => {
 
                 const response = await fetch(`${GOOGLE_LABS_CONFIG.baseUrl}/video:batchCheckAsyncVideoGenerationStatus`, {
                     method: 'POST',
-                    headers: { ...GOOGLE_LABS_CONFIG.headers, 'authorization': authorization },
+                    headers: { ...GOOGLE_LABS_CONFIG.headers, 'Cookie': labsCookies },
                     body: JSON.stringify(requestBody)
                 });
 
@@ -1481,87 +1533,6 @@ app.get('/api/labs-profile-info', (req, res) => {
     }
 });
 
-// API: Bật tự động lấy cookies
-app.post('/api/enable-auto-extract', (req, res) => {
-    try {
-        const { intervalMinutes = 30 } = req.body || {};
-        
-        if (intervalMinutes < 5) {
-            return res.status(400).json({
-                success: false,
-                message: 'Interval phải ít nhất 5 phút'
-            });
-        }
-        
-        const result = labsProfileManager.enableAutoExtract(intervalMinutes);
-        
-        res.json({
-            success: true,
-            message: result.message,
-            intervalMinutes: result.intervalMinutes
-        });
-        
-    } catch (error) {
-        console.error('❌ Enable auto extract error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error enabling auto extract',
-            error: error.message
-        });
-    }
-});
-
-// API: Tắt tự động lấy cookies
-app.post('/api/disable-auto-extract', (req, res) => {
-    try {
-        const result = labsProfileManager.disableAutoExtract();
-        
-        res.json({
-            success: true,
-            message: result.message
-        });
-        
-    } catch (error) {
-        console.error('❌ Disable auto extract error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error disabling auto extract',
-            error: error.message
-        });
-    }
-});
-
-// API: Lấy cookies tự động ngay lập tức
-app.post('/api/auto-extract-now', async (req, res) => {
-    try {
-        const result = await labsProfileManager.autoExtractNow();
-        
-        if (result.success) {
-            // Cập nhật currentCookies
-            currentCookies = result.cookies;
-            tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
-            
-            // Lưu vào file
-            saveStorageData();
-            
-            // Cập nhật cookies.json
-            labsProfileManager.updateCookiesJsonWithLabs(result.cookies);
-            
-            // Lưu cookies vào file riêng
-            labsProfileManager.saveLabsCookies(result.cookies);
-        }
-        
-        res.json(result);
-        
-    } catch (error) {
-        console.error('❌ Auto extract now error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error auto extracting cookies',
-            error: error.message
-        });
-    }
-});
 
 // API: Xóa Chrome profile
 app.post('/api/delete-profile', async (req, res) => {
