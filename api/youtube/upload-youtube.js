@@ -28,24 +28,61 @@ async function uploadToYouTube({
         
         logs.push(`🔍 Using Chrome: ${chromePath}`);
         
-        // Khởi động browser với profile
+        // Khởi động browser với profile sạch
         const profilePath = path.join(__dirname, '../../chrome-profile', profileName);
         const browser = await puppeteer.launch({
             executablePath: chromePath,
             userDataDir: profilePath,
             headless: false,
             args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
+                '--start-maximized',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-extensions',
                 '--no-first-run',
-                '--no-zygote',
-                '--disable-gpu'
+                '--disable-default-apps',
+                '--disable-popup-blocking',
+                '--disable-translate',
+                '--disable-background-timer-throttling',
+                '--disable-renderer-backgrounding',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-client-side-phishing-detection',
+                '--disable-sync',
+                '--allow-running-insecure-content',
+                '--disable-features=TranslateUI',
+                '--disable-ipc-flooding-protection'
             ]
         });
         
         const page = await browser.newPage();
+        
+        // Ẩn automation detection
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined,
+            });
+            
+            // Remove automation indicators
+            delete window.navigator.__proto__.webdriver;
+            
+            // Mock plugins
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5],
+            });
+            
+            // Mock languages
+            Object.defineProperty(navigator, 'languages', {
+                get: () => ['en-US', 'en'],
+            });
+            
+            // Mock permissions
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                    Promise.resolve({ state: Notification.permission }) :
+                    originalQuery(parameters)
+            );
+        });
         
         // Set viewport
         if (customViewport) {

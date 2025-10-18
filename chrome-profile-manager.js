@@ -52,6 +52,44 @@ class ChromeProfileManager {
     }
 
     /**
+     * Tạo cấu hình Chrome sạch cho YouTube (không stealth)
+     */
+    getCleanLaunchOptions(options = {}) {
+        const {
+            profilePath = this.defaultProfilePath,
+            headless = false,
+            executablePath = null
+        } = options;
+
+        // Tạo profile path nếu chưa tồn tại
+        this.ensureProfileExists(profilePath);
+
+        return {
+            headless: headless,
+            executablePath: executablePath || this.findChromeExecutable(),
+            userDataDir: profilePath,
+            args: [
+                '--start-maximized',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-extensions',
+                '--no-first-run',
+                '--disable-default-apps',
+                '--disable-popup-blocking',
+                '--disable-translate',
+                '--disable-background-timer-throttling',
+                '--disable-renderer-backgrounding',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-client-side-phishing-detection',
+                '--disable-sync',
+                '--allow-running-insecure-content',
+                '--disable-features=TranslateUI',
+                '--disable-ipc-flooding-protection'
+            ]
+        };
+    }
+
+    /**
      * Tạo cấu hình Chrome launch options chống phát hiện bot
      */
     getStealthLaunchOptions(options = {}) {

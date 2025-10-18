@@ -264,6 +264,174 @@ async function extractCookiesAll(req, res) {
     }
 }
 
+// Mở Chrome sạch cho YouTube login
+async function openCleanChromeForYouTube(req, res) {
+    try {
+        const { profileName = 'YouTubeClean' } = req.body;
+        
+        const puppeteer = require('puppeteer-core');
+        const path = require('path');
+        const ChromeProfileManager = require('../../chrome-profile-manager');
+        
+        const chromeManager = new ChromeProfileManager();
+        const chromePath = await chromeManager.findChromeExecutable();
+        
+        if (!chromePath) {
+            return res.status(500).json({
+                success: false,
+                message: 'Chrome executable not found'
+            });
+        }
+        
+        // Tạo profile path
+        const profilePath = path.join(chromeManager.defaultProfilePath, profileName);
+        chromeManager.ensureProfileExists(profilePath);
+        
+        // Khởi động Chrome sạch
+        const browser = await puppeteer.launch({
+            executablePath: chromePath,
+            userDataDir: profilePath,
+            headless: false,
+            args: [
+                '--start-maximized',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-extensions',
+                '--no-first-run',
+                '--disable-default-apps',
+                '--disable-popup-blocking',
+                '--disable-translate',
+                '--disable-background-timer-throttling',
+                '--disable-renderer-backgrounding',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-client-side-phishing-detection',
+                '--disable-sync',
+                '--allow-running-insecure-content',
+                '--disable-features=TranslateUI',
+                '--disable-ipc-flooding-protection'
+            ]
+        });
+        
+        const page = await browser.newPage();
+        
+        // Ẩn automation detection
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined,
+            });
+            delete window.navigator.__proto__.webdriver;
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5],
+            });
+            Object.defineProperty(navigator, 'languages', {
+                get: () => ['en-US', 'en'],
+            });
+        });
+        
+        await page.setViewport({ width: 1920, height: 1080 });
+        await page.goto('https://studio.youtube.com', { waitUntil: 'networkidle2' });
+        
+        res.json({
+            success: true,
+            message: `Clean Chrome opened for YouTube login with profile ${profileName}`,
+            profilePath: profilePath,
+            note: 'Please login manually in the opened browser window'
+        });
+        
+    } catch (error) {
+        console.error('❌ Open clean Chrome error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to open clean Chrome',
+            error: error.message
+        });
+    }
+}
+
+// Mở Chrome với profile đã login sẵn
+async function openChromeWithLoggedInProfile(req, res) {
+    try {
+        const { profileName = 'YouTubeClean', url = 'https://studio.youtube.com' } = req.body;
+        
+        const puppeteer = require('puppeteer-core');
+        const path = require('path');
+        const ChromeProfileManager = require('../../chrome-profile-manager');
+        
+        const chromeManager = new ChromeProfileManager();
+        const chromePath = await chromeManager.findChromeExecutable();
+        
+        if (!chromePath) {
+            return res.status(500).json({
+                success: false,
+                message: 'Chrome executable not found'
+            });
+        }
+        
+        // Tạo profile path
+        const profilePath = path.join(chromeManager.defaultProfilePath, profileName);
+        
+        // Khởi động Chrome với profile đã login
+        const browser = await puppeteer.launch({
+            executablePath: chromePath,
+            userDataDir: profilePath,
+            headless: false,
+            args: [
+                '--start-maximized',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-extensions',
+                '--no-first-run',
+                '--disable-default-apps',
+                '--disable-popup-blocking',
+                '--disable-translate',
+                '--disable-background-timer-throttling',
+                '--disable-renderer-backgrounding',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-client-side-phishing-detection',
+                '--disable-sync',
+                '--allow-running-insecure-content',
+                '--disable-features=TranslateUI',
+                '--disable-ipc-flooding-protection'
+            ]
+        });
+        
+        const page = await browser.newPage();
+        
+        // Ẩn automation detection
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined,
+            });
+            delete window.navigator.__proto__.webdriver;
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5],
+            });
+            Object.defineProperty(navigator, 'languages', {
+                get: () => ['en-US', 'en'],
+            });
+        });
+        
+        await page.setViewport({ width: 1920, height: 1080 });
+        await page.goto(url, { waitUntil: 'networkidle2' });
+        
+        res.json({
+            success: true,
+            message: `Chrome opened with logged-in profile ${profileName}`,
+            profilePath: profilePath,
+            url: url,
+            note: 'Profile should already be logged in'
+        });
+        
+    } catch (error) {
+        console.error('❌ Open Chrome with profile error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to open Chrome with profile',
+            error: error.message
+        });
+    }
+}
+
 module.exports = {
     createProfile,
     listProfiles,
@@ -273,5 +441,7 @@ module.exports = {
     openProfileForLogin,
     deleteProfile,
     extractCookies,
-    extractCookiesAll
+    extractCookiesAll,
+    openCleanChromeForYouTube,
+    openChromeWithLoggedInProfile
 };

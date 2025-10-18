@@ -97,6 +97,8 @@ app.post('/api/open-profile-login', profileAPI.openProfileForLogin);
 app.post('/api/delete-profile', profileAPI.deleteProfile);
 app.post('/api/extract-cookies', profileAPI.extractCookies);
 app.post('/api/extract-cookies-all', profileAPI.extractCookiesAll);
+app.post('/api/open-clean-chrome-youtube', profileAPI.openCleanChromeForYouTube);
+app.post('/api/open-chrome-logged-in', profileAPI.openChromeWithLoggedInProfile);
 
 // Labs Management APIs
 app.post('/api/open-labs-browser', labsAPI.openLabsBrowser);
