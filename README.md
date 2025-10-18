@@ -1,188 +1,84 @@
-# 🍪 Hệ thống tự động làm mới token - Tối ưu
+# 🎬 AI Video Generator v2.0
 
-## 🎯 Mục tiêu
-Tạo hệ thống tự động làm mới token và cập nhật file `cookies.json` để tránh file "chết" (hết hạn).
+**Google Labs Veo 3.1 với Tự động Cookie Management**
 
-## 🚀 Cách sử dụng
+## ✨ Tính năng chính
 
-### **Bước 1: Lấy cookies 1 lần từ trình duyệt**
-1. Vào Google Labs: https://labs.google/fx/tools/flow
-2. Mở Developer Tools (F12)
-3. Vào tab Application → Cookies
-4. Copy tất cả cookies từ `labs.google`
-5. Paste vào file `cookies.json`
+- 🚀 **Tạo video AI** với Google Labs Veo 3.1
+- 🍪 **Tự động quản lý cookies** - Không cần can thiệp thủ công
+- 🔄 **Auto restart** khi có thay đổi code
+- 📱 **Giao diện web** thân thiện
+- 🎯 **Veo 3.1 model** - Chất lượng cao nhất
 
-### **Bước 2: Chạy hệ thống tự động**
+## 🚀 Khởi động nhanh
+
+### Cách 1: Sử dụng file batch (Khuyến nghị)
 ```bash
-node manager.js
-```
-Chọn tùy chọn 1 để chạy hệ thống tự động
-
-### **Bước 3: Hệ thống tự động hoạt động**
-- ✅ Kiểm tra token mỗi 30 phút
-- ✅ Tự động làm mới khi token sắp hết hạn (dưới 15 phút)
-- ✅ Cập nhật file `cookies.json` với cookies mới
-- ✅ Tránh file cookies.json bị "chết"
-
-## 📁 Files tối ưu
-
-```
-web/
-├── cookies.json              # File cookies từ Google Labs (chỉ cần lấy 1 lần)
-├── server-storage.json       # File lưu trữ cookies và token
-├── server.js                 # Server chính
-├── auto-refresh.js           # Hệ thống tự động làm mới token
-├── manager.js                # Quản lý hệ thống chính
-├── watch-cookies.js          # Theo dõi file tự động
-├── package.json              # Dependencies
-└── public/
-    └── index.html            # Frontend
+# Double-click file start-server.bat
+# Hoặc chạy trong terminal:
+start-server.bat
 ```
 
-## 🔄 Workflow hoàn chỉnh
-
-### **1. Khởi tạo (chỉ làm 1 lần)**
+### Cách 2: Sử dụng npm
 ```bash
-# Lấy cookies từ trình duyệt → Save vào cookies.json
-# Chạy hệ thống quản lý
-node manager.js
-# Chọn tùy chọn 1
+# Cài đặt dependencies
+npm install
+
+# Khởi động server
+npm start
+
+# Hoặc development mode (auto restart)
+npm run dev
 ```
 
-### **2. Hệ thống tự động hoạt động**
-- **Kiểm tra định kỳ**: Mỗi 30 phút
-- **Tự động làm mới**: Khi token còn dưới 15 phút
-- **Cập nhật file**: `cookies.json` được cập nhật với cookies mới
-- **Tránh hết hạn**: File không bao giờ "chết"
+## 🌐 Truy cập
 
-### **3. Kết quả**
-- ✅ **File cookies.json luôn "sống"**: Được cập nhật tự động
-- ✅ **Token không bao giờ hết hạn**: Tự động làm mới
-- ✅ **Không cần can thiệp**: Hệ thống hoạt động hoàn toàn tự động
-- ✅ **Chỉ cần lấy cookies 1 lần**: Từ trình duyệt
+- **Web Interface**: http://localhost:8888
+- **API Documentation**: Xem trong giao diện web
 
-## 🎯 Tính năng chính
+## 🎯 Cách sử dụng
 
-### ✅ **Tự động hoàn toàn**
-- Kiểm tra token mỗi 30 phút
-- Làm mới token khi sắp hết hạn
-- Cập nhật file `cookies.json` tự động
-- Không cần can thiệp thủ công
+1. **Mở Chrome Labs**: Nhấn "🚀 Mở Chrome Labs"
+2. **Đăng nhập Google**: Đăng nhập tài khoản Google của bạn
+3. **Tạo video**: Nhập prompt và nhấn "🎬 Tạo Video"
+4. **Tự động**: Hệ thống sẽ tự động lấy cookies và tạo video
 
-### ✅ **Tránh file chết**
-- File `cookies.json` luôn được cập nhật
-- Cookies mới được thêm vào file
-- Expiration date được cập nhật
-- File không bao giờ hết hạn
+## 📁 Cấu trúc project
 
-### ✅ **Quản lý dễ dàng**
-- Menu tương tác
-- Kiểm tra trạng thái
-- Khởi động/dừng server
-- Quản lý processes
-
-## 🔧 Cấu hình
-
-### **Thời gian kiểm tra**
-- **Interval**: 30 phút
-- **Buffer**: 15 phút trước khi hết hạn
-- **Expiry**: 24 giờ cho cookies mới
-
-### **Files được cập nhật**
-- `server-storage.json`: Cookies và token hiện tại
-- `cookies.json`: File gốc với cookies mới
-
-## 🚨 Lưu ý quan trọng
-
-1. **Chỉ cần lấy cookies 1 lần**: Từ trình duyệt Google Labs
-2. **Hệ thống tự động**: Không cần can thiệp thủ công
-3. **File không bao giờ chết**: Được cập nhật liên tục
-4. **Token luôn hoạt động**: Tự động làm mới
-
-## 🎉 Kết quả
-
-- **✅ File cookies.json luôn "sống"**
-- **✅ Token không bao giờ hết hạn**
-- **✅ Hệ thống hoạt động 24/7**
-- **✅ Chỉ cần setup 1 lần**
-- **✅ Hoàn toàn tự động**
-- **✅ Tối ưu và gọn nhẹ**
-
-**Hệ thống đã hoàn hảo và tối ưu! File cookies.json sẽ không bao giờ "chết"!** 🚀
-
----
-
-### Ghi chú tối ưu hoá máy chủ
-
-- Bật nén HTTP (middleware `compression`).
-- Thiết lập cache dài hạn cho static assets; HTML là no-cache.
-- Video trong `public/videos` hỗ trợ HTTP Range để tua/stream mượt.
-- Hỗ trợ biến môi trường `PORT` để cấu hình cổng.
-
----
-
-### Upload YouTube (Puppeteer)
-
-API: POST `/api/upload-youtube`
-
-Body JSON:
-
-```json
-{
-  "videoPath": "public/videos/your-file.mp4",
-  "title": "Tiêu đề video",
-  "description": "Mô tả",
-  "visibility": "UNLISTED", // PUBLIC | PRIVATE | UNLISTED
-  "debug": false,
-  "profileName": "YouTube", // Tên profile Chrome
-  "customUserAgent": null, // User Agent tùy chỉnh
-  "customViewport": { "width": 1920, "height": 1080 } // Viewport tùy chỉnh
-}
+```
+├── server.js                 # Main server
+├── labs-profile-manager.js   # Chrome Labs management
+├── chrome-profile-manager.js # Chrome profile utilities
+├── chrome-profile-utils.js   # Profile helper functions
+├── public/
+│   ├── index.html           # Web interface
+│   └── videos/              # Generated videos
+├── chrome-profile/           # Chrome profiles
+├── logs/                    # Request logs
+└── start-server.bat         # Quick start script
 ```
 
-### Quản lý Chrome Profile
+## 🔧 API Endpoints
 
-Module `chrome-profile-manager.js` cung cấp:
+- `POST /api/create-video` - Tạo video từ text
+- `POST /api/check-status` - Kiểm tra trạng thái video
+- `POST /api/open-labs-browser` - Mở Chrome Labs
+- `POST /api/extract-labs-cookies` - Lấy cookies từ Labs
+- `GET /api/labs-profile-info` - Thông tin profile
 
-- **Stealth configuration**: Chống phát hiện bot với User Agent ngẫu nhiên, viewport thực tế
-- **Profile management**: Tạo, xóa, backup/restore profiles
-- **Auto Chrome detection**: Tự động tìm Chrome/Edge trên hệ thống
-- **Login checking**: Kiểm tra trạng thái đăng nhập YouTube/Google Labs
+## 🛠️ Yêu cầu hệ thống
 
-#### Sử dụng Chrome Profile Utils:
+- **Node.js** >= 16.0.0
+- **Google Chrome** (để automation)
+- **Windows** (batch script)
 
-```javascript
-const ChromeProfileUtils = require('./chrome-profile-utils');
-const utils = new ChromeProfileUtils();
+## 📝 Ghi chú
 
-// Tạo profile mới
-utils.createYouTubeProfile('MyYouTube');
+- Cookies được tự động cập nhật mỗi khi tạo video
+- Chrome Labs sẽ tự động mở khi cần
+- Video được lưu trong `public/videos/`
+- Logs được lưu trong `logs/`
 
-// Kiểm tra đăng nhập
-await utils.checkYouTubeLogin('MyYouTube');
+## 🎉 Hoàn thành!
 
-// Mở profile để đăng nhập thủ công
-await utils.openProfileForLogin('MyYouTube', 'https://www.youtube.com');
-
-// Backup/Restore profile
-utils.backupProfile('MyYouTube');
-utils.restoreProfile('./backups/MyYouTube_2024-01-01', 'MyYouTube');
-```
-
-#### Cấu hình Environment:
-
-```bash
-# Tùy chọn: Đường dẫn Chrome
-CHROME_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe"
-
-# Tùy chọn: User Agent tùy chỉnh
-USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-
-# Tùy chọn: Profile path
-CHROME_PROFILE_PATH="C:\Users\PC\Documents\web\chrome-profile"
-```
-
-Ghi chú quy trình:
-- Theo đúng flow và selectors trong phần mô tả quy trình upload
-- Sử dụng stealth configuration để tránh phát hiện bot
-- Module: `youtube-upload.js`, `chrome-profile-manager.js`, `chrome-profile-utils.js`
+Hệ thống đã sẵn sàng tạo video Veo 3.1 hoàn toàn tự động!

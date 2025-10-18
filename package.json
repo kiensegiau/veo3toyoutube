@@ -1,18 +1,14 @@
 {
-  "name": "puppeteer-request-logger",
-  "version": "1.0.0",
-  "description": "Puppeteer script để lưu tất cả requests của Chrome",
-  "main": "index.js",
+  "name": "ai-video-generator",
+  "version": "2.0.0",
+  "description": "AI Video Generator với Google Labs Veo 3.1 - Tự động cookie management",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --inspect index.js",
-    "continuous": "node continuous.js",
-    "server": "node server.js",
-    "dev-server": "nodemon server.js",
-    "test-chrome": "node test-chrome.js",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
     "install-deps": "npm install"
   },
-  "keywords": ["puppeteer", "chrome", "requests", "logging"],
+  "keywords": ["ai", "video", "generator", "google-labs", "veo", "automation"],
   "author": "",
   "license": "MIT",
   "dependencies": {

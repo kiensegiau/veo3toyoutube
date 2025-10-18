@@ -356,6 +356,13 @@ class LabsProfileManager {
     }
 
     /**
+     * Kiểm tra xem Labs profile có tồn tại không
+     */
+    profileExists() {
+        return fs.existsSync(this.labsProfilePath);
+    }
+
+    /**
      * Lấy thông tin profile Labs
      */
     getLabsProfileInfo() {
@@ -457,4 +464,4 @@ class LabsProfileManager {
     }
 }
 
-module.exports = LabsProfileManager;
+module.exports = new LabsProfileManager();

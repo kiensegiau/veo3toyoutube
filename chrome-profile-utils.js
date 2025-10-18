@@ -279,6 +279,20 @@ class ChromeProfileUtils {
     }
 
     /**
+     * Liệt kê tất cả profiles
+     */
+    listProfiles() {
+        return this.profileManager.listProfiles();
+    }
+
+    /**
+     * Tạo profile mới
+     */
+    createProfile(profileName) {
+        return this.profileManager.createNewProfile(profileName);
+    }
+
+    /**
      * Thử lấy cookies từ tất cả profiles
      */
     async extractCookiesFromAllProfiles() {
@@ -436,4 +450,4 @@ class ChromeProfileUtils {
     }
 }
 
-module.exports = ChromeProfileUtils;
+module.exports = new ChromeProfileUtils();
