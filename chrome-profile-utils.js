@@ -206,6 +206,111 @@ class ChromeProfileUtils {
     }
 
     /**
+     * Tự động lấy cookies từ Chrome profile
+     */
+    async extractCookiesFromProfile(profileName = 'Default') {
+        const puppeteer = require('puppeteer-core');
+        
+        try {
+            console.log(`🍪 Extracting cookies from profile: ${profileName}`);
+            
+            const profilePath = path.join(this.profileManager.defaultProfilePath, profileName);
+            
+            if (!fs.existsSync(profilePath)) {
+                throw new Error(`Profile ${profileName} not found at ${profilePath}`);
+            }
+
+            const launchOptions = this.profileManager.getStealthLaunchOptions({
+                profilePath: profilePath,
+                headless: 'new',
+                debugMode: false
+            });
+
+            const browser = await puppeteer.launch(launchOptions);
+            const page = await browser.newPage();
+            
+            await this.profileManager.applyStealthSettings(page);
+            
+            await page.goto('https://labs.google', { 
+                waitUntil: 'networkidle2',
+                timeout: 30000 
+            });
+            
+            await page.waitForTimeout(5000);
+            
+            // Kiểm tra đăng nhập
+            const isLoggedIn = await page.evaluate(() => {
+                return document.querySelector('a[aria-label="Sign in"]') === null &&
+                       document.querySelector('a[href*="accounts.google.com/ServiceLogin"]') === null;
+            });
+            
+            // Lấy cookies
+            const allCookies = await page.cookies();
+            const relevantCookies = allCookies.filter(cookie => 
+                cookie.domain.includes('labs.google') || 
+                cookie.domain.includes('.google.com') ||
+                cookie.domain.includes('googleapis.com')
+            );
+            
+            const cookieString = relevantCookies
+                .map(cookie => `${cookie.name}=${cookie.value}`)
+                .join(';');
+            
+            await browser.close();
+            
+            console.log(`✅ Extracted ${relevantCookies.length} cookies from ${profileName}`);
+            
+            return {
+                success: true,
+                cookies: cookieString,
+                cookieCount: relevantCookies.length,
+                isLoggedIn: isLoggedIn,
+                profileName: profileName
+            };
+            
+        } catch (error) {
+            console.error(`❌ Error extracting cookies from profile ${profileName}:`, error.message);
+            return {
+                success: false,
+                error: error.message,
+                profileName: profileName
+            };
+        }
+    }
+
+    /**
+     * Thử lấy cookies từ tất cả profiles
+     */
+    async extractCookiesFromAllProfiles() {
+        try {
+            const profiles = this.profileManager.listProfiles();
+            console.log(`🔍 Found ${profiles.length} profiles: ${profiles.join(', ')}`);
+            
+            for (const profileName of profiles) {
+                console.log(`🔄 Trying profile: ${profileName}`);
+                const result = await this.extractCookiesFromProfile(profileName);
+                
+                if (result.success && result.cookies) {
+                    console.log(`✅ Successfully extracted cookies from ${profileName}`);
+                    return result;
+                }
+            }
+            
+            return {
+                success: false,
+                message: 'No cookies found in any profile'
+            };
+            
+        } catch (error) {
+            console.error('❌ Error extracting cookies from all profiles:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
      * Mở profile để đăng nhập thủ công
      */
     async openProfileForLogin(profileName = 'Default', url = 'https://www.youtube.com') {

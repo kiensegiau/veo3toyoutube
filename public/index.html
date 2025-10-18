@@ -75,6 +75,29 @@
                 </div>
             </div>
 
+            <!-- Labs Profile Management -->
+            <div class="section" style="background: #f0f9ff; border-left: 4px solid #0ea5e9;">
+                <h3 style="color: #0c4a6e;">🧪 Quản lý Labs Profile (Riêng biệt)</h3>
+                <p style="color: #64748b; margin-bottom: 15px; font-size: 14px;">
+                    Chrome riêng biệt chỉ cho Google Labs - Tự động lấy cookies từ tab Labs
+                </p>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success" onclick="openLabsBrowser()">🚀 Mở Chrome Labs</button>
+                    <button type="button" class="btn btn-secondary" onclick="getLabsProfileInfo()">ℹ️ Thông tin Profile</button>
+                    <button type="button" class="btn" onclick="extractLabsCookies()">🍪 Lấy Cookies Labs</button>
+                    <button type="button" class="btn btn-secondary" onclick="testLabsCookies()">🧪 Test Cookies</button>
+                    <button type="button" class="btn btn-danger" onclick="closeLabsBrowser()">🔒 Đóng Chrome Labs</button>
+                </div>
+                <div class="btn-group" style="margin-top: 10px;">
+                    <button type="button" class="btn btn-success" onclick="enableAutoExtract()">⏰ Bật Tự Động</button>
+                    <button type="button" class="btn btn-secondary" onclick="disableAutoExtract()">🛑 Tắt Tự Động</button>
+                    <button type="button" class="btn" onclick="autoExtractNow()">🔄 Lấy Ngay</button>
+                </div>
+                <div id="labsStatus" style="margin-top: 15px; padding: 10px; background: #f1f5f9; border-radius: 5px; font-size: 14px; color: #475569;">
+                    Trạng thái: Chưa mở Chrome Labs
+                </div>
+            </div>
+
             <!-- YouTube Upload -->
             <div class="section" style="background: #e8f5e8;">
                 <h3 style="color: #155724;">📺 Upload lên YouTube</h3>
@@ -473,6 +496,204 @@
                 else showError(result.message || 'Lỗi xóa profile');
             } catch (error) { showError('Lỗi xóa profile: ' + error.message); }
             finally { showLoading(false); }
+        }
+
+        // Labs Profile Management Functions
+        async function openLabsBrowser() {
+            showLoading(true);
+            try {
+                const result = await apiCall('/open-labs-browser', 'POST', {});
+                if (result.success) {
+                    showSuccess('Chrome Labs đã mở thành công! Đăng nhập Google Labs và sau đó lấy cookies.');
+                    updateLabsStatus('Chrome Labs đã mở - Sẵn sàng lấy cookies');
+                } else {
+                    showError(result.message || 'Lỗi mở Chrome Labs');
+                }
+            } catch (error) { 
+                showError('Lỗi mở Chrome Labs: ' + error.message); 
+            }
+            finally { showLoading(false); }
+        }
+
+        async function getLabsProfileInfo() {
+            showLoading(true);
+            try {
+                const result = await apiCall('/labs-profile-info');
+                if (result.success) {
+                    const info = result.profileInfo;
+                    let html = '<div class="success">';
+                    html += `<h4>ℹ️ Thông tin Labs Profile</h4>`;
+                    html += `<p><strong>Tên Profile:</strong> ${info.profileName}</p>`;
+                    html += `<p><strong>Đường dẫn:</strong> ${info.profilePath}</p>`;
+                    html += `<p><strong>Profile tồn tại:</strong> ${info.exists ? '✅ Có' : '❌ Không'}</p>`;
+                    html += `<p><strong>Browser đang mở:</strong> ${info.isOpen ? '✅ Có' : '❌ Không'}</p>`;
+                    html += '</div>';
+                    document.getElementById('response').innerHTML = html;
+                    updateLabsStatus(info.isOpen ? 'Chrome Labs đang mở' : 'Chrome Labs đã đóng');
+                } else {
+                    showError(result.message || 'Lỗi lấy thông tin profile');
+                }
+            } catch (error) { 
+                showError('Lỗi lấy thông tin: ' + error.message); 
+            }
+            finally { showLoading(false); }
+        }
+
+        async function extractLabsCookies() {
+            showLoading(true);
+            try {
+                const result = await apiCall('/extract-labs-cookies', 'POST', {});
+                if (result.success) {
+                    showSuccess(`Đã lấy ${result.cookieCount} cookies từ Labs browser!`);
+                    updateLabsStatus(`Đã lấy ${result.cookieCount} cookies - Sẵn sàng sử dụng`);
+                    
+                    // Hiển thị thông tin cookies
+                    let html = '<div class="success">';
+                    html += `<h4>🍪 Labs Cookies đã lấy</h4>`;
+                    html += `<p><strong>Số lượng cookies:</strong> ${result.cookieCount}</p>`;
+                    html += `<p><strong>Đã đăng nhập:</strong> ${result.isLoggedIn ? '✅ Có' : '❌ Không'}</p>`;
+                    html += `<p><strong>Profile:</strong> ${result.profileName}</p>`;
+                    html += `<p><strong>Độ dài cookie string:</strong> ${result.cookies.length} ký tự</p>`;
+                    html += '</div>';
+                    document.getElementById('response').innerHTML = html;
+                } else {
+                    showError(result.message || 'Lỗi lấy cookies từ Labs browser');
+                }
+            } catch (error) { 
+                showError('Lỗi lấy cookies: ' + error.message); 
+            }
+            finally { showLoading(false); }
+        }
+
+        async function testLabsCookies() {
+            // Lấy cookies từ response trước đó hoặc yêu cầu nhập
+            const cookies = prompt('Nhập cookies để test (hoặc để trống để dùng cookies hiện tại):');
+            if (!cookies) {
+                showError('Vui lòng nhập cookies để test');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const result = await apiCall('/test-labs-cookies', 'POST', { cookies });
+                if (result.success) {
+                    showSuccess('Cookies Labs hợp lệ và hoạt động tốt!');
+                    updateLabsStatus('Cookies Labs hợp lệ - Sẵn sàng tạo video');
+                } else {
+                    showError(result.message || 'Cookies Labs không hợp lệ');
+                    updateLabsStatus('Cookies Labs không hợp lệ - Cần lấy cookies mới');
+                }
+            } catch (error) { 
+                showError('Lỗi test cookies: ' + error.message); 
+            }
+            finally { showLoading(false); }
+        }
+
+        async function closeLabsBrowser() {
+            showLoading(true);
+            try {
+                const result = await apiCall('/close-labs-browser', 'POST', {});
+                if (result.success) {
+                    showSuccess('Chrome Labs đã đóng thành công!');
+                    updateLabsStatus('Chrome Labs đã đóng');
+                } else {
+                    showError(result.message || 'Lỗi đóng Chrome Labs');
+                }
+            } catch (error) { 
+                showError('Lỗi đóng Chrome Labs: ' + error.message); 
+            }
+            finally { showLoading(false); }
+        }
+
+        function updateLabsStatus(message) {
+            const statusDiv = document.getElementById('labsStatus');
+            if (statusDiv) {
+                statusDiv.innerHTML = `Trạng thái: ${message}`;
+                // Thay đổi màu sắc dựa trên trạng thái
+                if (message.includes('Sẵn sàng')) {
+                    statusDiv.style.background = '#d1fae5';
+                    statusDiv.style.color = '#065f46';
+                } else if (message.includes('Lỗi') || message.includes('Không')) {
+                    statusDiv.style.background = '#fee2e2';
+                    statusDiv.style.color = '#991b1b';
+                } else {
+                    statusDiv.style.background = '#f1f5f9';
+                    statusDiv.style.color = '#475569';
+                }
+            }
+        }
+
+        // Tự động lấy cookies
+        function enableAutoExtract() {
+            const intervalMinutes = prompt('Nhập khoảng thời gian (phút) để tự động lấy cookies (mặc định: 30):', '30');
+            if (intervalMinutes === null) return;
+            
+            const minutes = parseInt(intervalMinutes) || 30;
+            
+            fetch('/api/enable-auto-extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ intervalMinutes: minutes })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateLabsStatus(`✅ ${data.message}`);
+                    showMessage(`Tự động lấy cookies mỗi ${minutes} phút`, 'success');
+                } else {
+                    showMessage(`Lỗi: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('Lỗi kết nối', 'error');
+            });
+        }
+
+        function disableAutoExtract() {
+            fetch('/api/disable-auto-extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateLabsStatus(`🛑 ${data.message}`);
+                    showMessage('Đã tắt tự động lấy cookies', 'success');
+                } else {
+                    showMessage(`Lỗi: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('Lỗi kết nối', 'error');
+            });
+        }
+
+        function autoExtractNow() {
+            updateLabsStatus('🔄 Đang lấy cookies tự động...');
+            
+            fetch('/api/auto-extract-now', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateLabsStatus(`✅ Tự động lấy cookies thành công - ${data.cookieCount} cookies`);
+                    showMessage(`Lấy cookies thành công: ${data.cookieCount} cookies`, 'success');
+                } else {
+                    updateLabsStatus(`❌ Lỗi: ${data.message}`);
+                    showMessage(`Lỗi: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                updateLabsStatus('❌ Lỗi kết nối');
+                showMessage('Lỗi kết nối', 'error');
+            });
         }
         
         // YouTube Upload Functions

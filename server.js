@@ -10,6 +10,7 @@ const url = require('url');
 const { uploadToYouTube } = require('./youtube-upload');
 const ChromeProfileManager = require('./chrome-profile-manager');
 const ChromeProfileUtils = require('./chrome-profile-utils');
+const LabsProfileManager = require('./labs-profile-manager');
 
 const app = express();
 const PORT = Number(process.env.PORT || 8888);
@@ -1090,6 +1091,16 @@ app.listen(PORT, () => {
     console.log(`   GET  /api/token-status - Kiểm tra trạng thái token`);
     console.log(`   POST /api/refresh-token - Làm mới token`);
     console.log(`   POST /api/get-new-token - Lấy token mới từ cookies`);
+    console.log(`   POST /api/extract-cookies - Tự động lấy cookies từ profile`);
+    console.log(`   POST /api/extract-cookies-all - Lấy cookies từ tất cả profiles`);
+    console.log(`   POST /api/open-labs-browser - Mở Chrome Labs riêng biệt`);
+    console.log(`   POST /api/extract-labs-cookies - Lấy cookies từ Labs browser`);
+    console.log(`   POST /api/test-labs-cookies - Test Labs cookies`);
+    console.log(`   POST /api/close-labs-browser - Đóng Labs browser`);
+    console.log(`   GET  /api/labs-profile-info - Thông tin Labs profile`);
+    console.log(`   POST /api/enable-auto-extract - Bật tự động lấy cookies`);
+    console.log(`   POST /api/disable-auto-extract - Tắt tự động lấy cookies`);
+    console.log(`   POST /api/auto-extract-now - Lấy cookies tự động ngay`);
     
     // Load storage data on startup
     loadStorageData();
@@ -1242,6 +1253,9 @@ app.post('/api/upload-youtube', async (req, res) => {
 // Khởi tạo Chrome Profile Utils
 const profileUtils = new ChromeProfileUtils();
 
+// Khởi tạo Labs Profile Manager
+const labsProfileManager = new LabsProfileManager();
+
 // API: Tạo Chrome profile mới
 app.post('/api/create-profile', async (req, res) => {
     try {
@@ -1305,6 +1319,250 @@ app.post('/api/open-profile-login', async (req, res) => {
     }
 });
 
+// ===== LABS PROFILE MANAGEMENT APIs =====
+
+// API: Mở Chrome Labs riêng biệt
+app.post('/api/open-labs-browser', async (req, res) => {
+    try {
+        console.log('🚀 Opening Labs browser...');
+        
+        const success = await labsProfileManager.openLabsBrowser();
+        
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Labs browser opened successfully',
+                profileInfo: labsProfileManager.getLabsProfileInfo()
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to open Labs browser'
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Open Labs browser error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error opening Labs browser',
+            error: error.message
+        });
+    }
+});
+
+// API: Lấy cookies từ Labs browser
+app.post('/api/extract-labs-cookies', async (req, res) => {
+    try {
+        console.log('🍪 Extracting cookies from Labs browser...');
+        
+        if (!labsProfileManager.isLabsBrowserOpen()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Labs browser is not open. Please open it first.'
+            });
+        }
+        
+        const result = await labsProfileManager.extractLabsCookies();
+        
+        if (result.success) {
+            // Cập nhật currentCookies
+            currentCookies = result.cookies;
+            tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
+            
+            // Lưu vào file
+            saveStorageData();
+            
+            // Cập nhật cookies.json
+            labsProfileManager.updateCookiesJsonWithLabs(result.cookies);
+            
+            // Lưu cookies vào file riêng
+            labsProfileManager.saveLabsCookies(result.cookies);
+            
+            res.json({
+                success: true,
+                message: 'Labs cookies extracted successfully',
+                cookies: result.cookies,
+                cookieCount: result.cookieCount,
+                isLoggedIn: result.isLoggedIn,
+                profileName: result.profileName
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: 'Failed to extract Labs cookies',
+                error: result.error
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Extract Labs cookies error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error extracting Labs cookies',
+            error: error.message
+        });
+    }
+});
+
+// API: Test Labs cookies
+app.post('/api/test-labs-cookies', async (req, res) => {
+    try {
+        const { cookies } = req.body || {};
+        
+        if (!cookies) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cookies required to test'
+            });
+        }
+        
+        console.log('🧪 Testing Labs cookies...');
+        
+        const result = await labsProfileManager.testLabsCookies(cookies);
+        
+        res.json({
+            success: result.success,
+            message: result.success ? 'Labs cookies are valid' : 'Labs cookies are invalid',
+            status: result.status,
+            sessionData: result.sessionData,
+            error: result.error
+        });
+        
+    } catch (error) {
+        console.error('❌ Test Labs cookies error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error testing Labs cookies',
+            error: error.message
+        });
+    }
+});
+
+// API: Đóng Labs browser
+app.post('/api/close-labs-browser', async (req, res) => {
+    try {
+        console.log('🔒 Closing Labs browser...');
+        
+        await labsProfileManager.closeLabsBrowser();
+        
+        res.json({
+            success: true,
+            message: 'Labs browser closed successfully'
+        });
+        
+    } catch (error) {
+        console.error('❌ Close Labs browser error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error closing Labs browser',
+            error: error.message
+        });
+    }
+});
+
+// API: Lấy thông tin Labs profile
+app.get('/api/labs-profile-info', (req, res) => {
+    try {
+        const profileInfo = labsProfileManager.getLabsProfileInfo();
+        
+        res.json({
+            success: true,
+            profileInfo: profileInfo
+        });
+        
+    } catch (error) {
+        console.error('❌ Get Labs profile info error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting Labs profile info',
+            error: error.message
+        });
+    }
+});
+
+// API: Bật tự động lấy cookies
+app.post('/api/enable-auto-extract', (req, res) => {
+    try {
+        const { intervalMinutes = 30 } = req.body || {};
+        
+        if (intervalMinutes < 5) {
+            return res.status(400).json({
+                success: false,
+                message: 'Interval phải ít nhất 5 phút'
+            });
+        }
+        
+        const result = labsProfileManager.enableAutoExtract(intervalMinutes);
+        
+        res.json({
+            success: true,
+            message: result.message,
+            intervalMinutes: result.intervalMinutes
+        });
+        
+    } catch (error) {
+        console.error('❌ Enable auto extract error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error enabling auto extract',
+            error: error.message
+        });
+    }
+});
+
+// API: Tắt tự động lấy cookies
+app.post('/api/disable-auto-extract', (req, res) => {
+    try {
+        const result = labsProfileManager.disableAutoExtract();
+        
+        res.json({
+            success: true,
+            message: result.message
+        });
+        
+    } catch (error) {
+        console.error('❌ Disable auto extract error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error disabling auto extract',
+            error: error.message
+        });
+    }
+});
+
+// API: Lấy cookies tự động ngay lập tức
+app.post('/api/auto-extract-now', async (req, res) => {
+    try {
+        const result = await labsProfileManager.autoExtractNow();
+        
+        if (result.success) {
+            // Cập nhật currentCookies
+            currentCookies = result.cookies;
+            tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
+            
+            // Lưu vào file
+            saveStorageData();
+            
+            // Cập nhật cookies.json
+            labsProfileManager.updateCookiesJsonWithLabs(result.cookies);
+            
+            // Lưu cookies vào file riêng
+            labsProfileManager.saveLabsCookies(result.cookies);
+        }
+        
+        res.json(result);
+        
+    } catch (error) {
+        console.error('❌ Auto extract now error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error auto extracting cookies',
+            error: error.message
+        });
+    }
+});
+
 // API: Xóa Chrome profile
 app.post('/api/delete-profile', async (req, res) => {
     try {
@@ -1337,6 +1595,96 @@ app.get('/api/list-videos', async (req, res) => {
     } catch (error) {
         console.error('❌ List videos error:', error);
         res.status(500).json({ success: false, message: 'Error listing videos', error: error.message });
+    }
+});
+
+// API: Tự động lấy cookies từ Chrome profile
+app.post('/api/extract-cookies', async (req, res) => {
+    try {
+        const { profileName = 'Default' } = req.body || {};
+        
+        console.log(`🍪 Extracting cookies from profile: ${profileName}`);
+        
+        const result = await profileUtils.extractCookiesFromProfile(profileName);
+        
+        if (result.success) {
+            // Cập nhật currentCookies
+            currentCookies = result.cookies;
+            tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
+            
+            // Lưu vào file
+            saveStorageData();
+            
+            // Cập nhật cookies.json
+            updateCookiesJsonFile(result.cookies);
+            
+            res.json({
+                success: true,
+                message: 'Cookies extracted successfully',
+                cookies: result.cookies,
+                cookieCount: result.cookieCount,
+                isLoggedIn: result.isLoggedIn,
+                profileName: result.profileName
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: 'Failed to extract cookies',
+                error: result.error
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Extract cookies error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error extracting cookies',
+            error: error.message
+        });
+    }
+});
+
+// API: Lấy cookies từ tất cả profiles
+app.post('/api/extract-cookies-all', async (req, res) => {
+    try {
+        console.log('🍪 Extracting cookies from all profiles...');
+        
+        const result = await profileUtils.extractCookiesFromAllProfiles();
+        
+        if (result.success) {
+            // Cập nhật currentCookies
+            currentCookies = result.cookies;
+            tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
+            
+            // Lưu vào file
+            saveStorageData();
+            
+            // Cập nhật cookies.json
+            updateCookiesJsonFile(result.cookies);
+            
+            res.json({
+                success: true,
+                message: 'Cookies extracted successfully',
+                cookies: result.cookies,
+                cookieCount: result.cookieCount,
+                isLoggedIn: result.isLoggedIn,
+                profileName: result.profileName
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: result.message || 'Failed to extract cookies from any profile',
+                error: result.error
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Extract cookies all error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error extracting cookies from all profiles',
+            error: error.message
+        });
     }
 });
 
