@@ -257,26 +257,18 @@ async function getLabsCookies() {
         const path = require('path');
         const labsCookiesFile = path.join(__dirname, 'labs-cookies.txt');
         
-        console.log(`🔍 Kiểm tra file: ${labsCookiesFile}`);
-        
         if (!fs.existsSync(labsCookiesFile)) {
             console.log('❌ File labs-cookies.txt không tồn tại');
             return null;
         }
         
         const content = fs.readFileSync(labsCookiesFile, 'utf8');
-        console.log(`📄 File content length: ${content.length}`);
-        console.log(`📄 File content preview: ${content.substring(0, 200)}...`);
-        
         const lines = content.split('\n');
-        console.log(`📄 Total lines: ${lines.length}`);
         
         // Tìm dòng chứa cookies (bỏ qua dòng comment)
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            console.log(`📄 Line ${i}: ${line.substring(0, 50)}...`);
             if (line.trim() && !line.startsWith('#')) {
-                console.log(`🍪 Đọc Labs cookies từ file: ${line.substring(0, 100)}...`);
                 return line.trim();
             }
         }
@@ -460,7 +452,6 @@ app.post('/api/create-video', async (req, res) => {
         console.log('🧾 Create request body (sent to Labs):', JSON.stringify(requestBody, null, 2));
 
         // Thử lấy token thực sự từ session endpoint
-        console.log(`🔑 Đang lấy token từ session endpoint...`);
         const sessionResponse = await fetch('https://labs.google/fx/api/auth/session', {
             method: 'GET',
             headers: {
@@ -476,28 +467,16 @@ app.post('/api/create-video', async (req, res) => {
         });
         
         let authToken = null;
-        console.log(`📊 Session response status: ${sessionResponse.status}`);
         
         if (sessionResponse.ok) {
             const sessionData = await sessionResponse.json();
-            console.log(`📊 Session data:`, JSON.stringify(sessionData, null, 2));
             
             // Tìm token trong session data
             if (sessionData && sessionData.user && sessionData.user.accessToken) {
                 authToken = `Bearer ${sessionData.user.accessToken}`;
-                console.log(`🔑 Found access token: ${authToken.substring(0, 50)}...`);
             } else if (sessionData && sessionData.access_token) {
                 authToken = `Bearer ${sessionData.access_token}`;
-                console.log(`🔑 Found access token: ${authToken.substring(0, 50)}...`);
-            } else {
-                console.log(`❌ Không tìm thấy access token trong session data`);
             }
-        } else {
-            console.log(`❌ Session response failed: ${sessionResponse.status}`);
-        }
-        
-        if (!authToken) {
-            console.log(`❌ Không tìm thấy access token, sử dụng cookies`);
         }
         
         // Gọi Google Labs API với token hoặc cookies
@@ -612,7 +591,6 @@ app.post('/api/check-status', async (req, res) => {
         }
 
         // Lấy access token từ session endpoint
-        console.log(`🔑 Đang lấy token từ session endpoint...`);
         const sessionResponse = await fetch('https://labs.google/fx/api/auth/session', {
             method: 'GET',
             headers: {
@@ -632,10 +610,8 @@ app.post('/api/check-status', async (req, res) => {
             const sessionData = await sessionResponse.json();
             if (sessionData && sessionData.user && sessionData.user.accessToken) {
                 authToken = `Bearer ${sessionData.user.accessToken}`;
-                console.log(`🔑 Found access token for check-status`);
             } else if (sessionData && sessionData.access_token) {
                 authToken = `Bearer ${sessionData.access_token}`;
-                console.log(`🔑 Found access token for check-status`);
             }
         }
 
