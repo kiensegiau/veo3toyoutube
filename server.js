@@ -1,4 +1,5 @@
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const path = require('path');
@@ -6,9 +7,12 @@ const fs = require('fs');
 const https = require('https');
 const crypto = require('crypto');
 const url = require('url');
+const { uploadToYouTube } = require('./youtube-upload');
+const ChromeProfileManager = require('./chrome-profile-manager');
+const ChromeProfileUtils = require('./chrome-profile-utils');
 
 const app = express();
-const PORT = 8888;
+const PORT = Number(process.env.PORT || 8888);
 
 // Load environment variables from env.local (simple parser)
 try {
@@ -34,9 +38,23 @@ try {
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(compression({ level: 6 }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Static cache controls
+const staticOptions = {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        } else if (/(?:\.js|\.css|\.png|\.jpg|\.jpeg|\.gif|\.svg|\.webp|\.ico|\.woff2?|\.ttf)$/.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+        }
+    }
+};
+app.use(express.static('public', staticOptions));
 
 // Google Labs API configuration
 const GOOGLE_LABS_CONFIG = {
@@ -87,10 +105,11 @@ function normalizeInputToPrompt(input, defaultValue = 'cat') {
 // Auto batch poll config
 const AUTO_BATCH_POLL = process.env.AUTO_BATCH_POLL !== 'false';
 const AUTO_BATCH_INTERVAL_MS = Number(process.env.AUTO_BATCH_INTERVAL_MS || 15000);
+const AUTO_BATCH_QUIET_MODE = process.env.AUTO_BATCH_QUIET_MODE === 'true';
 let isBatchPolling = false;
 
 // File paths for persistent storage
-const STORAGE_FILE = 'server-storage.json';
+const STORAGE_FILE = path.join(__dirname, 'server-storage.json');
 
 // Load data from file on startup
 function loadStorageData() {
@@ -291,6 +310,52 @@ async function checkAndRefreshTokenIfNeeded() {
 // Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Optimized ranged streaming for large video files in /public/videos
+app.get('/videos/:file', (req, res) => {
+    try {
+        const fileName = req.params.file;
+        const videoPath = path.join(__dirname, 'public', 'videos', path.basename(fileName));
+
+        if (!fs.existsSync(videoPath)) {
+            return res.status(404).end();
+        }
+
+        const stat = fs.statSync(videoPath);
+        const fileSize = stat.size;
+        const range = req.headers.range;
+
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('Content-Type', 'video/mp4');
+
+        if (range) {
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunkSize = (end - start) + 1;
+
+            if (start >= fileSize || end >= fileSize || start > end) {
+                res.setHeader('Content-Range', `bytes */${fileSize}`);
+                return res.status(416).end();
+            }
+
+            res.writeHead(206, {
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Content-Length': chunkSize
+            });
+            const stream = fs.createReadStream(videoPath, { start, end });
+            stream.pipe(res);
+        } else {
+            res.writeHead(200, { 'Content-Length': fileSize });
+            const stream = fs.createReadStream(videoPath);
+            stream.pipe(res);
+        }
+    } catch (e) {
+        console.error('❌ Video stream error:', e);
+        res.status(500).end();
+    }
 });
 
 // API endpoint để tạo video từ text (chỉ nhận prompt, còn lại mặc định)
@@ -1012,6 +1077,14 @@ app.listen(PORT, () => {
     console.log(`📝 API endpoints:`);
     console.log(`   POST /api/create-video - Tạo video từ text`);
     console.log(`   POST /api/check-status - Kiểm tra trạng thái video`);
+    console.log(`   POST /api/upload-youtube - Upload video lên YouTube`);
+    console.log(`   POST /api/create-profile - Tạo Chrome profile mới`);
+    console.log(`   GET  /api/list-profiles - Liệt kê Chrome profiles`);
+    console.log(`   POST /api/check-youtube-login - Kiểm tra đăng nhập YouTube`);
+    console.log(`   POST /api/check-labs-login - Kiểm tra đăng nhập Google Labs`);
+    console.log(`   POST /api/open-profile-login - Mở profile để đăng nhập`);
+    console.log(`   POST /api/delete-profile - Xóa Chrome profile`);
+    console.log(`   GET  /api/list-videos - Liệt kê video files`);
     console.log(`   GET  /api/history - Xem lịch sử requests`);
     console.log(`   DELETE /api/history - Xóa lịch sử`);
     console.log(`   GET  /api/token-status - Kiểm tra trạng thái token`);
@@ -1024,6 +1097,9 @@ app.listen(PORT, () => {
     // Auto background batch poll unfinished operations
     if (AUTO_BATCH_POLL) {
         console.log(`⏱️ Auto batch polling enabled (interval ${AUTO_BATCH_INTERVAL_MS} ms)`);
+        if (AUTO_BATCH_QUIET_MODE) {
+            console.log(`🔇 Quiet mode enabled - reduced logging`);
+        }
         setInterval(async () => {
             if (isBatchPolling) return; // avoid overlap
             isBatchPolling = true;
@@ -1036,12 +1112,16 @@ app.listen(PORT, () => {
                         .filter(name => !downloadedOperations.has(name))
                 ));
 
-                if (pending.length === 0) {
+            if (pending.length === 0) {
                     isBatchPolling = false;
                     return;
                 }
 
-                console.log(`⏱️ Auto batch polling ${pending.length} operations...`);
+                // Chỉ log khi không ở chế độ quiet hoặc lần đầu
+                if (!AUTO_BATCH_QUIET_MODE && (!global.lastPollingLog || Date.now() - global.lastPollingLog > 60000)) {
+                    console.log(`⏱️ Auto batch polling ${pending.length} operations...`);
+                    global.lastPollingLog = Date.now();
+                }
 
                 const sceneId = '361d647b-e22b-4477-acc1-fe3aa18b5b68';
                 const authorization = process.env.LABS_AUTH;
@@ -1088,9 +1168,11 @@ app.listen(PORT, () => {
 
                         if (videoUrl && !downloadedOperations.has(name)) {
                             try {
+                                console.log(`📥 Auto-downloading video: ${name}`);
                                 await downloadVideo(videoUrl, name);
                                 downloadedOperations.add(name);
                                 saveStorageData();
+                                console.log(`✅ Auto-download completed: ${name}`);
                             } catch (e) {
                                 console.error('❌ Auto-poll download error:', e);
                             }
@@ -1102,10 +1184,224 @@ app.listen(PORT, () => {
             } finally {
                 isBatchPolling = false;
             }
-        }, AUTO_BATCH_INTERVAL_MS);
+        }, AUTO_BATCH_INTERVAL_MS).unref();
     } else {
         console.log('⏱️ Auto batch polling disabled');
     }
 });
+
+// API: Upload video lên YouTube bằng Puppeteer
+app.post('/api/upload-youtube', async (req, res) => {
+    try {
+        const { 
+            videoPath, 
+            title, 
+            description, 
+            visibility, 
+            debug, 
+            profileName,
+            customUserAgent,
+            customViewport 
+        } = req.body || {};
+        
+        if (!videoPath) {
+            return res.status(400).json({ success: false, message: 'videoPath is required' });
+        }
+        
+        const absPath = path.isAbsolute(videoPath) ? videoPath : path.join(__dirname, videoPath);
+        const result = await uploadToYouTube({
+            videoPath: absPath,
+            title,
+            description,
+            visibility: visibility || 'UNLISTED',
+            debugMode: Boolean(debug),
+            profileName: profileName || 'Default',
+            customUserAgent,
+            customViewport
+        });
+        
+        if (result.success) {
+            return res.json({ 
+                success: true, 
+                videoId: result.videoId, 
+                url: result.url, 
+                status: result.status,
+                logs: result.logs 
+            });
+        }
+        
+        return res.status(500).json({ success: false, error: result.error, logs: result.logs });
+    } catch (e) {
+        console.error('❌ Upload YouTube error:', e);
+        res.status(500).json({ success: false, message: 'Upload failed', error: e.message });
+    }
+});
+
+// ===== CHROME PROFILE MANAGEMENT APIs =====
+
+// Khởi tạo Chrome Profile Utils
+const profileUtils = new ChromeProfileUtils();
+
+// API: Tạo Chrome profile mới
+app.post('/api/create-profile', async (req, res) => {
+    try {
+        const { profileName } = req.body || {};
+        if (!profileName) {
+            return res.status(400).json({ success: false, message: 'profileName is required' });
+        }
+        
+        const profilePath = profileUtils.createYouTubeProfile(profileName);
+        res.json({ success: true, message: `Profile ${profileName} created`, profilePath });
+    } catch (error) {
+        console.error('❌ Create profile error:', error);
+        res.status(500).json({ success: false, message: 'Error creating profile', error: error.message });
+    }
+});
+
+// API: Liệt kê Chrome profiles
+app.get('/api/list-profiles', async (req, res) => {
+    try {
+        const profiles = profileUtils.listAllProfiles();
+        res.json({ success: true, profiles });
+    } catch (error) {
+        console.error('❌ List profiles error:', error);
+        res.status(500).json({ success: false, message: 'Error listing profiles', error: error.message });
+    }
+});
+
+// API: Kiểm tra đăng nhập YouTube
+app.post('/api/check-youtube-login', async (req, res) => {
+    try {
+        const { profileName = 'Default' } = req.body || {};
+        const isLoggedIn = await profileUtils.checkYouTubeLogin(profileName);
+        res.json({ success: true, isLoggedIn, profileName });
+    } catch (error) {
+        console.error('❌ Check YouTube login error:', error);
+        res.status(500).json({ success: false, message: 'Error checking YouTube login', error: error.message });
+    }
+});
+
+// API: Kiểm tra đăng nhập Google Labs
+app.post('/api/check-labs-login', async (req, res) => {
+    try {
+        const { profileName = 'Default' } = req.body || {};
+        const isLoggedIn = await profileUtils.checkLabsLogin(profileName);
+        res.json({ success: true, isLoggedIn, profileName });
+    } catch (error) {
+        console.error('❌ Check Labs login error:', error);
+        res.status(500).json({ success: false, message: 'Error checking Labs login', error: error.message });
+    }
+});
+
+// API: Mở profile để đăng nhập thủ công
+app.post('/api/open-profile-login', async (req, res) => {
+    try {
+        const { profileName = 'Default', url = 'https://www.youtube.com' } = req.body || {};
+        const success = await profileUtils.openProfileForLogin(profileName, url);
+        res.json({ success, message: `Profile ${profileName} opened for login` });
+    } catch (error) {
+        console.error('❌ Open profile login error:', error);
+        res.status(500).json({ success: false, message: 'Error opening profile', error: error.message });
+    }
+});
+
+// API: Xóa Chrome profile
+app.post('/api/delete-profile', async (req, res) => {
+    try {
+        const { profileName } = req.body || {};
+        if (!profileName) {
+            return res.status(400).json({ success: false, message: 'profileName is required' });
+        }
+        
+        const success = profileUtils.deleteProfile(profileName);
+        res.json({ success, message: `Profile ${profileName} ${success ? 'deleted' : 'not found'}` });
+    } catch (error) {
+        console.error('❌ Delete profile error:', error);
+        res.status(500).json({ success: false, message: 'Error deleting profile', error: error.message });
+    }
+});
+
+// API: Liệt kê video files
+app.get('/api/list-videos', async (req, res) => {
+    try {
+        const videosDir = path.join(__dirname, 'public', 'videos');
+        if (!fs.existsSync(videosDir)) {
+            return res.json({ success: true, videos: [] });
+        }
+        
+        const files = fs.readdirSync(videosDir)
+            .filter(file => file.toLowerCase().endsWith('.mp4'))
+            .sort((a, b) => fs.statSync(path.join(videosDir, b)).mtime - fs.statSync(path.join(videosDir, a)).mtime);
+        
+        res.json({ success: true, videos: files });
+    } catch (error) {
+        console.error('❌ List videos error:', error);
+        res.status(500).json({ success: false, message: 'Error listing videos', error: error.message });
+    }
+});
+
+// API: Kiểm tra profile đã được lưu chưa
+app.get('/api/check-profile/:profileName', async (req, res) => {
+    try {
+        const { profileName } = req.params;
+        const profilePath = path.join(__dirname, 'chrome-profile', profileName);
+        
+        if (!fs.existsSync(profilePath)) {
+            return res.json({ 
+                success: false, 
+                exists: false, 
+                message: `Profile ${profileName} chưa tồn tại` 
+            });
+        }
+        
+        // Kiểm tra các file quan trọng trong profile
+        const importantFiles = [
+            'Default/Cookies',
+            'Default/Local Storage',
+            'Default/Session Storage',
+            'Default/Preferences',
+            'Default/Login Data'
+        ];
+        
+        const existingFiles = importantFiles.filter(file => 
+            fs.existsSync(path.join(profilePath, file))
+        );
+        
+        const profileSize = getDirectorySize(profilePath);
+        
+        res.json({ 
+            success: true, 
+            exists: true,
+            profileName,
+            profilePath,
+            profileSize: `${(profileSize / 1024 / 1024).toFixed(2)} MB`,
+            importantFiles: existingFiles,
+            message: `Profile ${profileName} đã được lưu với ${existingFiles.length}/${importantFiles.length} file quan trọng`
+        });
+    } catch (error) {
+        console.error('❌ Check profile error:', error);
+        res.status(500).json({ success: false, message: 'Error checking profile', error: error.message });
+    }
+});
+
+// Helper function để tính kích thước thư mục
+function getDirectorySize(dirPath) {
+    let totalSize = 0;
+    try {
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+            const filePath = path.join(dirPath, file);
+            const stats = fs.statSync(filePath);
+            if (stats.isDirectory()) {
+                totalSize += getDirectorySize(filePath);
+            } else {
+                totalSize += stats.size;
+            }
+        }
+    } catch (error) {
+        // Ignore errors
+    }
+    return totalSize;
+}
 
 module.exports = app;

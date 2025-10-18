@@ -237,16 +237,75 @@
         </div>
 
         <div class="content">
-            <form id="videoForm">
+            <!-- Chrome Profile Management Section -->
+            <div class="profile-section" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+                <h3 style="color: #333; margin-bottom: 15px;">🔧 Quản lý Chrome Profile</h3>
+                
                 <div class="form-group">
-                    <label for="prompts">📝 Mô tả video bạn muốn tạo (mỗi dòng một prompt)</label>
-                    <textarea id="prompts" name="prompts" rows="6" placeholder="Ví dụ:\na cat playing piano in space\na dog surfing a wave\na robot dancing in the rain">cat</textarea>
+                    <label for="profileName">📁 Tên Profile:</label>
+                    <input type="text" id="profileName" placeholder="YouTube, GoogleLabs, Default..." value="Default">
                 </div>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-secondary" onclick="createProfile()">➕ Tạo Profile</button>
+                    <button type="button" class="btn btn-secondary" onclick="listProfiles()">📋 Danh sách</button>
+                    <button type="button" class="btn btn-secondary" onclick="checkProfile()">💾 Kiểm tra Profile</button>
+                    <button type="button" class="btn btn-secondary" onclick="checkYouTubeLogin()">🔍 Kiểm tra YouTube</button>
+                    <button type="button" class="btn btn-secondary" onclick="checkLabsLogin()">🔍 Kiểm tra Labs</button>
+                    <button type="button" class="btn btn-success" onclick="openProfileForLogin('youtube')">🌐 Đăng nhập YouTube</button>
+                    <button type="button" class="btn btn-success" onclick="openProfileForLogin('labs')">🌐 Đăng nhập Labs</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteProfile()">🗑️ Xóa Profile</button>
+                </div>
+            </div>
 
-                <button type="submit" class="btn btn-success">🎬 Tạo Video</button>
-                <button type="button" class="btn btn-secondary" onclick="loadHistory()">📋 Lịch sử</button>
-                <button type="button" class="btn btn-danger" onclick="clearHistory()">🗑️ Xóa lịch sử</button>
-            </form>
+            <!-- YouTube Upload Section -->
+            <div class="upload-section" style="background: #e8f5e8; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+                <h3 style="color: #155724; margin-bottom: 15px;">📺 Upload lên YouTube</h3>
+                
+                <div class="form-group">
+                    <label for="uploadVideoPath">📁 Đường dẫn video:</label>
+                    <input type="text" id="uploadVideoPath" placeholder="public/videos/video.mp4" value="public/videos/">
+                </div>
+                
+                <div class="form-group">
+                    <label for="uploadTitle">📝 Tiêu đề video:</label>
+                    <input type="text" id="uploadTitle" placeholder="Tiêu đề video">
+                </div>
+                
+                <div class="form-group">
+                    <label for="uploadDescription">📄 Mô tả:</label>
+                    <textarea id="uploadDescription" rows="3" placeholder="Mô tả video..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="uploadVisibility">👁️ Chế độ hiển thị:</label>
+                    <select id="uploadVisibility">
+                        <option value="UNLISTED">Không công khai (Unlisted)</option>
+                        <option value="PRIVATE">Riêng tư (Private)</option>
+                        <option value="PUBLIC">Công khai (Public)</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-success" onclick="uploadToYouTube()">🚀 Upload YouTube</button>
+                    <button type="button" class="btn btn-secondary" onclick="listVideoFiles()">📁 Danh sách video</button>
+                </div>
+            </div>
+
+            <!-- AI Video Generation Section -->
+            <div class="generation-section">
+                <h3 style="color: #333; margin-bottom: 15px;">🎬 Tạo Video AI</h3>
+                <form id="videoForm">
+                    <div class="form-group">
+                        <label for="prompts">📝 Mô tả video bạn muốn tạo (mỗi dòng một prompt)</label>
+                        <textarea id="prompts" name="prompts" rows="6" placeholder="Ví dụ:\na cat playing piano in space\na dog surfing a wave\na robot dancing in the rain">cat</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-success">🎬 Tạo Video</button>
+                    <button type="button" class="btn btn-secondary" onclick="loadHistory()">📋 Lịch sử</button>
+                    <button type="button" class="btn btn-danger" onclick="clearHistory()">🗑️ Xóa lịch sử</button>
+                </form>
+            </div>
 
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -716,6 +775,279 @@
         // (đã bỏ API làm mới token)
 
 
+
+        // ===== CHROME PROFILE MANAGEMENT FUNCTIONS =====
+        
+        // Tạo profile mới
+        async function createProfile() {
+            const profileName = document.getElementById('profileName').value.trim();
+            if (!profileName) {
+                showError('Vui lòng nhập tên profile');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:8888/api/create-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileName })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showSuccess(`Đã tạo profile: ${profileName}`);
+                } else {
+                    showError(result.message || 'Lỗi tạo profile');
+                }
+            } catch (error) {
+                showError('Lỗi tạo profile: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Liệt kê profiles
+        async function listProfiles() {
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:8888/api/list-profiles');
+                const result = await response.json();
+                
+                if (result.success) {
+                    let html = '<div class="success"><h4>📋 Danh sách Profiles:</h4><ul>';
+                    result.profiles.forEach(profile => {
+                        html += `<li>${profile}</li>`;
+                    });
+                    html += '</ul></div>';
+                    document.getElementById('response').innerHTML = html;
+                } else {
+                    showError('Lỗi tải danh sách profiles');
+                }
+            } catch (error) {
+                showError('Lỗi tải danh sách: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Kiểm tra profile đã được lưu chưa
+        async function checkProfile() {
+            const profileName = document.getElementById('profileName').value.trim() || 'Default';
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`http://localhost:8888/api/check-profile/${profileName}`);
+                const result = await response.json();
+                
+                if (result.success && result.exists) {
+                    let html = '<div class="success">';
+                    html += `<h4>💾 Profile ${result.profileName} đã được lưu</h4>`;
+                    html += `<p><strong>Đường dẫn:</strong> ${result.profilePath}</p>`;
+                    html += `<p><strong>Kích thước:</strong> ${result.profileSize}</p>`;
+                    html += `<p><strong>File quan trọng:</strong> ${result.importantFiles.length}/5</p>`;
+                    html += '<ul>';
+                    result.importantFiles.forEach(file => {
+                        html += `<li>✅ ${file}</li>`;
+                    });
+                    html += '</ul>';
+                    html += `<p><strong>Trạng thái:</strong> ${result.message}</p>`;
+                    html += '</div>';
+                    document.getElementById('response').innerHTML = html;
+                } else {
+                    showError(result.message || 'Profile chưa được lưu');
+                }
+            } catch (error) {
+                showError('Lỗi kiểm tra profile: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Kiểm tra đăng nhập YouTube
+        async function checkYouTubeLogin() {
+            const profileName = document.getElementById('profileName').value.trim() || 'Default';
+            showLoading(true);
+            
+            try {
+                const response = await fetch('http://localhost:8888/api/check-youtube-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileName })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    const status = result.isLoggedIn ? '✅ Đã đăng nhập' : '❌ Chưa đăng nhập';
+                    showSuccess(`Profile ${profileName} - YouTube: ${status}`);
+                } else {
+                    showError(result.message || 'Lỗi kiểm tra đăng nhập');
+                }
+            } catch (error) {
+                showError('Lỗi kiểm tra đăng nhập: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Kiểm tra đăng nhập Google Labs
+        async function checkLabsLogin() {
+            const profileName = document.getElementById('profileName').value.trim() || 'Default';
+            showLoading(true);
+            
+            try {
+                const response = await fetch('http://localhost:8888/api/check-labs-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileName })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    const status = result.isLoggedIn ? '✅ Đã đăng nhập' : '❌ Chưa đăng nhập';
+                    showSuccess(`Profile ${profileName} - Google Labs: ${status}`);
+                } else {
+                    showError(result.message || 'Lỗi kiểm tra đăng nhập');
+                }
+            } catch (error) {
+                showError('Lỗi kiểm tra đăng nhập: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Mở profile để đăng nhập
+        async function openProfileForLogin(type) {
+            const profileName = document.getElementById('profileName').value.trim() || 'Default';
+            const url = type === 'youtube' ? 'https://www.youtube.com' : 'https://labs.google';
+            
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:8888/api/open-profile-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileName, url })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showSuccess(`Đã mở profile ${profileName} tại ${url}. Đăng nhập thủ công và đóng browser khi xong.`);
+                } else {
+                    showError(result.message || 'Lỗi mở profile');
+                }
+            } catch (error) {
+                showError('Lỗi mở profile: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Xóa profile
+        async function deleteProfile() {
+            const profileName = document.getElementById('profileName').value.trim();
+            if (!profileName) {
+                showError('Vui lòng nhập tên profile');
+                return;
+            }
+            
+            if (!confirm(`Bạn có chắc muốn xóa profile "${profileName}"?`)) {
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:8888/api/delete-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileName })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showSuccess(`Đã xóa profile: ${profileName}`);
+                } else {
+                    showError(result.message || 'Lỗi xóa profile');
+                }
+            } catch (error) {
+                showError('Lỗi xóa profile: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // ===== YOUTUBE UPLOAD FUNCTIONS =====
+        
+        // Upload video lên YouTube
+        async function uploadToYouTube() {
+            const videoPath = document.getElementById('uploadVideoPath').value.trim();
+            const title = document.getElementById('uploadTitle').value.trim();
+            const description = document.getElementById('uploadDescription').value.trim();
+            const visibility = document.getElementById('uploadVisibility').value;
+            const profileName = document.getElementById('profileName').value.trim() || 'Default';
+            
+            if (!videoPath) {
+                showError('Vui lòng nhập đường dẫn video');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:8888/api/upload-youtube', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        videoPath,
+                        title,
+                        description,
+                        visibility,
+                        profileName,
+                        debug: false
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showSuccess(`Upload thành công! Video ID: ${result.videoId}`);
+                    if (result.url) {
+                        document.getElementById('response').innerHTML += `
+                            <div class="success" style="margin-top: 10px;">
+                                <strong>🔗 Link video:</strong> <a href="${result.url}" target="_blank">${result.url}</a>
+                            </div>
+                        `;
+                    }
+                } else {
+                    showError(result.error || 'Lỗi upload video');
+                }
+            } catch (error) {
+                showError('Lỗi upload: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Liệt kê video files
+        async function listVideoFiles() {
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:8888/api/list-videos');
+                const result = await response.json();
+                
+                if (result.success) {
+                    let html = '<div class="success"><h4>📁 Danh sách Video:</h4><ul>';
+                    result.videos.forEach(video => {
+                        html += `<li><a href="/videos/${video}" target="_blank">${video}</a></li>`;
+                    });
+                    html += '</ul></div>';
+                    document.getElementById('response').innerHTML = html;
+                } else {
+                    showError('Lỗi tải danh sách video');
+                }
+            } catch (error) {
+                showError('Lỗi tải danh sách: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
 
         // Dừng polling và token monitoring khi rời khỏi trang
         window.addEventListener('beforeunload', () => {

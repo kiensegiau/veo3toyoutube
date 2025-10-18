@@ -109,3 +109,80 @@ node manager.js
 - **✅ Tối ưu và gọn nhẹ**
 
 **Hệ thống đã hoàn hảo và tối ưu! File cookies.json sẽ không bao giờ "chết"!** 🚀
+
+---
+
+### Ghi chú tối ưu hoá máy chủ
+
+- Bật nén HTTP (middleware `compression`).
+- Thiết lập cache dài hạn cho static assets; HTML là no-cache.
+- Video trong `public/videos` hỗ trợ HTTP Range để tua/stream mượt.
+- Hỗ trợ biến môi trường `PORT` để cấu hình cổng.
+
+---
+
+### Upload YouTube (Puppeteer)
+
+API: POST `/api/upload-youtube`
+
+Body JSON:
+
+```json
+{
+  "videoPath": "public/videos/your-file.mp4",
+  "title": "Tiêu đề video",
+  "description": "Mô tả",
+  "visibility": "UNLISTED", // PUBLIC | PRIVATE | UNLISTED
+  "debug": false,
+  "profileName": "YouTube", // Tên profile Chrome
+  "customUserAgent": null, // User Agent tùy chỉnh
+  "customViewport": { "width": 1920, "height": 1080 } // Viewport tùy chỉnh
+}
+```
+
+### Quản lý Chrome Profile
+
+Module `chrome-profile-manager.js` cung cấp:
+
+- **Stealth configuration**: Chống phát hiện bot với User Agent ngẫu nhiên, viewport thực tế
+- **Profile management**: Tạo, xóa, backup/restore profiles
+- **Auto Chrome detection**: Tự động tìm Chrome/Edge trên hệ thống
+- **Login checking**: Kiểm tra trạng thái đăng nhập YouTube/Google Labs
+
+#### Sử dụng Chrome Profile Utils:
+
+```javascript
+const ChromeProfileUtils = require('./chrome-profile-utils');
+const utils = new ChromeProfileUtils();
+
+// Tạo profile mới
+utils.createYouTubeProfile('MyYouTube');
+
+// Kiểm tra đăng nhập
+await utils.checkYouTubeLogin('MyYouTube');
+
+// Mở profile để đăng nhập thủ công
+await utils.openProfileForLogin('MyYouTube', 'https://www.youtube.com');
+
+// Backup/Restore profile
+utils.backupProfile('MyYouTube');
+utils.restoreProfile('./backups/MyYouTube_2024-01-01', 'MyYouTube');
+```
+
+#### Cấu hình Environment:
+
+```bash
+# Tùy chọn: Đường dẫn Chrome
+CHROME_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe"
+
+# Tùy chọn: User Agent tùy chỉnh
+USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+# Tùy chọn: Profile path
+CHROME_PROFILE_PATH="C:\Users\PC\Documents\web\chrome-profile"
+```
+
+Ghi chú quy trình:
+- Theo đúng flow và selectors trong phần mô tả quy trình upload
+- Sử dụng stealth configuration để tránh phát hiện bot
+- Module: `youtube-upload.js`, `chrome-profile-manager.js`, `chrome-profile-utils.js`
