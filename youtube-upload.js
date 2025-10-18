@@ -25,14 +25,19 @@ async function uploadToYouTube(opts) {
     // Tạo profile path
     const profilePath = path.join(profileManager.defaultProfilePath, profileName);
     
-    // Lấy launch options với stealth config
-    const launchOptions = profileManager.getStealthLaunchOptions({
-        profilePath,
-        headless: debugMode ? false : 'new',
-        debugMode,
-        customUserAgent,
-        customViewport
-    });
+    // Sử dụng launch options đơn giản không stealth
+    const launchOptions = {
+        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        headless: false,
+        args: [
+            `--user-data-dir=${profilePath}`,
+            '--profile-directory=Default',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
+        ]
+    };
 
     let browser;
     const logs = [];
@@ -42,11 +47,16 @@ async function uploadToYouTube(opts) {
         browser = await puppeteer.launch(launchOptions);
         const page = await browser.newPage();
         
-        // Áp dụng stealth settings
-        await profileManager.applyStealthSettings(page);
+        // Không dùng stealth settings để tránh lỗi
 
-        await page.goto('https://www.youtube.com/upload', { waitUntil: 'networkidle2' });
+        await page.goto('https://www.youtube.com/upload', { 
+            waitUntil: 'domcontentloaded', 
+            timeout: 30000 
+        });
         log('Opened upload page');
+        
+        // Chờ thêm để trang load hoàn toàn
+        await page.waitForTimeout(5000);
 
         // Check login
         const signInSelector1 = 'a[aria-label="Sign in"]';
@@ -55,14 +65,48 @@ async function uploadToYouTube(opts) {
             return { success: false, error: 'NOT_SIGNED_IN', logs };
         }
 
-        // Upload file
-        await page.waitForSelector('input[type="file"]');
-        const fileInput = await page.$('input[type="file"]');
+        // Upload file - thử nhiều selector khác nhau
+        let fileInput = null;
+        const fileSelectors = [
+            'input[type="file"]',
+            'input[accept*="video"]',
+            'input[accept*="mp4"]',
+            'input[aria-label*="file"]',
+            'input[aria-label*="video"]'
+        ];
+        
+        for (const selector of fileSelectors) {
+            try {
+                await page.waitForSelector(selector, { timeout: 10000 });
+                fileInput = await page.$(selector);
+                if (fileInput) break;
+            } catch (e) {
+                log(`Selector ${selector} not found: ${e.message}`);
+            }
+        }
+        
+        if (!fileInput) {
+            return { success: false, error: 'FILE_INPUT_NOT_FOUND', logs };
+        }
+        
         await fileInput.uploadFile(videoPath);
         log('File selected');
 
-        // Wait for metadata form
-        await page.waitForSelector('#textbox', { timeout: 120000 });
+        // Chờ file được xử lý
+        log('Waiting for file processing...');
+        await page.waitForTimeout(10000);
+
+        // Wait for metadata form với debug
+        try {
+            await page.waitForSelector('#textbox', { timeout: 120000 });
+            log('Found metadata form');
+        } catch (e) {
+            log(`Metadata form not found: ${e.message}`);
+            // Chụp ảnh màn hình để debug
+            await page.screenshot({ path: 'debug-upload.png' });
+            log('Screenshot saved as debug-upload.png');
+            return { success: false, error: 'METADATA_FORM_NOT_FOUND', logs };
+        }
 
         // Optional: title/description
         if (typeof title === 'string' && title.length > 0) {
@@ -88,13 +132,42 @@ async function uploadToYouTube(opts) {
 
         // Next steps 3-4 times
         async function clickNext() {
-            const btn = await page.$('button[aria-label="Tiếp"]')
-                || await page.$('.ytcpButtonShapeImplHost');
-            if (btn) { await btn.click(); await page.waitForTimeout(1200); return true; }
+            // Try multiple selectors for Next button
+            const nextSelectors = [
+                'button[aria-label="Tiếp"]',
+                'button[aria-label="Next"]', 
+                '.ytcpButtonShapeImplHost',
+                'button[aria-label="Continue"]',
+                'button[aria-label="Tiếp tục"]'
+            ];
+            
+            for (const selector of nextSelectors) {
+                try {
+                    const btn = await page.$(selector);
+                    if (btn) { 
+                        log(`Found Next button with selector: ${selector}`);
+                        // Scroll to button và chờ để đảm bảo nút có thể click
+                        await btn.scrollIntoView();
+                        await page.waitForTimeout(1000);
+                        // Thử click bằng JavaScript thay vì Puppeteer click
+                        await page.evaluate((element) => element.click(), btn); 
+                        await page.waitForTimeout(1200); 
+                        return true; 
+                    }
+                } catch (e) {
+                    log(`Error clicking button with selector ${selector}: ${e.message}`);
+                }
+            }
+            
+            // Fallback: search by text content
             const buttons = await page.$$('button');
             for (const b of buttons) {
                 const txt = await page.evaluate(el => el.textContent || '', b);
-                if (txt && txt.includes('Tiếp')) { await b.click(); await page.waitForTimeout(1200); return true; }
+                if (txt && (txt.includes('Tiếp') || txt.includes('Next') || txt.includes('Continue'))) { 
+                    await b.click(); 
+                    await page.waitForTimeout(1200); 
+                    return true; 
+                }
             }
             return false;
         }
@@ -163,16 +236,29 @@ async function uploadToYouTube(opts) {
             url = videoId ? `https://www.youtube.com/watch?v=${videoId}` : link;
         }
 
+        // Không đóng browser ngay để user có thể thấy kết quả
         if (!debugMode) {
             try { await page.close(); } catch (_) {}
         }
 
         return { success: true, videoId, url, status, logs };
     } catch (error) {
+        log(`Error: ${error.message}`);
+        // Không đóng browser khi có lỗi để user có thể debug
+        console.log('Error occurred, keeping browser open for debugging...');
         return { success: false, error: error.message, logs };
     } finally {
-        if (!debugMode && browser) {
-            try { await browser.close(); } catch (_) {}
+        // Luôn giữ browser mở ít nhất 60 giây để user có thể debug
+        if (browser) {
+            console.log('Keeping browser open for 60 seconds for debugging...');
+            setTimeout(async () => {
+                try { 
+                    await browser.close(); 
+                    console.log('Browser closed after 60 seconds');
+                } catch (e) {
+                    console.log('Error closing browser:', e.message);
+                }
+            }, 60000);
         }
     }
 }

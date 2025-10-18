@@ -5,228 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Video Generator</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .header {
-            background: #0f172a;
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 40px;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #4facfe;
-        }
-
-        .btn {
-            background: #0ea5e9;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-            margin-right: 10px;
-            margin-bottom: 10px;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: #0f172a; color: white; padding: 30px; text-align: center; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .content { padding: 40px; }
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 15px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; transition: border-color 0.3s ease; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #4facfe; }
+        .btn { background: #0ea5e9; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s ease; margin-right: 10px; margin-bottom: 10px; }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
         .btn-secondary { background: #64748b; }
         .btn-danger { background: #ef4444; }
         .btn-success { background: #22c55e; }
-
-        /* removed old gradient success */
-
-        .response {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #4facfe;
-        }
-
-        .response h3 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .response pre {
-            background: #2d3748;
-            color: #e2e8f0;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-            font-size: 14px;
-        }
-
-        .history {
-            margin-top: 30px;
-        }
-
-        .history-item {
-            background: #f8f9fa;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            border-left: 4px solid #28a745;
-        }
-
-        .history-item h4 {
-            color: #333;
-            margin-bottom: 5px;
-        }
-
-        .history-item p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4facfe;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 4px solid #dc3545;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 4px solid #28a745;
-        }
-
-        .video-result {
-            background: #e8f5e8;
-            color: #155724;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 4px solid #28a745;
-            text-align: center;
-        }
-
-        .video-result video {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-
-        .video-result a {
-            color: #155724;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .video-result a:hover {
-            text-decoration: underline;
-        }
-
-        .polling-status {
-            background: #fff3cd;
-            color: #856404;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 4px solid #ffc107;
-        }
-
-        .polling-status.active {
-            background: #d1ecf1;
-            color: #0c5460;
-            border-left-color: #17a2b8;
-        }
+        .response { margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4facfe; }
+        .response h3 { margin-bottom: 15px; color: #333; }
+        .response pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 14px; }
+        .history { margin-top: 30px; }
+        .history-item { background: #f8f9fa; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #28a745; }
+        .history-item h4 { color: #333; margin-bottom: 5px; }
+        .history-item p { color: #666; font-size: 14px; }
+        .loading { display: none; text-align: center; margin: 20px 0; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #4facfe; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #dc3545; }
+        .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #28a745; }
+        .video-result { background: #e8f5e8; color: #155724; padding: 20px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #28a745; text-align: center; }
+        .video-result video { max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; }
+        .video-result a { color: #155724; text-decoration: none; font-weight: bold; }
+        .video-result a:hover { text-decoration: underline; }
+        .polling-status { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ffc107; }
+        .polling-status.active { background: #d1ecf1; color: #0c5460; border-left-color: #17a2b8; }
+        .section { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+        .section h3 { color: #333; margin-bottom: 15px; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        table { width: 100%; border-collapse: collapse; background: #fff; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f8f9fa; }
     </style>
 </head>
 <body>
@@ -237,16 +56,14 @@
         </div>
 
         <div class="content">
-            <!-- Chrome Profile Management Section -->
-            <div class="profile-section" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
-                <h3 style="color: #333; margin-bottom: 15px;">🔧 Quản lý Chrome Profile</h3>
-                
+            <!-- Chrome Profile Management -->
+            <div class="section">
+                <h3>🔧 Quản lý Chrome Profile</h3>
                 <div class="form-group">
                     <label for="profileName">📁 Tên Profile:</label>
                     <input type="text" id="profileName" placeholder="YouTube, GoogleLabs, Default..." value="Default">
                 </div>
-                
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <div class="btn-group">
                     <button type="button" class="btn btn-secondary" onclick="createProfile()">➕ Tạo Profile</button>
                     <button type="button" class="btn btn-secondary" onclick="listProfiles()">📋 Danh sách</button>
                     <button type="button" class="btn btn-secondary" onclick="checkProfile()">💾 Kiểm tra Profile</button>
@@ -258,25 +75,21 @@
                 </div>
             </div>
 
-            <!-- YouTube Upload Section -->
-            <div class="upload-section" style="background: #e8f5e8; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
-                <h3 style="color: #155724; margin-bottom: 15px;">📺 Upload lên YouTube</h3>
-                
+            <!-- YouTube Upload -->
+            <div class="section" style="background: #e8f5e8;">
+                <h3 style="color: #155724;">📺 Upload lên YouTube</h3>
                 <div class="form-group">
                     <label for="uploadVideoPath">📁 Đường dẫn video:</label>
                     <input type="text" id="uploadVideoPath" placeholder="public/videos/video.mp4" value="public/videos/">
                 </div>
-                
                 <div class="form-group">
                     <label for="uploadTitle">📝 Tiêu đề video:</label>
                     <input type="text" id="uploadTitle" placeholder="Tiêu đề video">
                 </div>
-                
                 <div class="form-group">
                     <label for="uploadDescription">📄 Mô tả:</label>
                     <textarea id="uploadDescription" rows="3" placeholder="Mô tả video..."></textarea>
                 </div>
-                
                 <div class="form-group">
                     <label for="uploadVisibility">👁️ Chế độ hiển thị:</label>
                     <select id="uploadVisibility">
@@ -285,25 +98,25 @@
                         <option value="PUBLIC">Công khai (Public)</option>
                     </select>
                 </div>
-                
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <div class="btn-group">
                     <button type="button" class="btn btn-success" onclick="uploadToYouTube()">🚀 Upload YouTube</button>
                     <button type="button" class="btn btn-secondary" onclick="listVideoFiles()">📁 Danh sách video</button>
                 </div>
             </div>
 
-            <!-- AI Video Generation Section -->
-            <div class="generation-section">
-                <h3 style="color: #333; margin-bottom: 15px;">🎬 Tạo Video AI</h3>
+            <!-- AI Video Generation -->
+            <div class="section">
+                <h3>🎬 Tạo Video AI</h3>
                 <form id="videoForm">
                     <div class="form-group">
                         <label for="prompts">📝 Mô tả video bạn muốn tạo (mỗi dòng một prompt)</label>
                         <textarea id="prompts" name="prompts" rows="6" placeholder="Ví dụ:\na cat playing piano in space\na dog surfing a wave\na robot dancing in the rain">cat</textarea>
                     </div>
-
-                    <button type="submit" class="btn btn-success">🎬 Tạo Video</button>
-                    <button type="button" class="btn btn-secondary" onclick="loadHistory()">📋 Lịch sử</button>
-                    <button type="button" class="btn btn-danger" onclick="clearHistory()">🗑️ Xóa lịch sử</button>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-success">🎬 Tạo Video</button>
+                        <button type="button" class="btn btn-secondary" onclick="loadHistory()">📋 Lịch sử</button>
+                        <button type="button" class="btn btn-danger" onclick="clearHistory()">🗑️ Xóa lịch sử</button>
+                    </div>
                 </form>
             </div>
 
@@ -325,16 +138,12 @@
     </div>
 
     <script>
-        let pollingInterval = null; // dùng cho chế độ cũ (đơn lẻ)
-        let currentRequestId = null;
-        const rowIntervals = {}; // id -> setInterval handle
-        const opByRow = {}; // id -> operationName
+        let pollingInterval = null, currentRequestId = null;
+        const rowIntervals = {}, opByRow = {};
 
-        // Chuyển input (multiline hoặc JSON) thành mảng prompts
         function parseInputToPrompts(raw) {
             const trimmed = (raw || '').trim();
             if (!trimmed) return [];
-            // Thử parse JSON: hỗ trợ format có story_prompts[].prompt
             try {
                 const obj = JSON.parse(trimmed);
                 if (obj && Array.isArray(obj.story_prompts)) {
@@ -344,95 +153,60 @@
                         .map(s => s.trim());
                     if (prompts.length > 0) return prompts;
                 }
-            } catch (_) { /* không phải JSON, fallback dòng */ }
-            // Fallback: mỗi dòng một prompt
+            } catch (_) {}
             return trimmed.split('\n').map(s => s.trim()).filter(Boolean);
         }
 
-        // Xử lý form submit
+        // Utility functions
+        const API_BASE = 'http://localhost:8888/api';
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const options = { method, headers: { 'Content-Type': 'application/json' } };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_BASE}${endpoint}`, options);
+            return await response.json();
+        }
+
+        function showLoading(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
+        function clearResponse() { document.getElementById('response').innerHTML = ''; }
+        function clearVideoResult() { document.getElementById('videoResult').innerHTML = ''; }
+        function showError(message) { document.getElementById('response').innerHTML = `<div class="error"><strong>❌ Lỗi:</strong> ${message}</div>`; }
+        function showSuccess(message) { document.getElementById('response').innerHTML = `<div class="success"><strong>✅ Thành công:</strong> ${message}</div>`; }
+
+        // Form submit handler
         document.getElementById('videoForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const raw = document.getElementById('prompts').value || '';
             const prompts = parseInputToPrompts(raw);
-
             if (prompts.length === 0) {
                 showError('Vui lòng nhập ít nhất một prompt.');
                 return;
             }
-
             clearResponse();
             clearVideoResult();
             renderBatchTable(prompts);
             await sendAllPromptsWithDelay(prompts, 1000);
         });
 
-        // Kiểm tra trạng thái
-        async function checkStatus() {
-            showLoading(true);
-            clearResponse();
-            
-            try {
-                const response = await fetch('http://localhost:8888/api/check-status', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({})
-                });
-                
-                const result = await response.json();
-                showResponse(result);
-            } catch (error) {
-                showError('Lỗi kiểm tra trạng thái: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // Bắt đầu polling
+        // Polling functions
         function startPolling() {
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-            }
-            
+            if (pollingInterval) clearInterval(pollingInterval);
             showPollingStatus(true);
             updatePollingMessage('Bắt đầu kiểm tra trạng thái video...');
-            
-            // Kiểm tra mỗi 1 giây
-            pollingInterval = setInterval(async () => {
-                await checkVideoStatus();
-            }, 1000);
+            pollingInterval = setInterval(async () => await checkVideoStatus(), 1000);
         }
 
-        // Dừng polling
         function stopPolling() {
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-                pollingInterval = null;
-            }
+            if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
             showPollingStatus(false);
             updatePollingMessage('Đã dừng kiểm tra trạng thái');
         }
 
-        // Kiểm tra trạng thái video
         async function checkVideoStatus() {
             try {
-                const response = await fetch('http://localhost:8888/api/check-status', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({})
-                });
-                
-                const result = await response.json();
-                
+                const result = await apiCall('/check-status', 'POST', {});
                 if (result.success) {
-                    // Kiểm tra xem có video URL không
                     const videoUrl = result.videoUrl || extractVideoUrl(result.data);
                     if (videoUrl) {
-                        // Kiểm tra xem có video đã tải về không
                         if (result.downloadInfo && result.downloadInfo.success) {
                             showVideoResult(videoUrl, result.downloadInfo);
                         } else {
@@ -442,77 +216,47 @@
                         updatePollingMessage('✅ Video đã sẵn sàng!');
                         return;
                     }
-                    
-                    // Nếu video đã hoàn thành hoặc thất bại, dừng polling
                     if (result.videoStatus === 'COMPLETED' || result.videoStatus === 'FAILED') {
                         stopPolling();
-                        if (result.videoStatus === 'FAILED') {
-                            updatePollingMessage('❌ Video generation failed: ' + (result.errorMessage || 'Unknown error'));
-                        } else {
-                            updatePollingMessage('✅ Video processing finished');
-                        }
+                        updatePollingMessage(result.videoStatus === 'FAILED' ? 
+                            '❌ Video generation failed: ' + (result.errorMessage || 'Unknown error') : 
+                            '✅ Video processing finished');
                         return;
                     }
                 }
-                
                 updatePollingMessage(`Đang kiểm tra... (${new Date().toLocaleTimeString('vi-VN')})`);
-                
             } catch (error) {
                 console.error('Lỗi kiểm tra trạng thái:', error);
                 updatePollingMessage('Lỗi kiểm tra trạng thái: ' + error.message);
             }
         }
 
-        // Hiển thị bảng batch
+        // Batch table functions
         function renderBatchTable(prompts) {
             const container = document.getElementById('batchTable');
-            let html = '<div class="history"><h3>📦 Hàng đợi tạo video</h3>';
-            html += '<table style="width:100%; border-collapse: collapse; background: #fff;">';
-            html += '<thead><tr style="text-align:left; background:#f8f9fa;"><th style="padding:8px; border-bottom:1px solid #e5e7eb;">#</th><th style="padding:8px; border-bottom:1px solid #e5e7eb;">Prompt</th><th style="padding:8px; border-bottom:1px solid #e5e7eb;">Trạng thái</th><th style="padding:8px; border-bottom:1px solid #e5e7eb;">Chi tiết</th></tr></thead>';
-            html += '<tbody id="batchRows">';
+            let html = '<div class="history"><h3>📦 Hàng đợi tạo video</h3><table><thead><tr><th>#</th><th>Prompt</th><th>Trạng thái</th><th>Chi tiết</th></tr></thead><tbody id="batchRows">';
             prompts.forEach((p, i) => {
-                html += `<tr id="row-${i}">
-                    <td style="padding:8px; border-bottom:1px solid #f1f5f9;">${i+1}</td>
-                    <td style="padding:8px; border-bottom:1px solid #f1f5f9;">${escapeHtml(p)}<div id="op-${i}" style="color:#64748b; font-size:12px; margin-top:4px;"></div></td>
-                    <td style="padding:8px; border-bottom:1px solid #f1f5f9;" id="status-${i}">⏳ Chờ</td>
-                    <td style="padding:8px; border-bottom:1px solid #f1f5f9;" id="detail-${i}">-</td>
-                </tr>`;
+                html += `<tr id="row-${i}"><td>${i+1}</td><td>${escapeHtml(p)}<div id="op-${i}" style="color:#64748b; font-size:12px; margin-top:4px;"></div></td><td id="status-${i}">⏳ Chờ</td><td id="detail-${i}">-</td></tr>`;
             });
-            html += '</tbody></table></div>';
-            container.innerHTML = html;
+            container.innerHTML = html + '</tbody></table></div>';
         }
 
         function updateRowStatus(index, status, detailHtml) {
-            const s = document.getElementById(`status-${index}`);
-            const d = document.getElementById(`detail-${index}`);
+            const s = document.getElementById(`status-${index}`), d = document.getElementById(`detail-${index}`);
             if (s) s.textContent = status;
             if (d) d.innerHTML = detailHtml || '-';
         }
 
         function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
-        function escapeHtml(s) {
-            return s
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        // Gửi tất cả prompts với delay giữa các request, không đợi hoàn tất
+        // Send prompts with delay
         async function sendAllPromptsWithDelay(prompts, delayMs) {
             for (let i = 0; i < prompts.length; i++) {
-                const prompt = prompts[i];
                 try {
                     updateRowStatus(i, '🚀 Đang gửi yêu cầu', '-');
-                    const createRes = await fetch('http://localhost:8888/api/create-video', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt })
-                    });
-                    const createData = await createRes.json();
-                    if (!createRes.ok || !createData.success) {
+                    const createData = await apiCall('/create-video', 'POST', { prompt: prompts[i] });
+                    if (!createData.success) {
                         updateRowStatus(i, '❌ Lỗi tạo yêu cầu', escapeHtml(createData.message || 'Unknown error'));
                     } else {
                         updateRowStatus(i, '🔎 Đang tạo...', 'Đang chờ video hoàn tất');
@@ -526,7 +270,6 @@
                 } catch (err) {
                     updateRowStatus(i, '❌ Lỗi', escapeHtml(err.message));
                 }
-                // Nghỉ delay giữa các lần gửi
                 await sleep(delayMs);
             }
         }
@@ -535,12 +278,7 @@
             if (rowIntervals[index]) clearInterval(rowIntervals[index]);
             rowIntervals[index] = setInterval(async () => {
                 try {
-                    const statusRes = await fetch('http://localhost:8888/api/check-status', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ operationName })
-                    });
-                    const statusData = await statusRes.json();
+                    const statusData = await apiCall('/check-status', 'POST', { operationName });
                     if (statusData.videoStatus === 'COMPLETED') {
                         const videoUrl = statusData.videoUrl || (statusData.downloadInfo && statusData.downloadInfo.filePath) || '';
                         const localInfo = statusData.downloadInfo && statusData.downloadInfo.success
@@ -561,54 +299,37 @@
             }, 1500);
         }
 
-        // Trích xuất video URL từ response
+        // Utility functions
         function extractVideoUrl(data) {
             try {
-                // Tìm video URL trong response data
                 if (data.responses && data.responses.length > 0) {
                     const response = data.responses[0];
-                    if (response.videoUrl) {
-                        return response.videoUrl;
-                    }
-                    if (response.video && response.video.url) {
-                        return response.video.url;
-                    }
-                    if (response.mediaUrl) {
-                        return response.mediaUrl;
-                    }
+                    return response.videoUrl || response.video?.url || response.mediaUrl;
                 }
-                
-                // Tìm trong các trường khác
-                if (data.videoUrl) {
-                    return data.videoUrl;
-                }
-                if (data.video && data.video.url) {
-                    return data.video.url;
-                }
-                if (data.mediaUrl) {
-                    return data.mediaUrl;
-                }
-                
-                return null;
+                return data.videoUrl || data.video?.url || data.mediaUrl || null;
             } catch (error) {
                 console.error('Lỗi trích xuất video URL:', error);
                 return null;
             }
         }
 
-        // Tải lịch sử
+        function showPollingStatus(show) {
+            const statusDiv = document.getElementById('pollingStatus');
+            statusDiv.style.display = show ? 'block' : 'none';
+            statusDiv.classList.toggle('active', show);
+        }
+
+        function updatePollingMessage(message) {
+            document.getElementById('pollingMessage').textContent = message;
+        }
+
+        // History functions
         async function loadHistory() {
             showLoading(true);
-            
             try {
-                const response = await fetch('http://localhost:8888/api/history');
-                const result = await response.json();
-                
-                if (result.success) {
-                    displayHistory(result.requests);
-                } else {
-                    showError('Lỗi tải lịch sử');
-                }
+                const result = await apiCall('/history');
+                if (result.success) displayHistory(result.requests);
+                else showError('Lỗi tải lịch sử');
             } catch (error) {
                 showError('Lỗi tải lịch sử: ' + error.message);
             } finally {
@@ -616,368 +337,145 @@
             }
         }
 
-        // Xóa lịch sử
         async function clearHistory() {
             if (confirm('Bạn có chắc muốn xóa toàn bộ lịch sử?')) {
                 try {
-                    const response = await fetch('http://localhost:8888/api/history', {
-                        method: 'DELETE'
-                    });
-                    
-                    const result = await response.json();
-                    
+                    const result = await apiCall('/history', 'DELETE');
                     if (result.success) {
                         showSuccess('Đã xóa lịch sử');
                         document.getElementById('history').innerHTML = '';
-                    } else {
-                        showError('Lỗi xóa lịch sử');
-                    }
+                    } else showError('Lỗi xóa lịch sử');
                 } catch (error) {
                     showError('Lỗi xóa lịch sử: ' + error.message);
                 }
             }
         }
 
-        // Hiển thị lịch sử
         function displayHistory(requests) {
             const historyDiv = document.getElementById('history');
-            
             if (requests.length === 0) {
                 historyDiv.innerHTML = '<div class="history-item"><p>Chưa có lịch sử nào</p></div>';
                 return;
             }
-            
             let html = '<div class="history"><h3>📋 Lịch sử requests</h3>';
-            
             requests.forEach(req => {
-                html += `
-                    <div class="history-item">
-                        <h4>🎬 ${req.prompt}</h4>
-                        <p><strong>Thời gian:</strong> ${new Date(req.timestamp).toLocaleString('vi-VN')}</p>
-                        <p><strong>Model:</strong> ${req.videoModel}</p>
-                        <p><strong>Tỷ lệ:</strong> ${req.aspectRatio}</p>
-                        <p><strong>Status:</strong> ${req.status}</p>
-                    </div>
-                `;
+                html += `<div class="history-item"><h4>🎬 ${req.prompt}</h4><p><strong>Thời gian:</strong> ${new Date(req.timestamp).toLocaleString('vi-VN')}</p><p><strong>Model:</strong> ${req.videoModel}</p><p><strong>Tỷ lệ:</strong> ${req.aspectRatio}</p><p><strong>Status:</strong> ${req.status}</p></div>`;
             });
-            
-            html += '</div>';
-            historyDiv.innerHTML = html;
+            historyDiv.innerHTML = html + '</div>';
         }
 
-        // Hiển thị loading
-        function showLoading(show) {
-            document.getElementById('loading').style.display = show ? 'block' : 'none';
-        }
-
-        // Hiển thị response
-        function showResponse(data) {
-            const responseDiv = document.getElementById('response');
-            responseDiv.innerHTML = `
-                <div class="response">
-                    <h3>📊 Response</h3>
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
-                </div>
-            `;
-        }
-
-        // Hiển thị success message
-        function showSuccess(message) {
-            const responseDiv = document.getElementById('response');
-            responseDiv.innerHTML = `
-                <div class="success">
-                    <strong>✅ Thành công:</strong> ${message}
-                </div>
-            `;
-        }
-
-        // Hiển thị error message
-        function showError(message) {
-            const responseDiv = document.getElementById('response');
-            responseDiv.innerHTML = `
-                <div class="error">
-                    <strong>❌ Lỗi:</strong> ${message}
-                </div>
-            `;
-        }
-
-        // Xóa response
-        function clearResponse() {
-            document.getElementById('response').innerHTML = '';
-        }
-
-        // Xóa video result
-        function clearVideoResult() {
-            document.getElementById('videoResult').innerHTML = '';
-        }
-
-        // Hiển thị polling status
-        function showPollingStatus(show) {
-            const statusDiv = document.getElementById('pollingStatus');
-            statusDiv.style.display = show ? 'block' : 'none';
-            if (show) {
-                statusDiv.classList.add('active');
-            } else {
-                statusDiv.classList.remove('active');
-            }
-        }
-
-        // Cập nhật polling message
-        function updatePollingMessage(message) {
-            document.getElementById('pollingMessage').textContent = message;
-        }
-
-        // Hiển thị video result
+        // Video result display
         function showVideoResult(videoUrl, downloadInfo = null) {
             const videoResultDiv = document.getElementById('videoResult');
-            
             let downloadSection = '';
             if (downloadInfo && downloadInfo.success) {
-                downloadSection = `
-                    <div class="download-info" style="background: #d4edda; border: 1px solid #c3e6cb; padding: 10px; margin: 10px 0; border-radius: 5px;">
-                        <h4>📥 Video đã được tải về máy:</h4>
-                        <p><strong>Tên file:</strong> ${downloadInfo.fileName}</p>
-                        <p><strong>Đường dẫn:</strong> <a href="${downloadInfo.filePath}" target="_blank">${downloadInfo.filePath}</a></p>
-                        <video controls style="width: 100%; max-width: 500px;">
-                            <source src="${downloadInfo.filePath}" type="video/mp4">
-                            Trình duyệt của bạn không hỗ trợ video tag.
-                        </video>
-                    </div>
-                `;
+                downloadSection = `<div class="download-info" style="background: #d4edda; border: 1px solid #c3e6cb; padding: 10px; margin: 10px 0; border-radius: 5px;"><h4>📥 Video đã được tải về máy:</h4><p><strong>Tên file:</strong> ${downloadInfo.fileName}</p><p><strong>Đường dẫn:</strong> <a href="${downloadInfo.filePath}" target="_blank">${downloadInfo.filePath}</a></p><video controls style="width: 100%; max-width: 500px;"><source src="${downloadInfo.filePath}" type="video/mp4">Trình duyệt của bạn không hỗ trợ video tag.</video></div>`;
             }
-            
-            videoResultDiv.innerHTML = `
-                <div class="video-result">
-                    <h3>🎉 Video đã sẵn sàng!</h3>
-                    ${downloadSection}
-                    <div class="original-video" style="margin-top: 20px;">
-                        <h4>🌐 Video gốc từ Google:</h4>
-                        <p><strong>Video URL:</strong> <a href="${videoUrl}" target="_blank">${videoUrl}</a></p>
-                        <video controls style="width: 100%; max-width: 500px;">
-                            <source src="${videoUrl}" type="video/mp4">
-                            Trình duyệt của bạn không hỗ trợ video tag.
-                        </video>
-                        <p><em>Nhấn vào link để mở video trong tab mới</em></p>
-                    </div>
-                </div>
-            `;
+            videoResultDiv.innerHTML = `<div class="video-result"><h3>🎉 Video đã sẵn sàng!</h3>${downloadSection}<div class="original-video" style="margin-top: 20px;"><h4>🌐 Video gốc từ Google:</h4><p><strong>Video URL:</strong> <a href="${videoUrl}" target="_blank">${videoUrl}</a></p><video controls style="width: 100%; max-width: 500px;"><source src="${videoUrl}" type="video/mp4">Trình duyệt của bạn không hỗ trợ video tag.</video><p><em>Nhấn vào link để mở video trong tab mới</em></p></div></div>`;
         }
 
-        // (đã bỏ logic token/cookies để giao diện gọn gàng hơn)
-
-        // (đã bỏ chức năng kiểm tra/làm mới token định kỳ)
-
-        // Tải lịch sử khi trang load
-        window.addEventListener('load', () => {
-            loadHistory();
-        });
-
-        // (đã bỏ API làm mới token)
+        // Load history on page load
+        window.addEventListener('load', () => loadHistory());
 
 
 
-        // ===== CHROME PROFILE MANAGEMENT FUNCTIONS =====
-        
-        // Tạo profile mới
+        // Chrome Profile Management
         async function createProfile() {
             const profileName = document.getElementById('profileName').value.trim();
-            if (!profileName) {
-                showError('Vui lòng nhập tên profile');
-                return;
-            }
-            
+            if (!profileName) { showError('Vui lòng nhập tên profile'); return; }
             showLoading(true);
             try {
-                const response = await fetch('http://localhost:8888/api/create-profile', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ profileName })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    showSuccess(`Đã tạo profile: ${profileName}`);
-                } else {
-                    showError(result.message || 'Lỗi tạo profile');
-                }
-            } catch (error) {
-                showError('Lỗi tạo profile: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+                const result = await apiCall('/create-profile', 'POST', { profileName });
+                if (result.success) showSuccess(`Đã tạo profile: ${profileName}`);
+                else showError(result.message || 'Lỗi tạo profile');
+            } catch (error) { showError('Lỗi tạo profile: ' + error.message); }
+            finally { showLoading(false); }
         }
-        
-        // Liệt kê profiles
+
         async function listProfiles() {
             showLoading(true);
             try {
-                const response = await fetch('http://localhost:8888/api/list-profiles');
-                const result = await response.json();
-                
+                const result = await apiCall('/list-profiles');
                 if (result.success) {
                     let html = '<div class="success"><h4>📋 Danh sách Profiles:</h4><ul>';
-                    result.profiles.forEach(profile => {
-                        html += `<li>${profile}</li>`;
-                    });
-                    html += '</ul></div>';
-                    document.getElementById('response').innerHTML = html;
-                } else {
-                    showError('Lỗi tải danh sách profiles');
-                }
-            } catch (error) {
-                showError('Lỗi tải danh sách: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+                    result.profiles.forEach(profile => html += `<li>${profile}</li>`);
+                    document.getElementById('response').innerHTML = html + '</ul></div>';
+                } else showError('Lỗi tải danh sách profiles');
+            } catch (error) { showError('Lỗi tải danh sách: ' + error.message); }
+            finally { showLoading(false); }
         }
-        
-        // Kiểm tra profile đã được lưu chưa
+
         async function checkProfile() {
             const profileName = document.getElementById('profileName').value.trim() || 'Default';
             showLoading(true);
-            
             try {
-                const response = await fetch(`http://localhost:8888/api/check-profile/${profileName}`);
-                const result = await response.json();
-                
+                const result = await apiCall(`/check-profile/${profileName}`);
                 if (result.success && result.exists) {
                     let html = '<div class="success">';
                     html += `<h4>💾 Profile ${result.profileName} đã được lưu</h4>`;
                     html += `<p><strong>Đường dẫn:</strong> ${result.profilePath}</p>`;
                     html += `<p><strong>Kích thước:</strong> ${result.profileSize}</p>`;
-                    html += `<p><strong>File quan trọng:</strong> ${result.importantFiles.length}/5</p>`;
-                    html += '<ul>';
-                    result.importantFiles.forEach(file => {
-                        html += `<li>✅ ${file}</li>`;
-                    });
-                    html += '</ul>';
-                    html += `<p><strong>Trạng thái:</strong> ${result.message}</p>`;
-                    html += '</div>';
+                    html += `<p><strong>File quan trọng:</strong> ${result.importantFiles.length}/5</p><ul>`;
+                    result.importantFiles.forEach(file => html += `<li>✅ ${file}</li>`);
+                    html += `</ul><p><strong>Trạng thái:</strong> ${result.message}</p></div>`;
                     document.getElementById('response').innerHTML = html;
-                } else {
-                    showError(result.message || 'Profile chưa được lưu');
-                }
-            } catch (error) {
-                showError('Lỗi kiểm tra profile: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+                } else showError(result.message || 'Profile chưa được lưu');
+            } catch (error) { showError('Lỗi kiểm tra profile: ' + error.message); }
+            finally { showLoading(false); }
         }
-        
-        // Kiểm tra đăng nhập YouTube
+
         async function checkYouTubeLogin() {
             const profileName = document.getElementById('profileName').value.trim() || 'Default';
             showLoading(true);
-            
             try {
-                const response = await fetch('http://localhost:8888/api/check-youtube-login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ profileName })
-                });
-                
-                const result = await response.json();
+                const result = await apiCall('/check-youtube-login', 'POST', { profileName });
                 if (result.success) {
                     const status = result.isLoggedIn ? '✅ Đã đăng nhập' : '❌ Chưa đăng nhập';
                     showSuccess(`Profile ${profileName} - YouTube: ${status}`);
-                } else {
-                    showError(result.message || 'Lỗi kiểm tra đăng nhập');
-                }
-            } catch (error) {
-                showError('Lỗi kiểm tra đăng nhập: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+                } else showError(result.message || 'Lỗi kiểm tra đăng nhập');
+            } catch (error) { showError('Lỗi kiểm tra đăng nhập: ' + error.message); }
+            finally { showLoading(false); }
         }
-        
-        // Kiểm tra đăng nhập Google Labs
+
         async function checkLabsLogin() {
             const profileName = document.getElementById('profileName').value.trim() || 'Default';
             showLoading(true);
-            
             try {
-                const response = await fetch('http://localhost:8888/api/check-labs-login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ profileName })
-                });
-                
-                const result = await response.json();
+                const result = await apiCall('/check-labs-login', 'POST', { profileName });
                 if (result.success) {
                     const status = result.isLoggedIn ? '✅ Đã đăng nhập' : '❌ Chưa đăng nhập';
                     showSuccess(`Profile ${profileName} - Google Labs: ${status}`);
-                } else {
-                    showError(result.message || 'Lỗi kiểm tra đăng nhập');
-                }
-            } catch (error) {
-                showError('Lỗi kiểm tra đăng nhập: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+                } else showError(result.message || 'Lỗi kiểm tra đăng nhập');
+            } catch (error) { showError('Lỗi kiểm tra đăng nhập: ' + error.message); }
+            finally { showLoading(false); }
         }
-        
-        // Mở profile để đăng nhập
+
         async function openProfileForLogin(type) {
             const profileName = document.getElementById('profileName').value.trim() || 'Default';
             const url = type === 'youtube' ? 'https://www.youtube.com' : 'https://labs.google';
-            
             showLoading(true);
             try {
-                const response = await fetch('http://localhost:8888/api/open-profile-login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ profileName, url })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    showSuccess(`Đã mở profile ${profileName} tại ${url}. Đăng nhập thủ công và đóng browser khi xong.`);
-                } else {
-                    showError(result.message || 'Lỗi mở profile');
-                }
-            } catch (error) {
-                showError('Lỗi mở profile: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+                const result = await apiCall('/open-profile-login', 'POST', { profileName, url });
+                if (result.success) showSuccess(`Đã mở profile ${profileName} tại ${url}. Đăng nhập thủ công và đóng browser khi xong.`);
+                else showError(result.message || 'Lỗi mở profile');
+            } catch (error) { showError('Lỗi mở profile: ' + error.message); }
+            finally { showLoading(false); }
         }
-        
-        // Xóa profile
+
         async function deleteProfile() {
             const profileName = document.getElementById('profileName').value.trim();
-            if (!profileName) {
-                showError('Vui lòng nhập tên profile');
-                return;
-            }
-            
-            if (!confirm(`Bạn có chắc muốn xóa profile "${profileName}"?`)) {
-                return;
-            }
-            
+            if (!profileName) { showError('Vui lòng nhập tên profile'); return; }
+            if (!confirm(`Bạn có chắc muốn xóa profile "${profileName}"?`)) return;
             showLoading(true);
             try {
-                const response = await fetch('http://localhost:8888/api/delete-profile', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ profileName })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    showSuccess(`Đã xóa profile: ${profileName}`);
-                } else {
-                    showError(result.message || 'Lỗi xóa profile');
-                }
-            } catch (error) {
-                showError('Lỗi xóa profile: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+                const result = await apiCall('/delete-profile', 'POST', { profileName });
+                if (result.success) showSuccess(`Đã xóa profile: ${profileName}`);
+                else showError(result.message || 'Lỗi xóa profile');
+            } catch (error) { showError('Lỗi xóa profile: ' + error.message); }
+            finally { showLoading(false); }
         }
         
-        // ===== YOUTUBE UPLOAD FUNCTIONS =====
-        
-        // Upload video lên YouTube
+        // YouTube Upload Functions
         async function uploadToYouTube() {
             const videoPath = document.getElementById('uploadVideoPath').value.trim();
             const title = document.getElementById('uploadTitle').value.trim();
@@ -985,74 +483,37 @@
             const visibility = document.getElementById('uploadVisibility').value;
             const profileName = document.getElementById('profileName').value.trim() || 'Default';
             
-            if (!videoPath) {
-                showError('Vui lòng nhập đường dẫn video');
-                return;
-            }
-            
+            if (!videoPath) { showError('Vui lòng nhập đường dẫn video'); return; }
             showLoading(true);
             try {
-                const response = await fetch('http://localhost:8888/api/upload-youtube', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        videoPath,
-                        title,
-                        description,
-                        visibility,
-                        profileName,
-                        debug: false
-                    })
+                const result = await apiCall('/upload-youtube', 'POST', {
+                    videoPath, title, description, visibility, profileName, debug: false
                 });
-                
-                const result = await response.json();
                 if (result.success) {
                     showSuccess(`Upload thành công! Video ID: ${result.videoId}`);
                     if (result.url) {
-                        document.getElementById('response').innerHTML += `
-                            <div class="success" style="margin-top: 10px;">
-                                <strong>🔗 Link video:</strong> <a href="${result.url}" target="_blank">${result.url}</a>
-                            </div>
-                        `;
+                        document.getElementById('response').innerHTML += `<div class="success" style="margin-top: 10px;"><strong>🔗 Link video:</strong> <a href="${result.url}" target="_blank">${result.url}</a></div>`;
                     }
-                } else {
-                    showError(result.error || 'Lỗi upload video');
-                }
-            } catch (error) {
-                showError('Lỗi upload: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+                } else showError(result.error || 'Lỗi upload video');
+            } catch (error) { showError('Lỗi upload: ' + error.message); }
+            finally { showLoading(false); }
         }
-        
-        // Liệt kê video files
+
         async function listVideoFiles() {
             showLoading(true);
             try {
-                const response = await fetch('http://localhost:8888/api/list-videos');
-                const result = await response.json();
-                
+                const result = await apiCall('/list-videos');
                 if (result.success) {
                     let html = '<div class="success"><h4>📁 Danh sách Video:</h4><ul>';
-                    result.videos.forEach(video => {
-                        html += `<li><a href="/videos/${video}" target="_blank">${video}</a></li>`;
-                    });
-                    html += '</ul></div>';
-                    document.getElementById('response').innerHTML = html;
-                } else {
-                    showError('Lỗi tải danh sách video');
-                }
-            } catch (error) {
-                showError('Lỗi tải danh sách: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
+                    result.videos.forEach(video => html += `<li><a href="/videos/${video}" target="_blank">${video}</a></li>`);
+                    document.getElementById('response').innerHTML = html + '</ul></div>';
+                } else showError('Lỗi tải danh sách video');
+            } catch (error) { showError('Lỗi tải danh sách: ' + error.message); }
+            finally { showLoading(false); }
         }
 
-        // Dừng polling và token monitoring khi rời khỏi trang
-        window.addEventListener('beforeunload', () => {
-            stopPolling();
-        });
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => stopPolling());
     </script>
 </body>
 </html>
