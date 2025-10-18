@@ -1424,6 +1424,9 @@ app.post('/api/extract-labs-cookies', async (req, res) => {
             currentCookies = result.cookies;
             tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
             
+            // Cập nhật thời gian lấy cookies
+            labsProfileManager.lastExtractTime = new Date().toISOString();
+            
             // Lưu vào file
             saveStorageData();
             
