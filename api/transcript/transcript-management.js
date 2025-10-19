@@ -1,6 +1,7 @@
 const { Supadata, SupadataError } = require('@supadata/js');
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
 
 // Initialize Supadata client
 const supadata = new Supadata({
@@ -413,11 +414,638 @@ async function getTranscriptFile(req, res) {
     }
 }
 
+/**
+ * Rewrite transcript content using ChatGPT to avoid copyright issues
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function rewriteTranscript(req, res) {
+    try {
+        const { filename, openaiApiKey, intensity = 'light' } = req.body;
+
+        if (!filename) {
+            return res.status(400).json({
+                success: false,
+                message: 'Filename is required',
+                error: 'Missing required parameter: filename'
+            });
+        }
+
+        if (!openaiApiKey) {
+            return res.status(400).json({
+                success: false,
+                message: 'OpenAI API key is required',
+                error: 'Missing required parameter: openaiApiKey'
+            });
+        }
+
+        console.log(`🔄 Rewriting transcript: ${filename} with intensity: ${intensity}`);
+
+        // Read the original transcript file
+        const transcriptDir = path.join(__dirname, '../../transcripts');
+        const filePath = path.join(transcriptDir, filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({
+                success: false,
+                message: 'Transcript file not found',
+                error: 'File does not exist'
+            });
+        }
+
+        const originalContent = fs.readFileSync(filePath, 'utf8');
+        
+        // Create different prompts based on intensity
+        let systemPrompt, userPrompt;
+        
+        switch (intensity) {
+            case 'light':
+                systemPrompt = "You are a professional content editor. Your task is to make minimal, subtle changes to the text while preserving the original meaning, tone, and structure. Only change word choices, sentence structure, or phrasing slightly to create a unique version. Keep the same narrative flow and all important details.";
+                userPrompt = "Please rewrite this transcript with very light modifications to avoid copyright issues while keeping the exact same meaning and story flow. Only change word choices and minor phrasing, but keep all names, events, and plot points identical:";
+                break;
+            case 'medium':
+                systemPrompt = "You are a professional content editor. Your task is to moderately rewrite the text while preserving the core meaning and story. You can change sentence structures, word choices, and some phrasing, but keep all important details, names, and plot points.";
+                userPrompt = "Please rewrite this transcript with moderate modifications to avoid copyright issues. Change sentence structures and word choices while keeping the same story, characters, and plot points:";
+                break;
+            case 'heavy':
+                systemPrompt = "You are a professional content editor. Your task is to significantly rewrite the text while preserving the core story and meaning. You can restructure sentences, change word choices, and modify phrasing, but keep all important story elements and plot points.";
+                userPrompt = "Please rewrite this transcript with significant modifications to avoid copyright issues. Restructure sentences and change word choices while keeping the same story, characters, and plot points:";
+                break;
+            default:
+                systemPrompt = "You are a professional content editor. Your task is to make minimal, subtle changes to the text while preserving the original meaning, tone, and structure.";
+                userPrompt = "Please rewrite this transcript with very light modifications to avoid copyright issues while keeping the exact same meaning and story flow:";
+        }
+
+        // Call OpenAI API
+        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${openaiApiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {
+                        role: 'system',
+                        content: systemPrompt
+                    },
+                    {
+                        role: 'user',
+                        content: `${userPrompt}\n\n${originalContent}`
+                    }
+                ],
+                max_tokens: 4000,
+                temperature: 0.7
+            })
+        });
+
+        if (!openaiResponse.ok) {
+            const errorData = await openaiResponse.json();
+            throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+        }
+
+        const openaiData = await openaiResponse.json();
+        const rewrittenContent = openaiData.choices[0].message.content;
+
+        // Save the rewritten version
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const originalName = filename.replace('.txt', '');
+        const rewrittenFilename = `${originalName}_rewritten_${intensity}_${timestamp}.txt`;
+        const rewrittenFilePath = path.join(transcriptDir, rewrittenFilename);
+
+        fs.writeFileSync(rewrittenFilePath, rewrittenContent, 'utf8');
+
+        console.log(`✅ Transcript rewritten successfully: ${rewrittenFilename}`);
+
+        return res.json({
+            success: true,
+            message: 'Transcript rewritten successfully',
+            originalFilename: filename,
+            rewrittenFilename: rewrittenFilename,
+            rewrittenPath: rewrittenFilePath,
+            intensity: intensity,
+            originalLength: originalContent.length,
+            rewrittenLength: rewrittenContent.length,
+            changes: {
+                original: originalContent.substring(0, 200) + '...',
+                rewritten: rewrittenContent.substring(0, 200) + '...'
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Rewrite transcript error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to rewrite transcript',
+            error: error.message
+        });
+    }
+}
+
+/**
+ * Compare original and rewritten transcript
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function compareTranscripts(req, res) {
+    try {
+        const { originalFilename, rewrittenFilename } = req.body;
+
+        if (!originalFilename || !rewrittenFilename) {
+            return res.status(400).json({
+                success: false,
+                message: 'Both filenames are required',
+                error: 'Missing required parameters: originalFilename, rewrittenFilename'
+            });
+        }
+
+        const transcriptDir = path.join(__dirname, '../../transcripts');
+        const originalPath = path.join(transcriptDir, originalFilename);
+        const rewrittenPath = path.join(transcriptDir, rewrittenFilename);
+
+        if (!fs.existsSync(originalPath) || !fs.existsSync(rewrittenPath)) {
+            return res.status(404).json({
+                success: false,
+                message: 'One or both files not found',
+                error: 'Files do not exist'
+            });
+        }
+
+        const originalContent = fs.readFileSync(originalPath, 'utf8');
+        const rewrittenContent = fs.readFileSync(rewrittenPath, 'utf8');
+
+        // Simple comparison metrics
+        const originalWords = originalContent.split(/\s+/).length;
+        const rewrittenWords = rewrittenContent.split(/\s+/).length;
+        const wordDifference = Math.abs(originalWords - rewrittenWords);
+        const wordChangePercentage = ((wordDifference / originalWords) * 100).toFixed(2);
+
+        console.log(`📊 Comparing transcripts: ${originalFilename} vs ${rewrittenFilename}`);
+
+        return res.json({
+            success: true,
+            message: 'Transcript comparison completed',
+            comparison: {
+                original: {
+                    filename: originalFilename,
+                    length: originalContent.length,
+                    wordCount: originalWords,
+                    preview: originalContent.substring(0, 300) + '...'
+                },
+                rewritten: {
+                    filename: rewrittenFilename,
+                    length: rewrittenContent.length,
+                    wordCount: rewrittenWords,
+                    preview: rewrittenContent.substring(0, 300) + '...'
+                },
+                metrics: {
+                    wordDifference: wordDifference,
+                    wordChangePercentage: wordChangePercentage + '%',
+                    lengthDifference: Math.abs(originalContent.length - rewrittenContent.length),
+                    similarity: (100 - parseFloat(wordChangePercentage)).toFixed(2) + '%'
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Compare transcripts error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to compare transcripts',
+            error: error.message
+        });
+    }
+}
+
+/**
+ * Replace channel names in transcript
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function replaceChannelNames(req, res) {
+    try {
+        const { filename, newChannelName = 'KenKen Audio', oldChannelNames = ['Chu Chu Audio', 'ChuChu Audio'] } = req.body;
+
+        if (!filename) {
+            return res.status(400).json({
+                success: false,
+                message: 'Filename is required',
+                error: 'Missing required parameter: filename'
+            });
+        }
+
+        console.log(`🔄 Replacing channel names in: ${filename}`);
+        console.log(`📺 Old names: ${oldChannelNames.join(', ')}`);
+        console.log(`📺 New name: ${newChannelName}`);
+
+        // Read the original transcript file
+        const transcriptDir = path.join(__dirname, '../../transcripts');
+        const filePath = path.join(transcriptDir, filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({
+                success: false,
+                message: 'Transcript file not found',
+                error: 'File does not exist'
+            });
+        }
+
+        let originalContent = fs.readFileSync(filePath, 'utf8');
+        let modifiedContent = originalContent;
+        let replacements = [];
+
+        // Replace each old channel name with new one
+        oldChannelNames.forEach(oldName => {
+            const regex = new RegExp(oldName, 'gi'); // Case insensitive, global
+            const matches = modifiedContent.match(regex);
+            
+            if (matches) {
+                modifiedContent = modifiedContent.replace(regex, newChannelName);
+                replacements.push({
+                    oldName: oldName,
+                    newName: newChannelName,
+                    count: matches.length
+                });
+            }
+        });
+
+        // If no replacements were made, try common variations
+        if (replacements.length === 0) {
+            const commonVariations = [
+                'Chu Chu',
+                'ChuChu',
+                'Chu Chu Audio',
+                'ChuChu Audio',
+                'Chu Chu audio',
+                'ChuChu audio'
+            ];
+
+            commonVariations.forEach(variation => {
+                const regex = new RegExp(variation, 'gi');
+                const matches = modifiedContent.match(regex);
+                
+                if (matches) {
+                    modifiedContent = modifiedContent.replace(regex, newChannelName);
+                    replacements.push({
+                        oldName: variation,
+                        newName: newChannelName,
+                        count: matches.length
+                    });
+                }
+            });
+        }
+
+        // Save the modified version
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const originalName = filename.replace('.txt', '');
+        const modifiedFilename = `${originalName}_channel_replaced_${timestamp}.txt`;
+        const modifiedFilePath = path.join(transcriptDir, modifiedFilename);
+
+        fs.writeFileSync(modifiedFilePath, modifiedContent, 'utf8');
+
+        console.log(`✅ Channel names replaced successfully: ${modifiedFilename}`);
+        console.log(`📊 Total replacements: ${replacements.reduce((sum, r) => sum + r.count, 0)}`);
+
+        return res.json({
+            success: true,
+            message: 'Channel names replaced successfully',
+            originalFilename: filename,
+            modifiedFilename: modifiedFilename,
+            modifiedPath: modifiedFilePath,
+            newChannelName: newChannelName,
+            replacements: replacements,
+            totalReplacements: replacements.reduce((sum, r) => sum + r.count, 0),
+            changes: {
+                original: originalContent.substring(0, 200) + '...',
+                modified: modifiedContent.substring(0, 200) + '...'
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Replace channel names error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to replace channel names',
+            error: error.message
+        });
+    }
+}
+
+/**
+ * Advanced text replacement with multiple patterns
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function advancedTextReplacement(req, res) {
+    try {
+        const { filename, replacements = [] } = req.body;
+
+        if (!filename) {
+            return res.status(400).json({
+                success: false,
+                message: 'Filename is required',
+                error: 'Missing required parameter: filename'
+            });
+        }
+
+        if (!replacements || replacements.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Replacements array is required',
+                error: 'Missing required parameter: replacements'
+            });
+        }
+
+        console.log(`🔄 Advanced text replacement in: ${filename}`);
+        console.log(`📝 ${replacements.length} replacement patterns`);
+
+        // Read the original transcript file
+        const transcriptDir = path.join(__dirname, '../../transcripts');
+        const filePath = path.join(transcriptDir, filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({
+                success: false,
+                message: 'Transcript file not found',
+                error: 'File does not exist'
+            });
+        }
+
+        let originalContent = fs.readFileSync(filePath, 'utf8');
+        let modifiedContent = originalContent;
+        let replacementResults = [];
+
+        // Apply each replacement
+        replacements.forEach((replacement, index) => {
+            const { from, to, caseSensitive = false, wholeWord = false } = replacement;
+            
+            if (!from || !to) {
+                console.log(`⚠️ Skipping invalid replacement ${index + 1}: missing from/to`);
+                return;
+            }
+
+            let regex;
+            if (wholeWord) {
+                regex = new RegExp(`\\b${from}\\b`, caseSensitive ? 'g' : 'gi');
+            } else {
+                regex = new RegExp(from, caseSensitive ? 'g' : 'gi');
+            }
+
+            const matches = modifiedContent.match(regex);
+            
+            if (matches) {
+                modifiedContent = modifiedContent.replace(regex, to);
+                replacementResults.push({
+                    index: index + 1,
+                    from: from,
+                    to: to,
+                    count: matches.length,
+                    caseSensitive: caseSensitive,
+                    wholeWord: wholeWord
+                });
+            } else {
+                replacementResults.push({
+                    index: index + 1,
+                    from: from,
+                    to: to,
+                    count: 0,
+                    caseSensitive: caseSensitive,
+                    wholeWord: wholeWord,
+                    note: 'No matches found'
+                });
+            }
+        });
+
+        // Save the modified version
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const originalName = filename.replace('.txt', '');
+        const modifiedFilename = `${originalName}_advanced_replaced_${timestamp}.txt`;
+        const modifiedFilePath = path.join(transcriptDir, modifiedFilename);
+
+        fs.writeFileSync(modifiedFilePath, modifiedContent, 'utf8');
+
+        console.log(`✅ Advanced text replacement completed: ${modifiedFilename}`);
+        console.log(`📊 Total successful replacements: ${replacementResults.filter(r => r.count > 0).length}`);
+
+        return res.json({
+            success: true,
+            message: 'Advanced text replacement completed',
+            originalFilename: filename,
+            modifiedFilename: modifiedFilename,
+            modifiedPath: modifiedFilePath,
+            replacementResults: replacementResults,
+            totalReplacements: replacementResults.reduce((sum, r) => sum + r.count, 0),
+            successfulReplacements: replacementResults.filter(r => r.count > 0).length,
+            changes: {
+                original: originalContent.substring(0, 200) + '...',
+                modified: modifiedContent.substring(0, 200) + '...'
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Advanced text replacement error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to perform advanced text replacement',
+            error: error.message
+        });
+    }
+}
+
+/**
+ * Rewrite transcript with ChatGPT to change wording naturally
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function rewriteWithChatGPT(req, res) {
+    try {
+        const { filename, openaiApiKey } = req.body;
+
+        if (!filename) {
+            return res.status(400).json({
+                success: false,
+                message: 'Filename is required',
+                error: 'Missing required parameter: filename'
+            });
+        }
+
+        if (!openaiApiKey) {
+            return res.status(400).json({
+                success: false,
+                message: 'OpenAI API key is required',
+                error: 'Missing required parameter: openaiApiKey'
+            });
+        }
+
+        console.log(`🤖 Rewriting transcript with ChatGPT: ${filename}`);
+        console.log(`🎯 Target: ~15% word changes, maintain original voice`);
+
+        // Read the original transcript file
+        const transcriptDir = path.join(__dirname, '../../transcripts');
+        const filePath = path.join(transcriptDir, filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({
+                success: false,
+                message: 'Transcript file not found',
+                error: 'File does not exist'
+            });
+        }
+
+        const originalContent = fs.readFileSync(filePath, 'utf8');
+        
+        // Create different prompts based on style and intensity
+        let systemPrompt, userPrompt;
+        
+        // Optimized single style with 15% change target
+        systemPrompt = "You are a professional Vietnamese content editor. Your task is to rewrite the text with approximately 15% word changes while preserving the exact same meaning, story, emotional tone, and speaking style. Change word choices, sentence structures, and phrasing moderately to create natural variation. Keep all names, events, plot points, dialogue, and the original speaking voice exactly the same. The goal is to make it sound fresh while maintaining the same narrative flow and character voice.";
+        userPrompt = "Please rewrite this Vietnamese transcript with moderate modifications (around 15% word changes) to create natural variation while keeping the exact same story, characters, plot points, and speaking style. Make it sound fresh and natural but maintain the original voice and tone:";
+
+        // Split content into chunks if too long (ChatGPT has token limits)
+        const maxChunkSize = 3000; // Conservative limit
+        const chunks = [];
+        
+        if (originalContent.length > maxChunkSize) {
+            const sentences = originalContent.split(/[.!?]+/);
+            let currentChunk = '';
+            
+            for (const sentence of sentences) {
+                if (currentChunk.length + sentence.length > maxChunkSize) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = sentence;
+                } else {
+                    currentChunk += sentence + '.';
+                }
+            }
+            if (currentChunk.trim()) {
+                chunks.push(currentChunk.trim());
+            }
+        } else {
+            chunks.push(originalContent);
+        }
+
+        console.log(`📝 Processing ${chunks.length} chunks`);
+
+        let rewrittenContent = '';
+        
+        // Process each chunk
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            console.log(`🔄 Processing chunk ${i + 1}/${chunks.length}`);
+
+            const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${openaiApiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: systemPrompt
+                        },
+                        {
+                            role: 'user',
+                            content: `${userPrompt}\n\n${chunk}`
+                        }
+                    ],
+                    max_tokens: 4000,
+                    temperature: 0.7
+                })
+            });
+
+            if (!openaiResponse.ok) {
+                const errorData = await openaiResponse.json();
+                throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+            }
+
+            const openaiData = await openaiResponse.json();
+            const chunkRewritten = openaiData.choices[0].message.content;
+            
+            rewrittenContent += chunkRewritten + ' ';
+            
+            // Add delay between requests to avoid rate limiting
+            if (i < chunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+        // Clean up the final content
+        rewrittenContent = rewrittenContent.trim();
+
+        // Auto-replace channel names to Ken Ken Audio
+        console.log(`🔄 Auto-replacing channel names to Ken Ken Audio...`);
+        const channelReplacements = [
+            { from: /Chu Chu Audio/gi, to: 'Ken Ken Audio' },
+            { from: /ChuChu Audio/gi, to: 'Ken Ken Audio' },
+            { from: /Chu Chu/gi, to: 'Ken Ken' },
+            { from: /ChuChu/gi, to: 'Ken Ken' }
+        ];
+
+        let replacementCount = 0;
+        for (const replacement of channelReplacements) {
+            const matches = rewrittenContent.match(replacement.from);
+            if (matches) {
+                rewrittenContent = rewrittenContent.replace(replacement.from, replacement.to);
+                replacementCount += matches.length;
+            }
+        }
+
+        if (replacementCount > 0) {
+            console.log(`✅ Replaced ${replacementCount} channel name references`);
+        }
+
+        // Save the rewritten version
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const originalName = filename.replace('.txt', '');
+        const rewrittenFilename = `${originalName}_chatgpt_rewritten_${timestamp}.txt`;
+        const rewrittenFilePath = path.join(transcriptDir, rewrittenFilename);
+
+        fs.writeFileSync(rewrittenFilePath, rewrittenContent, 'utf8');
+
+        console.log(`✅ ChatGPT rewrite completed: ${rewrittenFilename}`);
+
+        return res.json({
+            success: true,
+            message: 'Transcript rewritten with ChatGPT successfully',
+            originalFilename: filename,
+            rewrittenFilename: rewrittenFilename,
+            rewrittenPath: rewrittenFilePath,
+            rewriteType: 'optimized_15_percent',
+            chunksProcessed: chunks.length,
+            originalLength: originalContent.length,
+            rewrittenLength: rewrittenContent.length,
+            channelReplacements: replacementCount,
+            changes: {
+                original: originalContent.substring(0, 200) + '...',
+                rewritten: rewrittenContent.substring(0, 200) + '...'
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ ChatGPT rewrite error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to rewrite transcript with ChatGPT',
+            error: error.message
+        });
+    }
+}
+
+
 module.exports = {
     getTranscript,
     checkTranscriptJob,
     getVideoMetadata,
     translateTranscript,
     listTranscriptFiles,
-    getTranscriptFile
+    getTranscriptFile,
+    rewriteTranscript,
+    compareTranscripts,
+    replaceChannelNames,
+    advancedTextReplacement,
+    rewriteWithChatGPT
 };

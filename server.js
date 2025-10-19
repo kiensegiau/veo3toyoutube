@@ -115,6 +115,11 @@ app.post('/api/get-video-metadata', transcriptAPI.getVideoMetadata);
 app.post('/api/translate-transcript', transcriptAPI.translateTranscript);
 app.get('/api/list-transcripts', transcriptAPI.listTranscriptFiles);
 app.get('/api/get-transcript-file/:filename', transcriptAPI.getTranscriptFile);
+app.post('/api/rewrite-transcript', transcriptAPI.rewriteTranscript);
+app.post('/api/compare-transcripts', transcriptAPI.compareTranscripts);
+app.post('/api/replace-channel-names', transcriptAPI.replaceChannelNames);
+app.post('/api/advanced-text-replacement', transcriptAPI.advancedTextReplacement);
+app.post('/api/rewrite-with-chatgpt', transcriptAPI.rewriteWithChatGPT);
 
 // Utility APIs
 app.get('/api/token-status', (req, res) => {
@@ -221,6 +226,11 @@ app.listen(PORT, () => {
     console.log(`   POST /api/translate-transcript - Dịch lời thoại video`);
     console.log(`   GET  /api/list-transcripts - Liệt kê file transcript đã lưu`);
     console.log(`   GET  /api/get-transcript-file/:filename - Đọc nội dung file transcript`);
+    console.log(`   POST /api/rewrite-transcript - Viết lại transcript bằng ChatGPT`);
+    console.log(`   POST /api/compare-transcripts - So sánh transcript gốc và đã viết lại`);
+    console.log(`   POST /api/replace-channel-names - Thay đổi tên kênh trong transcript`);
+    console.log(`   POST /api/advanced-text-replacement - Thay thế text nâng cao với nhiều pattern`);
+    console.log(`   POST /api/rewrite-with-chatgpt - Viết lại transcript bằng ChatGPT (tối ưu 15% thay đổi)`);
     
     // Start auto batch polling
     startAutoBatchPolling();
