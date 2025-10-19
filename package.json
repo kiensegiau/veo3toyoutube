@@ -4,7 +4,8 @@
   "description": "AI Video Generator với Google Labs Veo 3.1 - Tự động cookie management",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "nodemon server.js",
+    "prod": "node server.js",
     "dev": "nodemon server.js",
     "install-deps": "npm install"
   },
