@@ -9,17 +9,25 @@
     "dev": "nodemon server.js",
     "install-deps": "npm install"
   },
-  "keywords": ["ai", "video", "generator", "google-labs", "veo", "automation"],
+  "keywords": [
+    "ai",
+    "video",
+    "generator",
+    "google-labs",
+    "veo",
+    "automation"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "puppeteer-core": "^21.0.0",
-    "fs": "^0.0.1-security",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
+    "@supadata/js": "^1.3.0",
     "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
     "form-data": "^4.0.0",
-    "node-fetch": "^2.6.7"
+    "fs": "^0.0.1-security",
+    "node-fetch": "^2.6.7",
+    "puppeteer-core": "^21.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

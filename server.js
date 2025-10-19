@@ -9,6 +9,7 @@ const { checkStatus } = require('./api/video/check-status');
 const { uploadYouTube } = require('./api/youtube/upload-youtube');
 const profileAPI = require('./api/profile/profile-management');
 const labsAPI = require('./api/labs/labs-management');
+const transcriptAPI = require('./api/transcript/transcript-management');
 const storageUtils = require('./api/utils/storage');
 
 const app = express();
@@ -106,6 +107,14 @@ app.post('/api/extract-labs-cookies', labsAPI.extractLabsCookies);
 app.post('/api/test-labs-cookies', labsAPI.testLabsCookies);
 app.post('/api/close-labs-browser', labsAPI.closeLabsBrowser);
 app.get('/api/labs-profile-info', labsAPI.getLabsProfileInfo);
+
+// Transcript APIs
+app.post('/api/get-transcript', transcriptAPI.getTranscript);
+app.post('/api/check-transcript-job', transcriptAPI.checkTranscriptJob);
+app.post('/api/get-video-metadata', transcriptAPI.getVideoMetadata);
+app.post('/api/translate-transcript', transcriptAPI.translateTranscript);
+app.get('/api/list-transcripts', transcriptAPI.listTranscriptFiles);
+app.get('/api/get-transcript-file/:filename', transcriptAPI.getTranscriptFile);
 
 // Utility APIs
 app.get('/api/token-status', (req, res) => {
@@ -206,6 +215,12 @@ app.listen(PORT, () => {
     console.log(`   POST /api/test-labs-cookies - Test Labs cookies`);
     console.log(`   POST /api/close-labs-browser - Đóng Labs browser`);
     console.log(`   GET  /api/labs-profile-info - Thông tin Labs profile`);
+    console.log(`   POST /api/get-transcript - Lấy lời thoại video YouTube`);
+    console.log(`   POST /api/check-transcript-job - Kiểm tra trạng thái job transcript`);
+    console.log(`   POST /api/get-video-metadata - Lấy metadata video YouTube`);
+    console.log(`   POST /api/translate-transcript - Dịch lời thoại video`);
+    console.log(`   GET  /api/list-transcripts - Liệt kê file transcript đã lưu`);
+    console.log(`   GET  /api/get-transcript-file/:filename - Đọc nội dung file transcript`);
     
     // Start auto batch polling
     startAutoBatchPolling();
