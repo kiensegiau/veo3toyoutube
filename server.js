@@ -10,6 +10,7 @@ const { uploadYouTube } = require('./api/youtube/upload-youtube');
 const profileAPI = require('./api/profile/profile-management');
 const labsAPI = require('./api/labs/labs-management');
 const transcriptAPI = require('./api/transcript/transcript-management');
+const { vbeeTTS } = require('./api/tts/vbee-tts');
 const vibeeTTS = require('./api/tts/vibee-tts');
 const storageUtils = require('./api/utils/storage');
 
@@ -123,6 +124,9 @@ app.post('/api/advanced-text-replacement', transcriptAPI.advancedTextReplacement
 app.post('/api/rewrite-with-chatgpt', transcriptAPI.rewriteWithChatGPT);
 
 // TTS (Vibee) APIs
+// Vbee TTS endpoint
+app.post('/api/vbee-tts', vbeeTTS);
+
 // Unified TTS endpoint (recommended)
 app.post('/api/tts', vibeeTTS.unifiedTTS);
 

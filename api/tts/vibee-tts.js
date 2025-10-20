@@ -132,11 +132,38 @@ async function checkTTSStatus(req, res) {
             return res.status(resp.status).json({ success: false, message: 'Vibee status failed', error: data });
         }
 
-        // Normalize response
+        // Normalize response theo tài liệu Postman: https://documenter.getpostman.com/view/12951168/Uz5FHbSd#3916b3db-4357-4d56-b6f2-35b3888edeb9
         const result = data.result || data;
-        const status = result.status || data.status;
         const audioUrl = extractAudioUrlLike(result) || extractAudioUrlLike(data);
-        return res.json({ success: true, requestId: jobId, status, audioUrl, raw: data });
+
+        const rawStatus = (result && (result.status ?? result.state)) ?? data.status;
+        const progress = (result && (result.progress ?? result.percent)) ?? undefined;
+
+        // Ánh xạ trạng thái phổ biến về 3 nhóm
+        let normalizedStatus = 'IN_PROGRESS';
+        const rawStatusStr = typeof rawStatus === 'string' ? rawStatus.toUpperCase() : rawStatus;
+
+        if (audioUrl) {
+            normalizedStatus = 'COMPLETED';
+        } else if (typeof progress === 'number' && progress >= 100) {
+            normalizedStatus = 'COMPLETED';
+        } else if (rawStatusStr === 'COMPLETED' || rawStatusStr === 'DONE' || rawStatusStr === 'SUCCESS') {
+            normalizedStatus = 'COMPLETED';
+        } else if (rawStatusStr === 'FAILED' || rawStatusStr === 'ERROR') {
+            normalizedStatus = 'FAILED';
+        } else if (typeof rawStatusStr === 'number') {
+            // Một số API trả số: 0/1/2 hoặc 1/2/...; ưu tiên coi 1 hay 2 là hoàn thành nếu có audio
+            if (rawStatusStr >= 1 && audioUrl) normalizedStatus = 'COMPLETED';
+        }
+
+        return res.json({
+            success: true,
+            requestId: jobId,
+            status: normalizedStatus,
+            audioUrl,
+            progress,
+            raw: data
+        });
     } catch (err) {
         console.error('❌ Vibee checkTTSStatus error:', err);
         return res.status(500).json({ success: false, message: 'Failed to check TTS status', error: err.message });
@@ -176,9 +203,18 @@ async function downloadTTS(req, res) {
             return res.status(400).json({ success: false, message: 'audioUrl is required' });
         }
 
-        const audioResp = await fetch(audioUrl);
+        const audioResp = await fetch(audioUrl, {
+            headers: {
+                'Authorization': `Bearer ${VIBEE_API_KEY}`
+            }
+        });
         if (!audioResp.ok) {
-            return res.status(audioResp.status).json({ success: false, message: 'Failed to fetch audio from url' });
+            return res.status(audioResp.status).json({ 
+                success: false, 
+                message: 'Failed to fetch audio from url',
+                status: audioResp.status,
+                statusText: audioResp.statusText
+            });
         }
 
         const arrayBuffer = await audioResp.arrayBuffer();
