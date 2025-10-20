@@ -10,6 +10,7 @@ const { uploadYouTube } = require('./api/youtube/upload-youtube');
 const profileAPI = require('./api/profile/profile-management');
 const labsAPI = require('./api/labs/labs-management');
 const transcriptAPI = require('./api/transcript/transcript-management');
+const vibeeTTS = require('./api/tts/vibee-tts');
 const storageUtils = require('./api/utils/storage');
 
 const app = express();
@@ -121,6 +122,18 @@ app.post('/api/replace-channel-names', transcriptAPI.replaceChannelNames);
 app.post('/api/advanced-text-replacement', transcriptAPI.advancedTextReplacement);
 app.post('/api/rewrite-with-chatgpt', transcriptAPI.rewriteWithChatGPT);
 
+// TTS (Vibee) APIs
+// Unified TTS endpoint (recommended)
+app.post('/api/tts', vibeeTTS.unifiedTTS);
+
+// Legacy endpoints (for backward compatibility)
+app.post('/api/tts/create', vibeeTTS.createTTS);
+app.post('/api/tts/status', vibeeTTS.checkTTSStatus);
+app.post('/api/tts/download', vibeeTTS.downloadTTS);
+app.get('/api/tts/list-audio', vibeeTTS.listAudio);
+app.post('/api/tts/wait-until-ready', vibeeTTS.waitUntilReady);
+app.post('/api/tts/get-audio-url', vibeeTTS.getAudioUrl);
+
 // Utility APIs
 app.get('/api/token-status', (req, res) => {
     try {
@@ -231,6 +244,13 @@ app.listen(PORT, () => {
     console.log(`   POST /api/replace-channel-names - Thay đổi tên kênh trong transcript`);
     console.log(`   POST /api/advanced-text-replacement - Thay thế text nâng cao với nhiều pattern`);
     console.log(`   POST /api/rewrite-with-chatgpt - Viết lại transcript bằng ChatGPT (tối ưu 15% thay đổi)`);
+    console.log(`   POST /api/tts - TTS thống nhất (tạo + chờ + tải)`);
+    console.log(`   POST /api/tts/create - Tạo job Vibee TTS (legacy)`);
+    console.log(`   POST /api/tts/status - Kiểm tra trạng thái job Vibee TTS (legacy)`);
+    console.log(`   POST /api/tts/download - Tải MP3 về máy chủ (legacy)`);
+    console.log(`   GET  /api/tts/list-audio - Liệt kê MP3 đã lưu`);
+    console.log(`   POST /api/tts/wait-until-ready - Chờ tới khi có audioUrl (legacy)`);
+    console.log(`   POST /api/tts/get-audio-url - Trả về audioUrl theo tài liệu (legacy)`);
     
     // Start auto batch polling
     startAutoBatchPolling();
