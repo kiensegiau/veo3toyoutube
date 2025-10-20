@@ -89,7 +89,7 @@ async function createTTS(req, res) {
         const resp = await fetch(`${VIBEE_BASE_URL}/v1/tts`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json; charset=utf-8',
                 'Authorization': `Bearer ${VIBEE_API_KEY}`
             },
             body: JSON.stringify(payload)
@@ -332,7 +332,7 @@ async function unifiedTTS(req, res) {
         const createResp = await fetch(`${VIBEE_BASE_URL}/v1/tts`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json; charset=utf-8',
                 'Authorization': `Bearer ${VIBEE_API_KEY}`
             },
             body: JSON.stringify(createPayload)
