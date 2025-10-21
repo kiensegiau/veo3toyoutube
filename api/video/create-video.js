@@ -57,7 +57,7 @@ async function createVideo(req, res, storageData) {
         const rawInput = (req.body && (req.body.input !== undefined ? req.body.input : req.body.prompt)) ?? 'cat';
         const prompt = normalizeInputToPrompt(rawInput, 'cat');
 
-        const aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT';
+        const aspectRatio = 'VIDEO_ASPECT_RATIO_LANDSCAPE';
         
         // Tự động lấy cookies mới từ Chrome Labs
         console.log(`🔄 Tự động lấy cookies mới từ Chrome Labs...`);
@@ -91,7 +91,7 @@ async function createVideo(req, res, storageData) {
 
         const requestBody = {
             clientContext: {
-                projectId: "3ff8dd21-100f-444d-ba29-952225ae0d28", // Project ID mới từ F12
+                projectId: "ccd41cba-0a8f-4777-8ddb-56feee829abd", // Project ID mới cho khổ ngang
                 tool: "PINHOLE",
                 userPaygateTier: "PAYGATE_TIER_TWO"
             },
@@ -101,7 +101,7 @@ async function createVideo(req, res, storageData) {
                 textInput: {
                     prompt: prompt
                 },
-                videoModelKey: "veo_3_1_t2v_fast_portrait_ultra", // Veo 3.1 thay vì 3.0
+                videoModelKey: "veo_3_1_t2v_fast_ultra", // Veo 3.1 cho khổ ngang
                 metadata: {
                     sceneId: crypto.randomUUID()
                 }
