@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
-async function testSpecificVideo() {
-    console.log('🧪 Testing with specific YouTube video: https://www.youtube.com/watch?v=0_7AZaRcH48');
+async function testCompleteWorkflow() {
+    console.log('🧪 Testing complete workflow with long text...');
     
     try {
         const response = await fetch('http://localhost:8888/api/create-video-from-youtube', {
@@ -10,22 +10,21 @@ async function testSpecificVideo() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                youtubeUrl: 'https://www.youtube.com/watch?v=0_7AZaRcH48',
-                filename: 'test_specific_video_workflow.mp4'
+                youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Test URL
+                filename: 'test_long_workflow.mp4'
             })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            console.log('✅ Specific video workflow test successful!');
+            console.log('✅ Complete workflow test successful!');
             console.log(`📁 Final video: ${result.finalVideo?.path || 'N/A'}`);
             console.log(`🔗 Public path: ${result.finalVideo?.publicPath || 'N/A'}`);
             console.log(`📊 Steps completed:`, result.workflow?.steps || 'N/A');
-            console.log(`📝 Text length: ${result.workflow?.files?.rewritten?.length || 'N/A'} characters`);
-            console.log(`📝 Text preview: ${result.workflow?.files?.rewritten?.substring(0, 300) || 'N/A'}...`);
+            console.log(`📝 Full result:`, JSON.stringify(result, null, 2));
         } else {
-            console.log('❌ Specific video workflow test failed!');
+            console.log('❌ Complete workflow test failed!');
             console.log(`Error: ${result.message}`);
             if (result.error) {
                 console.log(`Details: ${result.error}`);
@@ -36,4 +35,4 @@ async function testSpecificVideo() {
     }
 }
 
-testSpecificVideo();
+testCompleteWorkflow();

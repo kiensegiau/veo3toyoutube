@@ -15,7 +15,7 @@ const supadata = new Supadata({
  */
 async function getTranscript(req, res) {
     try {
-        const { url, lang = 'en', text = true, mode = 'auto' } = req.body;
+        const { url, lang = 'vi', text = true, mode = 'auto' } = req.body;
 
         // Validate required parameters
         if (!url) {
@@ -38,10 +38,10 @@ async function getTranscript(req, res) {
 
         console.log(`🎬 Getting transcript for: ${url}`);
 
-        // Get transcript from Supadata
+        // Get transcript from Supadata - Force Vietnamese language
         const transcriptResult = await supadata.transcript({
             url: url,
-            lang: lang,
+            lang: 'vi', // Force Vietnamese language
             text: text,
             mode: mode
         });
@@ -76,8 +76,8 @@ async function getTranscript(req, res) {
             const filePath = path.join(transcriptDir, filename);
             const transcriptContent = typeof transcriptResult === 'string' ? transcriptResult : transcriptResult.content;
             
-            // Save transcript to file
-            fs.writeFileSync(filePath, transcriptContent, 'utf8');
+            // Save transcript to file with proper UTF-8 encoding
+            fs.writeFileSync(filePath, transcriptContent, { encoding: 'utf8' });
             console.log(`💾 Transcript saved to: ${filePath}`);
 
             return res.json({
@@ -149,8 +149,8 @@ async function checkTranscriptJob(req, res) {
             const filePath = path.join(transcriptDir, filename);
             const transcriptContent = typeof jobResult.content === 'string' ? jobResult.content : jobResult.content.content;
             
-            // Save transcript to file
-            fs.writeFileSync(filePath, transcriptContent, 'utf8');
+            // Save transcript to file with proper UTF-8 encoding
+            fs.writeFileSync(filePath, transcriptContent, { encoding: 'utf8' });
             console.log(`💾 Transcript saved to: ${filePath}`);
             
             return res.json({
@@ -514,7 +514,7 @@ async function rewriteTranscript(req, res) {
         const rewrittenFilename = `${originalName}_rewritten_${intensity}_${timestamp}.txt`;
         const rewrittenFilePath = path.join(transcriptDir, rewrittenFilename);
 
-        fs.writeFileSync(rewrittenFilePath, rewrittenContent, 'utf8');
+        fs.writeFileSync(rewrittenFilePath, rewrittenContent, { encoding: 'utf8' });
 
         console.log(`✅ Transcript rewritten successfully: ${rewrittenFilename}`);
 
@@ -898,9 +898,9 @@ async function rewriteWithChatGPT(req, res) {
         // Create different prompts based on style and intensity
         let systemPrompt, userPrompt;
         
-        // Optimized single style with 15% change target
-        systemPrompt = "You are a professional Vietnamese content editor. Your task is to rewrite the text with approximately 15% word changes while preserving the exact same meaning, story, emotional tone, and speaking style. Change word choices, sentence structures, and phrasing moderately to create natural variation. Keep all events, plot points, dialogue, and the original speaking voice exactly the same. IMPORTANT: Normalize any channel or brand mentions to 'Ken Ken Audio'. The goal is to make it sound fresh while maintaining the same narrative flow and character voice.";
-        userPrompt = "Please rewrite this Vietnamese transcript with moderate modifications (around 15% word changes) to create natural variation while keeping the exact same story, characters, plot points, and speaking style. Make it sound fresh and natural but maintain the original voice and tone. Also, replace any channel/brand mentions (e.g., 'Thỏ Ngọc', 'Thỏ Ngọc Audio', 'Chu Chu', 'ChuChu Audio', etc.) with 'Ken Ken' or 'Ken Ken Audio' accordingly:";
+        // Optimized single style with 15% change target - FORCE VIETNAMESE
+        systemPrompt = "Bạn là một biên tập viên nội dung chuyên nghiệp. Nhiệm vụ của bạn là viết lại văn bản với khoảng 15% thay đổi từ ngữ trong khi giữ nguyên ý nghĩa, câu chuyện, tông cảm xúc và phong cách nói. Thay đổi lựa chọn từ ngữ, cấu trúc câu và cách diễn đạt một cách vừa phải để tạo ra sự đa dạng tự nhiên. Giữ nguyên tất cả sự kiện, điểm cốt truyện, đối thoại và giọng nói gốc. QUAN TRỌNG: Phải viết bằng TIẾNG VIỆT và thay thế mọi đề cập đến kênh hoặc thương hiệu thành 'Ken Ken Audio'. Mục tiêu là làm cho nó nghe tươi mới trong khi duy trì cùng dòng câu chuyện và giọng nhân vật.";
+        userPrompt = "Hãy viết lại transcript này với những thay đổi vừa phải (khoảng 15% thay đổi từ ngữ) để tạo ra sự đa dạng tự nhiên trong khi giữ nguyên câu chuyện, nhân vật, điểm cốt truyện và phong cách nói. Làm cho nó nghe tươi mới và tự nhiên nhưng duy trì giọng, tông và NGÔN NGỮ gốc. KHÔNG được dịch sang ngôn ngữ khác. PHẢI VIẾT BẰNG TIẾNG VIỆT. Cũng thay thế mọi đề cập đến kênh/thương hiệu (ví dụ: 'Thỏ Ngọc', 'Thỏ Ngọc Audio', 'Chu Chu', 'ChuChu Audio', v.v.) thành 'Ken Ken' hoặc 'Ken Ken Audio' tương ứng:";
 
         // Split content into chunks if too long (ChatGPT has token limits)
         const maxChunkSize = 3000; // Conservative limit
@@ -950,6 +950,14 @@ async function rewriteWithChatGPT(req, res) {
                         {
                             role: 'user',
                             content: `${userPrompt}\n\n${chunk}`
+                        },
+                        {
+                            role: 'assistant',
+                            content: 'Tôi hiểu. Tôi sẽ viết lại transcript bằng tiếng Việt với khoảng 15% thay đổi từ ngữ, giữ nguyên câu chuyện và thay thế tên kênh thành "Ken Ken Audio".'
+                        },
+                        {
+                            role: 'user',
+                            content: 'Đúng vậy. Hãy bắt đầu viết lại transcript này bằng tiếng Việt:'
                         }
                     ],
                     max_tokens: 4000,
@@ -1009,7 +1017,7 @@ async function rewriteWithChatGPT(req, res) {
         const rewrittenFilename = `${originalName}_chatgpt_rewritten_${timestamp}.txt`;
         const rewrittenFilePath = path.join(transcriptDir, rewrittenFilename);
 
-        fs.writeFileSync(rewrittenFilePath, rewrittenContent, 'utf8');
+        fs.writeFileSync(rewrittenFilePath, rewrittenContent, { encoding: 'utf8' });
 
         console.log(`✅ ChatGPT rewrite completed: ${rewrittenFilename}`);
 

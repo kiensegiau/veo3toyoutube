@@ -497,6 +497,245 @@ async function unifiedTTS(req, res) {
     }
 }
 
+/**
+ * TTS standalone không cần Express response object
+ */
+async function standaloneTTS(text, voice = 'hn_female_xuanthu_new', filename = null) {
+    try {
+        console.log(`🎵 [standaloneTTS] Processing: ${text.length} characters`);
+        
+        const VIBEE_BASE_URL = process.env.VIBEE_BASE_URL || 'https://api.vibee.ai';
+        const VIBEE_API_KEY = process.env.VIBEE_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NjA4NjgwOTV9.hYH_gbcJWbT2RCnk1omaLI5dzCZ46DOnZnnO62wirao';
+        const VIBEE_APP_ID = process.env.VIBEE_APP_ID || 'vibee-app-id';
+        
+        // Step 1: Create TTS job
+        const createPayload = {
+            app_id: VIBEE_APP_ID,
+            response_type: 'sync',
+            callback_url: 'https://example.com/callback',
+            input_text: text,
+            voice_code: voice,
+            audio_type: 'mp3',
+            bitrate: 128,
+            speed_rate: '1.0',
+            sample_rate: 44100
+        };
+
+        const createResp = await fetch(`${VIBEE_BASE_URL}/v1/tts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Authorization': `Bearer ${VIBEE_API_KEY}`
+            },
+            body: JSON.stringify(createPayload)
+        });
+
+        const createData = await createResp.json();
+        console.log(`🎵 [standaloneTTS] Create response:`, createData);
+
+        if (!createResp.ok || createData.error_code || createData.error_message) {
+            throw new Error(`TTS creation failed: ${createData.error_message || 'Unknown error'}`);
+        }
+
+        const requestId = createData.request_id || createData.requestId;
+        if (!requestId) {
+            throw new Error('No request ID returned from TTS creation');
+        }
+
+        // Step 2: Wait for completion
+        let attempts = 0;
+        const maxAttempts = 30;
+        
+        while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            attempts++;
+            
+            const statusResp = await fetch(`${VIBEE_BASE_URL}/v1/tts/${requestId}`, {
+                headers: { 'Authorization': `Bearer ${VIBEE_API_KEY}` }
+            });
+            const statusData = await statusResp.json();
+            
+            console.log(`🎵 [standaloneTTS] Status check ${attempts}:`, statusData.status);
+            
+            if (statusData.status === 'completed' || statusData.status === 'success') {
+                // Step 3: Get audio URL
+                const audioResp = await fetch(`${VIBEE_BASE_URL}/v1/tts/${requestId}/audio`, {
+                    headers: { 'Authorization': `Bearer ${VIBEE_API_KEY}` }
+                });
+                const audioData = await audioResp.json();
+                
+                if (!audioResp.ok) {
+                    throw new Error('Failed to get audio URL');
+                }
+                
+                const audioUrl = audioData.result?.audio_url || audioData.audio_url;
+                if (!audioUrl) {
+                    throw new Error('No audio URL returned');
+                }
+                
+                // Step 4: Download audio
+                const downloadResp = await fetch(audioUrl, {
+                    headers: { 'Authorization': `Bearer ${VIBEE_API_KEY}` }
+                });
+                
+                if (!downloadResp.ok) {
+                    throw new Error('Failed to download audio');
+                }
+                
+                const arrayBuffer = await downloadResp.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                
+                const audioDir = ensureAudioDir();
+                const safeName = filename || `standalone_tts_${Date.now()}.mp3`;
+                const outPath = path.join(audioDir, safeName);
+                fs.writeFileSync(outPath, buffer);
+                
+                console.log(`✅ [standaloneTTS] Audio saved: ${outPath}`);
+                
+                return {
+                    success: true,
+                    savedTo: outPath,
+                    filename: safeName,
+                    publicPath: `/audio/${safeName}`,
+                    requestId: requestId
+                };
+            } else if (statusData.status === 'failed' || statusData.status === 'error') {
+                throw new Error(`TTS failed: ${statusData.error_message || 'Unknown error'}`);
+            }
+        }
+        
+        throw new Error('TTS timeout - max attempts reached');
+        
+    } catch (error) {
+        console.error(`❌ [standaloneTTS] Error:`, error);
+        return {
+            success: false,
+            message: 'Standalone TTS failed',
+            error: error.message
+        };
+    }
+}
+
+/**
+ * Chia text dài thành chunks và tạo audio từng phần, sau đó ghép lại
+ */
+async function chunkedTTS(text, voice = 'hn_female_xuanthu_new', filename = null) {
+    try {
+        console.log(`🔄 [chunkedTTS] Bắt đầu xử lý text dài: ${text.length} ký tự`);
+        
+        // Chia text thành chunks (mỗi chunk tối đa 50000 ký tự để xử lý video dài 1-2 tiếng)
+        const maxChunkSize = 50000;
+        const chunks = [];
+        
+        if (text.length <= maxChunkSize) {
+            // Text ngắn, dùng standaloneTTS bình thường
+            console.log(`📝 [chunkedTTS] Text ngắn, dùng standaloneTTS`);
+            return await standaloneTTS(text, voice, filename);
+        }
+        
+        // Chia text thành chunks
+        const sentences = text.split(/[.!?]+/);
+        let currentChunk = '';
+        
+        for (const sentence of sentences) {
+            if (currentChunk.length + sentence.length > maxChunkSize && currentChunk.length > 0) {
+                chunks.push(currentChunk.trim());
+                currentChunk = sentence;
+            } else {
+                currentChunk += sentence + '.';
+            }
+        }
+        if (currentChunk.trim()) {
+            chunks.push(currentChunk.trim());
+        }
+        
+        console.log(`📝 [chunkedTTS] Chia thành ${chunks.length} chunks`);
+        
+        // Tạo audio cho từng chunk
+        const audioFiles = [];
+        const tempDir = ensureAudioDir();
+        
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            console.log(`🎵 [chunkedTTS] Xử lý chunk ${i + 1}/${chunks.length} (${chunk.length} ký tự)`);
+            
+            const chunkFilename = `chunk_${Date.now()}_${i}.mp3`;
+            const chunkResult = await standaloneTTS(chunk, voice, chunkFilename);
+            
+            if (!chunkResult.success) {
+                throw new Error(`TTS failed for chunk ${i + 1}: ${chunkResult.message}`);
+            }
+            
+            audioFiles.push(chunkResult.savedTo);
+            console.log(`✅ [chunkedTTS] Chunk ${i + 1} hoàn thành: ${chunkResult.savedTo}`);
+            
+            // Delay giữa các request để tránh rate limit
+            if (i < chunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+        
+        // Ghép các file audio lại thành 1 file
+        console.log(`🔗 [chunkedTTS] Ghép ${audioFiles.length} file audio...`);
+        const finalFilename = filename || `chunked_tts_${Date.now()}.mp3`;
+        const finalPath = path.join(tempDir, finalFilename);
+        
+        // Tạo file list cho ffmpeg concat
+        const listFile = path.join(tempDir, `concat_${Date.now()}.txt`);
+        const listContent = audioFiles.map(file => `file '${file.replace(/\\/g, '/')}'`).join('\n');
+        fs.writeFileSync(listFile, listContent, 'utf8');
+        
+        // Sử dụng ffmpeg để ghép audio
+        const { exec } = require('child_process');
+        const ffmpegCmd = `ffmpeg -f concat -safe 0 -i "${listFile}" -c copy "${finalPath}"`;
+        
+        await new Promise((resolve, reject) => {
+            exec(ffmpegCmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`❌ [chunkedTTS] FFmpeg error:`, error);
+                    reject(error);
+                } else {
+                    console.log(`✅ [chunkedTTS] Ghép audio thành công: ${finalPath}`);
+                    resolve();
+                }
+            });
+        });
+        
+        // Xóa các file tạm
+        try {
+            fs.unlinkSync(listFile);
+            audioFiles.forEach(file => {
+                try {
+                    fs.unlinkSync(file);
+                } catch (e) {
+                    console.log(`⚠️ [chunkedTTS] Không thể xóa file tạm: ${file}`);
+                }
+            });
+            console.log(`🧹 [chunkedTTS] Đã xóa ${audioFiles.length} file tạm`);
+        } catch (e) {
+            console.log(`⚠️ [chunkedTTS] Lỗi khi xóa file tạm: ${e.message}`);
+        }
+        
+        return {
+            success: true,
+            message: 'Chunked TTS completed successfully',
+            savedTo: finalPath,
+            filename: finalFilename,
+            publicPath: `/audio/${finalFilename}`,
+            chunksProcessed: chunks.length,
+            totalLength: text.length
+        };
+        
+    } catch (error) {
+        console.error(`❌ [chunkedTTS] Error:`, error);
+        return {
+            success: false,
+            message: 'Chunked TTS failed',
+            error: error.message
+        };
+    }
+}
+
 module.exports = {
     createTTS,
     checkTTSStatus,
@@ -504,7 +743,9 @@ module.exports = {
     listAudio,
     waitUntilReady,
     getAudioUrl,
-    unifiedTTS
+    unifiedTTS,
+    standaloneTTS,
+    chunkedTTS
 };
 
 

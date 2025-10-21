@@ -5,10 +5,33 @@ const { promisify } = require('util');
 
 const execAsync = promisify(exec);
 
+// Tạo execAsync với timeout để tránh bị đơ
+function execWithTimeout(command, timeoutMs = 300000) { // 5 phút timeout
+    return new Promise((resolve, reject) => {
+        const child = exec(command, (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve({ stdout, stderr });
+            }
+        });
+        
+        // Set timeout
+        const timeout = setTimeout(() => {
+            child.kill('SIGTERM');
+            reject(new Error(`Command timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+        
+        child.on('exit', () => {
+            clearTimeout(timeout);
+        });
+    });
+}
+
 // Import các function trực tiếp thay vì qua API
 const { getTranscript } = require('../transcript/transcript-management');
-const { unifiedTTS } = require('../tts/vibee-tts');
 const { mergeVideos } = require('./merge-videos');
+const fetch = require('node-fetch');
 
 // Mỗi video dài 8 giây
 const VIDEO_DURATION = 8;
@@ -140,11 +163,8 @@ async function createVideoFromYouTube(req, res) {
         }
         transcriptText = String(transcriptText || '');
         
-        // Giới hạn độ dài để tránh lỗi TTS
-        if (transcriptText.length > 500) {
-            transcriptText = transcriptText.substring(0, 500) + '...';
-            console.log(`⚠️ [Step 2] Giới hạn transcript từ ${workflow.files.transcript.length} xuống ${transcriptText.length} ký tự`);
-        }
+        // Không giới hạn độ dài - sẽ xử lý text dài bằng chunked TTS
+        console.log(`📝 [Step 2] Transcript độ dài: ${transcriptText.length} ký tự`);
         
         // Sử dụng ChatGPT API để rewrite (khoảng 15% thay đổi)
         try {
@@ -178,7 +198,7 @@ async function createVideoFromYouTube(req, res) {
             if (rewriteResult.success) {
                 // Đọc nội dung đã rewrite
                 const rewrittenFilePath = rewriteResult.rewrittenPath;
-                const rewrittenContent = fs.readFileSync(rewrittenFilePath, 'utf8');
+                const rewrittenContent = fs.readFileSync(rewrittenFilePath, { encoding: 'utf8' });
                 
                 // Làm sạch ký tự đặc biệt
                 let cleanedText = rewrittenContent.replace(/[^\w\s.,!?àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/gi, ' ');
@@ -229,20 +249,27 @@ async function createVideoFromYouTube(req, res) {
             });
         }
         
-        // Bước 3: Tạo âm thanh bằng Vibee TTS
-        console.log(`🎵 [Step 3] Tạo âm thanh bằng Vibee TTS...`);
-        const ttsReq = {
-            body: {
+        // Bước 3: Tạo âm thanh từ transcript đã viết lại bằng API endpoint
+        console.log(`🎵 [Step 3] Tạo âm thanh từ transcript (${workflow.files.rewritten.length} ký tự)...`);
+        
+        // Gọi API TTS endpoint
+        const ttsResponse = await fetch('http://localhost:8888/api/tts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 text: workflow.files.rewritten,
                 voice: voice,
                 format: 'mp3',
                 waitForCompletion: true,
                 filename: `workflow_audio_${Date.now()}.mp3`
-            }
-        };
-        const ttsResult = await unifiedTTS(ttsReq, mockRes);
+            })
+        });
+        
+        const ttsResult = await ttsResponse.json();
         if (!ttsResult.success || !ttsResult.downloaded) {
-            throw new Error('Không thể tạo âm thanh TTS');
+            throw new Error(`TTS thất bại: ${ttsResult.message || 'Unknown error'}`);
         }
         workflow.steps.audio = true;
         workflow.files.audio = ttsResult.downloaded.path;
@@ -256,15 +283,21 @@ async function createVideoFromYouTube(req, res) {
         
         // Bước 5: Ghép video ngẫu nhiên
         console.log(`🎬 [Step 5] Ghép ${workflow.durations.videoCount} video ngẫu nhiên...`);
-        const mergeReq = {
-            body: {
+        
+        const mergeResponse = await fetch('http://localhost:8888/api/merge-videos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 duration: workflow.durations.audio,
                 filename: `workflow_merged_${Date.now()}.mp4`
-            }
-        };
-        const mergeResult = await mergeVideos(mergeReq, mockRes);
+            })
+        });
+        
+        const mergeResult = await mergeResponse.json();
         if (!mergeResult.success) {
-            throw new Error('Không thể ghép video');
+            throw new Error(`Không thể ghép video: ${mergeResult.message}`);
         }
         workflow.steps.videoMerge = true;
         workflow.files.mergedVideo = mergeResult.output.path;
@@ -273,14 +306,36 @@ async function createVideoFromYouTube(req, res) {
         // Bước 6: Tắt tiếng video đã ghép
         console.log(`🔇 [Step 6] Tắt tiếng video...`);
         const mutedVideoPath = path.join(tempDir, `muted_${Date.now()}.mp4`);
-        await muteVideo(workflow.files.mergedVideo, mutedVideoPath);
+        
+        const muteCmd = `ffmpeg -y -i "${workflow.files.mergedVideo}" -c copy -an "${mutedVideoPath}"`;
+        
+        try {
+            console.log(`🔧 [Step 6] Chạy lệnh: ${muteCmd}`);
+            await execWithTimeout(muteCmd, 120000); // 2 phút timeout
+            console.log(`✅ [Step 6] FFmpeg mute hoàn thành thành công`);
+        } catch (error) {
+            console.error(`❌ [Step 6] Lỗi FFmpeg mute:`, error);
+            throw new Error(`Không thể tắt tiếng video: ${error.message}`);
+        }
+        
         workflow.steps.mute = true;
         workflow.files.mutedVideo = mutedVideoPath;
         console.log(`✅ [Step 6] Đã tắt tiếng video`);
         
         // Bước 7: Thay thế audio bằng giọng Vibee
         console.log(`🎵 [Step 7] Thay thế audio bằng giọng Vibee...`);
-        await replaceAudio(workflow.files.mutedVideo, workflow.files.audio, finalOutputPath);
+        
+        const replaceCmd = `ffmpeg -y -i "${workflow.files.mutedVideo}" -i "${workflow.files.audio}" -c:v copy -c:a aac -map 0:v:0 -map 1:a:0 -shortest "${finalOutputPath}"`;
+        
+        try {
+            console.log(`🔧 [Step 7] Chạy lệnh: ${replaceCmd}`);
+            await execWithTimeout(replaceCmd, 300000); // 5 phút timeout
+            console.log(`✅ [Step 7] FFmpeg hoàn thành thành công`);
+        } catch (error) {
+            console.error(`❌ [Step 7] Lỗi FFmpeg:`, error);
+            throw new Error(`Không thể thay thế audio: ${error.message}`);
+        }
+        
         workflow.steps.final = true;
         workflow.files.final = finalOutputPath;
         console.log(`✅ [Step 7] Hoàn thành video cuối cùng!`);
