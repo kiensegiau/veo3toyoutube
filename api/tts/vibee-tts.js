@@ -96,8 +96,16 @@ async function createTTS(req, res) {
         });
 
         const data = await resp.json().catch(() => ({}));
+        console.log('Vibee API response:', resp.status, data);
+        
         if (!resp.ok) {
-            return res.status(resp.status).json({ success: false, message: 'Vibee create failed', error: data });
+            return res.status(resp.status).json({ 
+                success: false, 
+                message: 'Vibee create failed', 
+                error: data,
+                status: resp.status,
+                raw: data
+            });
         }
 
         // Normalize response: requestId + status
@@ -403,7 +411,11 @@ async function unifiedTTS(req, res) {
         // Step 3: Download if requested and audioUrl available
         if (download && response.audioUrl) {
             try {
-                const audioResp = await fetch(response.audioUrl);
+                const audioResp = await fetch(response.audioUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${VIBEE_API_KEY}`
+                    }
+                });
                 if (audioResp.ok) {
                     const arrayBuffer = await audioResp.arrayBuffer();
                     const buffer = Buffer.from(arrayBuffer);

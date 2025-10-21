@@ -129,14 +129,15 @@ app.post('/api/vbee-tts', vbeeTTS);
 
 // Unified TTS endpoint (recommended)
 app.post('/api/tts', vibeeTTS.unifiedTTS);
+// Keep listing for UI convenience
+app.get('/api/tts/list-audio', vibeeTTS.listAudio);
 
-// Legacy endpoints (for backward compatibility)
+// Detailed Vibee TTS endpoints (create/check/get/download/wait)
 app.post('/api/tts/create', vibeeTTS.createTTS);
 app.post('/api/tts/status', vibeeTTS.checkTTSStatus);
+app.post('/api/tts/audio-url', vibeeTTS.getAudioUrl);
 app.post('/api/tts/download', vibeeTTS.downloadTTS);
-app.get('/api/tts/list-audio', vibeeTTS.listAudio);
-app.post('/api/tts/wait-until-ready', vibeeTTS.waitUntilReady);
-app.post('/api/tts/get-audio-url', vibeeTTS.getAudioUrl);
+app.post('/api/tts/wait', vibeeTTS.waitUntilReady);
 
 // Utility APIs
 app.get('/api/token-status', (req, res) => {
@@ -249,12 +250,12 @@ app.listen(PORT, () => {
     console.log(`   POST /api/advanced-text-replacement - Thay thế text nâng cao với nhiều pattern`);
     console.log(`   POST /api/rewrite-with-chatgpt - Viết lại transcript bằng ChatGPT (tối ưu 15% thay đổi)`);
     console.log(`   POST /api/tts - TTS thống nhất (tạo + chờ + tải)`);
-    console.log(`   POST /api/tts/create - Tạo job Vibee TTS (legacy)`);
-    console.log(`   POST /api/tts/status - Kiểm tra trạng thái job Vibee TTS (legacy)`);
-    console.log(`   POST /api/tts/download - Tải MP3 về máy chủ (legacy)`);
     console.log(`   GET  /api/tts/list-audio - Liệt kê MP3 đã lưu`);
-    console.log(`   POST /api/tts/wait-until-ready - Chờ tới khi có audioUrl (legacy)`);
-    console.log(`   POST /api/tts/get-audio-url - Trả về audioUrl theo tài liệu (legacy)`);
+    console.log(`   POST /api/tts/create - Tạo job TTS (Vibee)`);
+    console.log(`   POST /api/tts/status - Kiểm tra trạng thái job TTS`);
+    console.log(`   POST /api/tts/audio-url - Lấy audioUrl khi sẵn sàng`);
+    console.log(`   POST /api/tts/download - Tải MP3 về thư mục public/audio`);
+    console.log(`   POST /api/tts/wait - Đợi đến khi có audioUrl (polling)`);
     
     // Start auto batch polling
     startAutoBatchPolling();

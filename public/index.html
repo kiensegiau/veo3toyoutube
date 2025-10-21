@@ -56,6 +56,27 @@
         </div>
 
         <div class="content">
+            <!-- Simple Vibee TTS UI -->
+            <div class="section" style="background:#fff7ed; border-left:4px solid #fb923c;">
+                <h3 style="color:#7c2d12;">🔊 Text-to-Speech (Vibee)</h3>
+                <div class="form-group">
+                    <label for="ttsText">📝 Nhập văn bản (tiếng Việt hỗ trợ đầy đủ UTF-8)</label>
+                    <textarea id="ttsText" rows="4" placeholder="Nhập văn bản để chuyển thành giọng nói...">Xin cảm ơn mọi người đã lắng nghe truyện trên Ken Ken Audio.</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="ttsVoice">🎤 Giọng đọc</label>
+                    <select id="ttsVoice">
+                        <option value="hn_female_ngochuyen_full_48k-fhg">Nữ Hà Nội - Ngọc Huyền</option>
+                        <option value="hn_female_miu_mini">Nữ Hà Nội - Miu (nhanh)</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success" onclick="runTTS()">▶️ Tạo MP3 (chờ hoàn thành)</button>
+                    <button type="button" class="btn" onclick="runTTSQuick()">⚡ Tạo nhanh (không chờ)</button>
+                    <button type="button" class="btn btn-secondary" onclick="listAudio()">📁 Danh sách MP3</button>
+                </div>
+                <div id="ttsResult" style="margin-top:15px;"></div>
+            </div>
             <!-- Chrome Profile Management -->
             <div class="section">
                 <h3>🔧 Quản lý Chrome Profile</h3>
@@ -176,10 +197,120 @@
         // Utility functions
         const API_BASE = 'http://localhost:8888/api';
         async function apiCall(endpoint, method = 'GET', data = null) {
-            const options = { method, headers: { 'Content-Type': 'application/json' } };
+            const options = { method, headers: { 'Content-Type': 'application/json; charset=utf-8' } };
             if (data) options.body = JSON.stringify(data);
             const response = await fetch(`${API_BASE}${endpoint}`, options);
             return await response.json();
+        }
+
+        // ===== Vibee TTS minimal flow =====
+        async function runTTS() {
+            const text = (document.getElementById('ttsText').value || '').trim();
+            const voice = document.getElementById('ttsVoice').value || 'hn_female_ngochuyen_full_48k-fhg';
+            if (!text) { showError('Vui lòng nhập nội dung cần đọc'); return; }
+            showLoading(true);
+            const filename = `tts_${Date.now()}.mp3`;
+            try {
+                const result = await apiCall('/tts', 'POST', {
+                    text,
+                    voice,
+                    format: 'mp3',
+                    waitForCompletion: true,
+                    maxWaitMs: 120000, // 2 minutes max
+                    pollIntervalMs: 10000,
+                    filename
+                });
+                console.log('TTS Result:', result);
+                if (result.steps && result.steps.downloaded && result.downloaded && result.downloaded.publicPath) {
+                    document.getElementById('ttsResult').innerHTML = `<div class="success"><strong>✅ Đã tạo MP3!</strong><div style="margin-top:8px;"><audio controls src="${result.downloaded.publicPath}" style="width:100%"></audio><div style="margin-top:8px;"><a href="${result.downloaded.publicPath}" target="_blank">Mở file</a></div></div></div>`;
+                } else if (result.audioUrl) {
+                    document.getElementById('ttsResult').innerHTML = `<div class="success"><strong>✅ Đã tạo!</strong><div style="margin-top:8px;"><audio controls src="${result.audioUrl}" style="width:100%"></audio><div style="margin-top:8px;"><a href="${result.audioUrl}" target="_blank">Mở file</a></div></div></div>`;
+                } else if (result.timedOut) {
+                    document.getElementById('ttsResult').innerHTML = `<div class="error"><strong>⏰ Timeout!</strong> TTS đang xử lý, vui lòng thử lại sau 1-2 phút hoặc kiểm tra danh sách MP3.</div>`;
+                } else {
+                    document.getElementById('ttsResult').innerHTML = `<div class="error"><strong>❌ Chưa hoàn thành!</strong> Status: ${result.status || 'Unknown'}. Vui lòng thử lại sau.</div>`;
+                }
+            } catch (e) {
+                console.error('TTS Error:', e);
+                showError('Lỗi tạo TTS: ' + e.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function runTTSQuick() {
+            const text = (document.getElementById('ttsText').value || '').trim();
+            const voice = document.getElementById('ttsVoice').value || 'hn_female_ngochuyen_full_48k-fhg';
+            if (!text) { showError('Vui lòng nhập nội dung cần đọc'); return; }
+            showLoading(true);
+            try {
+                const result = await apiCall('/tts', 'POST', {
+                    text,
+                    voice,
+                    format: 'mp3',
+                    waitForCompletion: false
+                });
+                console.log('Quick TTS Result:', result);
+                if (result.success && result.requestId) {
+                    document.getElementById('ttsResult').innerHTML = `<div class="success"><strong>✅ Đã tạo job!</strong><div style="margin-top:8px;">Request ID: ${result.requestId}</div><div id="ttsQuickStatus" style="margin-top:8px;">Đang kiểm tra trạng thái...</div></div>`;
+                    // Poll cho đến khi có audioUrl, sau đó gọi download
+                    await pollAndDownloadTTS(result.requestId);
+                } else {
+                    showError('Lỗi tạo job TTS');
+                }
+            } catch (e) {
+                console.error('Quick TTS Error:', e);
+                showError('Lỗi tạo TTS: ' + e.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function pollAndDownloadTTS(requestId) {
+            const statusEl = document.getElementById('ttsQuickStatus');
+            const filename = `tts_${Date.now()}.mp3`;
+            const maxWaitMs = 180000; // 3 phút
+            const intervalMs = 5000;
+            const start = Date.now();
+            while (Date.now() - start < maxWaitMs) {
+                try {
+                    if (statusEl) statusEl.textContent = 'Đang kiểm tra trạng thái...';
+                    const status = await apiCall('/tts/status', 'POST', { jobId: requestId });
+                    if (status && status.success) {
+                        if (status.status === 'COMPLETED' && status.audioUrl) {
+                            if (statusEl) statusEl.textContent = 'Đã sẵn sàng, đang tải về...';
+                            const dl = await apiCall('/tts/download', 'POST', { audioUrl: status.audioUrl, filename });
+                            if (dl && dl.success && dl.publicPath) {
+                                document.getElementById('ttsResult').innerHTML = `<div class="success"><strong>✅ Đã tạo MP3!</strong><div style="margin-top:8px;"><audio controls src="${dl.publicPath}" style="width:100%"></audio><div style="margin-top:8px;"><a href="${dl.publicPath}" target="_blank">Mở file</a></div></div></div>`;
+                                return;
+                            } else {
+                                showError('Tải về thất bại.');
+                                return;
+                            }
+                        } else if (status.status === 'FAILED') {
+                            showError('Job TTS thất bại.');
+                            return;
+                        } else {
+                            if (statusEl) statusEl.textContent = `Đang xử lý... ${(new Date()).toLocaleTimeString('vi-VN')}`;
+                        }
+                    } else {
+                        if (statusEl) statusEl.textContent = 'Lỗi kiểm tra trạng thái';
+                    }
+                } catch (err) {
+                    if (statusEl) statusEl.textContent = 'Lỗi: ' + err.message;
+                }
+                await new Promise(r => setTimeout(r, intervalMs));
+            }
+            if (statusEl) statusEl.textContent = '⏰ Hết thời gian chờ.';
+        }
+
+        async function listAudio() {
+            try {
+                const data = await apiCall('/tts/list-audio');
+                if (!data.success) { showError('Lỗi tải danh sách MP3'); return; }
+                const files = (data.files || []).map(f => `<li><a href="/audio/${f}" target="_blank">${f}</a></li>`).join('');
+                document.getElementById('ttsResult').innerHTML = `<div class="success"><h4>📁 MP3 đã lưu (${data.count})</h4><ul>${files}</ul></div>`;
+            } catch (e) { showError('Lỗi danh sách MP3: ' + e.message); }
         }
 
         function showLoading(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
