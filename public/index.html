@@ -56,6 +56,37 @@
         </div>
 
         <div class="content">
+            <!-- Complete Workflow -->
+            <div class="section" style="background:#f0f9ff; border-left:4px solid #0ea5e9;">
+                <h3 style="color:#0c4a6e;">🎬 Workflow Hoàn Chỉnh: YouTube → Video Mới</h3>
+                <p style="color:#64748b; margin-bottom:15px; font-size:14px;">
+                    Tự động: Lấy transcript → ChatGPT viết lại → TTS → Ghép video → Thay audio
+                </p>
+                <div class="form-group">
+                    <label for="youtubeUrl">🔗 URL Video YouTube:</label>
+                    <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." />
+                </div>
+                <div class="form-group">
+                    <label for="workflowVoice">🎤 Giọng nói:</label>
+                    <select id="workflowVoice">
+                        <option value="hn_female_ngochuyen_full_48k-fhg">Nữ Hà Nội - Ngọc Huyền</option>
+                        <option value="hn_male_baoan_full_48k-fhg">Nam - Bảo An</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button type="button" id="btnWorkflow" class="btn btn-success" onclick="runCompleteWorkflow()">🚀 Tạo Video Hoàn Chỉnh</button>
+                    <button type="button" class="btn btn-secondary" onclick="listFinalVideos()">📁 Danh sách Video</button>
+                </div>
+                <div id="workflowProgress" class="polling-status" style="display:none; margin-top:10px;">
+                    <strong id="workflowProgressTitle">🔄 Đang xử lý workflow...</strong>
+                    <div style="height:6px; background:#e5e7eb; border-radius:4px; overflow:hidden; margin-top:8px;">
+                        <div id="workflowProgressBar" style="width:0%; height:6px; background:#0ea5e9; transition: width .4s ease;"></div>
+                    </div>
+                    <p id="workflowProgressMsg" style="margin-top:8px; color:#0c5460; font-size:14px;">Bắt đầu workflow...</p>
+                </div>
+                <div id="workflowResult" style="margin-top:15px;"></div>
+            </div>
+
             <!-- Simple Vibee TTS UI -->
             <div class="section" style="background:#fff7ed; border-left:4px solid #fb923c;">
                 <h3 style="color:#7c2d12;">🔊 Text-to-Speech (Vibee)</h3>
@@ -851,6 +882,159 @@
                 } else showError('Lỗi tải danh sách video');
             } catch (error) { showError('Lỗi tải danh sách: ' + error.message); }
             finally { showLoading(false); }
+        }
+
+        // Complete Workflow Functions
+        async function runCompleteWorkflow() {
+            const youtubeUrl = document.getElementById('youtubeUrl').value.trim();
+            const voice = document.getElementById('workflowVoice').value;
+            
+            if (!youtubeUrl) {
+                showError('Vui lòng nhập URL YouTube');
+                return;
+            }
+            
+            lockWorkflowButtons(true);
+            showLoading(true);
+            workflowProgressStart('Bắt đầu workflow hoàn chỉnh...');
+            
+            try {
+                const result = await apiCall('/create-video-from-youtube', 'POST', {
+                    youtubeUrl,
+                    voice,
+                    filename: `workflow_${Date.now()}.mp4`
+                });
+                
+                console.log('Complete Workflow Result:', result);
+                
+                if (result.success) {
+                    workflowProgressComplete('Hoàn thành workflow!');
+                    showWorkflowSuccess(result.workflow);
+                } else {
+                    showError('Lỗi workflow: ' + result.message);
+                    workflowProgressError('Workflow thất bại');
+                }
+            } catch (error) {
+                console.error('Complete Workflow Error:', error);
+                showError('Lỗi workflow: ' + error.message);
+                workflowProgressError('Có lỗi xảy ra trong workflow');
+            } finally {
+                showLoading(false);
+                lockWorkflowButtons(false);
+            }
+        }
+        
+        function lockWorkflowButtons(lock) {
+            const btn = document.getElementById('btnWorkflow');
+            if (btn) {
+                btn.disabled = lock;
+                btn.textContent = lock ? '⏳ Đang xử lý...' : '🚀 Tạo Video Hoàn Chỉnh';
+            }
+        }
+        
+        function workflowProgressStart(message) {
+            const progress = document.getElementById('workflowProgress');
+            const title = document.getElementById('workflowProgressTitle');
+            const msg = document.getElementById('workflowProgressMsg');
+            const bar = document.getElementById('workflowProgressBar');
+            
+            if (progress) progress.style.display = 'block';
+            if (title) title.textContent = '🔄 Đang xử lý workflow...';
+            if (msg) msg.textContent = message;
+            if (bar) bar.style.width = '10%';
+        }
+        
+        function workflowProgressSet(percent, message) {
+            const msg = document.getElementById('workflowProgressMsg');
+            const bar = document.getElementById('workflowProgressBar');
+            
+            if (msg) msg.textContent = message;
+            if (bar) bar.style.width = percent + '%';
+        }
+        
+        function workflowProgressComplete(message) {
+            const title = document.getElementById('workflowProgressTitle');
+            const msg = document.getElementById('workflowProgressMsg');
+            const bar = document.getElementById('workflowProgressBar');
+            
+            if (title) title.textContent = '✅ Hoàn thành!';
+            if (msg) msg.textContent = message;
+            if (bar) bar.style.width = '100%';
+        }
+        
+        function workflowProgressError(message) {
+            const title = document.getElementById('workflowProgressTitle');
+            const msg = document.getElementById('workflowProgressMsg');
+            const bar = document.getElementById('workflowProgressBar');
+            
+            if (title) title.textContent = '❌ Lỗi!';
+            if (msg) msg.textContent = message;
+            if (bar) bar.style.background = '#ef4444';
+        }
+        
+        function showWorkflowSuccess(workflow) {
+            const resultDiv = document.getElementById('workflowResult');
+            if (!resultDiv) return;
+            
+            const steps = workflow.steps;
+            const files = workflow.files;
+            const durations = workflow.durations;
+            
+            let html = '<div class="success">';
+            html += '<h4>🎉 Workflow hoàn thành thành công!</h4>';
+            html += '<div style="margin-top: 15px;">';
+            html += '<h5>📊 Thông tin:</h5>';
+            html += `<p><strong>YouTube URL:</strong> ${workflow.youtubeUrl}</p>`;
+            html += `<p><strong>Giọng nói:</strong> ${workflow.voice}</p>`;
+            html += `<p><strong>Thời lượng audio:</strong> ${durations.audio} giây</p>`;
+            html += `<p><strong>Số video ghép:</strong> ${durations.videoCount} video</p>`;
+            html += '</div>';
+            
+            html += '<div style="margin-top: 15px;">';
+            html += '<h5>📋 Các bước đã thực hiện:</h5>';
+            html += '<ul>';
+            html += `<li>${steps.transcript ? '✅' : '❌'} Lấy transcript từ YouTube</li>`;
+            html += `<li>${steps.rewrite ? '✅' : '❌'} Viết lại transcript bằng ChatGPT</li>`;
+            html += `<li>${steps.audio ? '✅' : '❌'} Tạo âm thanh bằng Vibee TTS</li>`;
+            html += `<li>${steps.videoMerge ? '✅' : '❌'} Ghép video ngẫu nhiên</li>`;
+            html += `<li>${steps.mute ? '✅' : '❌'} Tắt tiếng video</li>`;
+            html += `<li>${steps.final ? '✅' : '❌'} Thay thế audio cuối cùng</li>`;
+            html += '</ul>';
+            html += '</div>';
+            
+            if (files.final) {
+                html += '<div style="margin-top: 15px;">';
+                html += '<h5>🎬 Video cuối cùng:</h5>';
+                html += `<p><strong>Tên file:</strong> ${files.final.filename}</p>`;
+                html += `<p><strong>Kích thước:</strong> ${files.final.sizeMB} MB</p>`;
+                html += `<p><strong>Đường dẫn:</strong> <a href="${files.final.publicPath}" target="_blank">${files.final.publicPath}</a></p>`;
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+        
+        async function listFinalVideos() {
+            showLoading(true);
+            try {
+                const result = await apiCall('/list-videos');
+                if (result.success) {
+                    let html = '<div class="success"><h4>📁 Danh sách Video Hoàn Chỉnh:</h4><ul>';
+                    result.videos.forEach(video => {
+                        if (video.includes('workflow_') || video.includes('final_')) {
+                            html += `<li><a href="/final-videos/${video}" target="_blank">${video}</a></li>`;
+                        }
+                    });
+                    document.getElementById('workflowResult').innerHTML = html + '</ul></div>';
+                } else {
+                    showError('Lỗi tải danh sách video');
+                }
+            } catch (error) {
+                showError('Lỗi tải danh sách: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
         }
 
         // Cleanup on page unload

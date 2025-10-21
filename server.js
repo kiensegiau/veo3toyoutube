@@ -8,6 +8,7 @@ const { createVideo } = require('./api/video/create-video');
 const { checkStatus } = require('./api/video/check-status');
 const { uploadYouTube } = require('./api/youtube/upload-youtube');
 const { mergeVideos, listAvailableVideos } = require('./api/video/merge-videos');
+const { createVideoFromYouTube } = require('./api/video/complete-workflow');
 const profileAPI = require('./api/profile/profile-management');
 const labsAPI = require('./api/labs/labs-management');
 const transcriptAPI = require('./api/transcript/transcript-management');
@@ -108,6 +109,9 @@ app.post('/api/check-status', (req, res) => checkStatus(req, res, storageData));
 // Video Merge APIs
 app.post('/api/merge-videos', mergeVideos);
 app.get('/api/merge-videos/list', listAvailableVideos);
+
+// Complete Workflow API
+app.post('/api/create-video-from-youtube', createVideoFromYouTube);
 
 // YouTube Upload API
 app.post('/api/upload-youtube', uploadYouTube);
@@ -280,6 +284,7 @@ app.listen(PORT, () => {
     console.log(`   POST /api/tts/wait - Đợi đến khi có audioUrl (polling)`);
     console.log(`   POST /api/merge-videos - Ghép video ngẫu nhiên theo thời gian`);
     console.log(`   GET  /api/merge-videos/list - Liệt kê video có sẵn để ghép`);
+    console.log(`   POST /api/create-video-from-youtube - Workflow hoàn chỉnh: YouTube → ChatGPT → TTS → Video`);
     
     // Start auto batch polling
     startAutoBatchPolling();

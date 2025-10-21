@@ -41,7 +41,15 @@ coverage/
 # Temporary folders
 tmp/
 temp/
-public/videos
+
+# Public media and output folders
+public/videos/
+public/audio/
+public/final-videos/
+public/images/
+
+# Transcript files
+transcripts/
 
 # Chrome profile data
 chrome-profile/
