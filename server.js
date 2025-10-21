@@ -83,6 +83,23 @@ function startAutoBatchPolling() {
 
 // ===== API ROUTES =====
 
+// Logging middleware for all TTS endpoints
+app.use('/api/tts', (req, res, next) => {
+    const start = Date.now();
+    const bodyPreview = (() => {
+        try {
+            const str = JSON.stringify(req.body || {});
+            return str.length > 300 ? str.slice(0, 300) + '…' : str;
+        } catch (_) { return '[unserializable]'; }
+    })();
+    console.log(`🔊 [TTS] -> ${req.method} ${req.originalUrl} body=${bodyPreview}`);
+    res.on('finish', () => {
+        const ms = Date.now() - start;
+        console.log(`🔊 [TTS] <- ${req.method} ${req.originalUrl} status=${res.statusCode} (${ms}ms)`);
+    });
+    next();
+});
+
 // Video Generation APIs
 app.post('/api/create-video', (req, res) => createVideo(req, res, storageData));
 app.post('/api/check-status', (req, res) => checkStatus(req, res, storageData));

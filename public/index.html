@@ -71,9 +71,16 @@
                     </select>
                 </div>
                 <div class="btn-group">
-                    <button type="button" class="btn btn-success" onclick="runTTS()">▶️ Tạo MP3 (chờ hoàn thành)</button>
-                    <button type="button" class="btn" onclick="runTTSQuick()">⚡ Tạo nhanh (không chờ)</button>
+                    <button type="button" id="btnTTSFull" class="btn btn-success" onclick="runTTS()">▶️ Tạo MP3 (chờ hoàn thành)</button>
+                    <button type="button" id="btnTTSQuick" class="btn" onclick="runTTSQuick()">⚡ Tạo nhanh (không chờ)</button>
                     <button type="button" class="btn btn-secondary" onclick="listAudio()">📁 Danh sách MP3</button>
+                </div>
+                <div id="ttsProgress" class="polling-status" style="display:none; margin-top:10px;">
+                    <strong id="ttsProgressTitle">🔄 Đang xử lý TTS...</strong>
+                    <div style="height:6px; background:#e5e7eb; border-radius:4px; overflow:hidden; margin-top:8px;">
+                        <div id="ttsProgressBar" style="width:0%; height:6px; background:#0ea5e9; transition: width .4s ease;"></div>
+                    </div>
+                    <p id="ttsProgressMsg" style="margin-top:8px; color:#0c5460; font-size:14px;">Bắt đầu gửi yêu cầu...</p>
                 </div>
                 <div id="ttsResult" style="margin-top:15px;"></div>
             </div>
@@ -208,7 +215,9 @@
             const text = (document.getElementById('ttsText').value || '').trim();
             const voice = document.getElementById('ttsVoice').value || 'hn_female_ngochuyen_full_48k-fhg';
             if (!text) { showError('Vui lòng nhập nội dung cần đọc'); return; }
+            lockTTSButtons(true);
             showLoading(true);
+            ttsProgressStart('Gửi yêu cầu tạo MP3...');
             const filename = `tts_${Date.now()}.mp3`;
             try {
                 const result = await apiCall('/tts', 'POST', {
@@ -221,6 +230,7 @@
                     filename
                 });
                 console.log('TTS Result:', result);
+                ttsProgressSet(80, 'Đang xử lý kết quả...');
                 if (result.steps && result.steps.downloaded && result.downloaded && result.downloaded.publicPath) {
                     document.getElementById('ttsResult').innerHTML = `<div class="success"><strong>✅ Đã tạo MP3!</strong><div style="margin-top:8px;"><audio controls src="${result.downloaded.publicPath}" style="width:100%"></audio><div style="margin-top:8px;"><a href="${result.downloaded.publicPath}" target="_blank">Mở file</a></div></div></div>`;
                 } else if (result.audioUrl) {
@@ -230,11 +240,14 @@
                 } else {
                     document.getElementById('ttsResult').innerHTML = `<div class="error"><strong>❌ Chưa hoàn thành!</strong> Status: ${result.status || 'Unknown'}. Vui lòng thử lại sau.</div>`;
                 }
+                ttsProgressComplete('Hoàn tất.');
             } catch (e) {
                 console.error('TTS Error:', e);
                 showError('Lỗi tạo TTS: ' + e.message);
+                ttsProgressError('Có lỗi xảy ra khi tạo TTS.');
             } finally {
                 showLoading(false);
+                lockTTSButtons(false);
             }
         }
 
@@ -242,7 +255,9 @@
             const text = (document.getElementById('ttsText').value || '').trim();
             const voice = document.getElementById('ttsVoice').value || 'hn_female_ngochuyen_full_48k-fhg';
             if (!text) { showError('Vui lòng nhập nội dung cần đọc'); return; }
+            lockTTSButtons(true);
             showLoading(true);
+            ttsProgressStart('Gửi yêu cầu tạo job...');
             try {
                 const result = await apiCall('/tts', 'POST', {
                     text,
@@ -252,17 +267,21 @@
                 });
                 console.log('Quick TTS Result:', result);
                 if (result.success && result.requestId) {
-                    document.getElementById('ttsResult').innerHTML = `<div class="success"><strong>✅ Đã tạo job!</strong><div style="margin-top:8px;">Request ID: ${result.requestId}</div><div id="ttsQuickStatus" style="margin-top:8px;">Đang kiểm tra trạng thái...</div></div>`;
+                    document.getElementById('ttsResult').innerHTML = `<div class=\"success\"><strong>✅ Đã tạo job!</strong><div style=\"margin-top:8px;\">Request ID: ${result.requestId}</div><div id=\"ttsQuickStatus\" style=\"margin-top:8px;\">Đang kiểm tra trạng thái...</div></div>`;
+                    ttsProgressSet(40, 'Đã tạo job, đang kiểm tra trạng thái...');
                     // Poll cho đến khi có audioUrl, sau đó gọi download
                     await pollAndDownloadTTS(result.requestId);
                 } else {
                     showError('Lỗi tạo job TTS');
+                    ttsProgressError('Không tạo được job.');
                 }
             } catch (e) {
                 console.error('Quick TTS Error:', e);
                 showError('Lỗi tạo TTS: ' + e.message);
+                ttsProgressError('Có lỗi xảy ra khi tạo job TTS.');
             } finally {
                 showLoading(false);
+                lockTTSButtons(false);
             }
         }
 
@@ -275,33 +294,42 @@
             while (Date.now() - start < maxWaitMs) {
                 try {
                     if (statusEl) statusEl.textContent = 'Đang kiểm tra trạng thái...';
+                    ttsProgressPulse();
                     const status = await apiCall('/tts/status', 'POST', { jobId: requestId });
                     if (status && status.success) {
                         if (status.status === 'COMPLETED' && status.audioUrl) {
                             if (statusEl) statusEl.textContent = 'Đã sẵn sàng, đang tải về...';
+                            ttsProgressSet(85, 'Đang tải MP3...');
                             const dl = await apiCall('/tts/download', 'POST', { audioUrl: status.audioUrl, filename });
                             if (dl && dl.success && dl.publicPath) {
                                 document.getElementById('ttsResult').innerHTML = `<div class="success"><strong>✅ Đã tạo MP3!</strong><div style="margin-top:8px;"><audio controls src="${dl.publicPath}" style="width:100%"></audio><div style="margin-top:8px;"><a href="${dl.publicPath}" target="_blank">Mở file</a></div></div></div>`;
+                                ttsProgressComplete('Hoàn tất.');
                                 return;
                             } else {
                                 showError('Tải về thất bại.');
+                                ttsProgressError('Tải MP3 thất bại.');
                                 return;
                             }
                         } else if (status.status === 'FAILED') {
                             showError('Job TTS thất bại.');
+                            ttsProgressError('Job TTS thất bại.');
                             return;
                         } else {
                             if (statusEl) statusEl.textContent = `Đang xử lý... ${(new Date()).toLocaleTimeString('vi-VN')}`;
+                            ttsProgressPulse();
                         }
                     } else {
                         if (statusEl) statusEl.textContent = 'Lỗi kiểm tra trạng thái';
+                        ttsProgressError('Lỗi kiểm tra trạng thái.');
                     }
                 } catch (err) {
                     if (statusEl) statusEl.textContent = 'Lỗi: ' + err.message;
+                    ttsProgressError('Lỗi khi kiểm tra trạng thái.');
                 }
                 await new Promise(r => setTimeout(r, intervalMs));
             }
             if (statusEl) statusEl.textContent = '⏰ Hết thời gian chờ.';
+            ttsProgressError('⏰ Hết thời gian chờ.');
         }
 
         async function listAudio() {
@@ -314,6 +342,46 @@
         }
 
         function showLoading(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
+        function lockTTSButtons(lock) {
+            const b1 = document.getElementById('btnTTSFull');
+            const b2 = document.getElementById('btnTTSQuick');
+            [b1,b2].forEach(b => { if (b) { b.disabled = lock; b.style.opacity = lock ? 0.7 : 1; } });
+        }
+        function ttsProgressStart(msg) {
+            const c = document.getElementById('ttsProgress');
+            const m = document.getElementById('ttsProgressMsg');
+            const bar = document.getElementById('ttsProgressBar');
+            if (c) c.style.display = 'block';
+            if (m) m.textContent = msg || 'Đang xử lý...';
+            if (bar) bar.style.width = '10%';
+        }
+        function ttsProgressSet(percent, msg) {
+            const m = document.getElementById('ttsProgressMsg');
+            const bar = document.getElementById('ttsProgressBar');
+            if (m && msg) m.textContent = msg;
+            if (bar) bar.style.width = Math.max(0, Math.min(100, percent)) + '%';
+        }
+        function ttsProgressPulse() {
+            const bar = document.getElementById('ttsProgressBar');
+            if (!bar) return;
+            const current = parseInt(bar.style.width || '10');
+            const next = (current + 7) % 90 + 10; // pulse 10-99
+            bar.style.width = next + '%';
+        }
+        function ttsProgressComplete(msg) {
+            const m = document.getElementById('ttsProgressMsg');
+            const bar = document.getElementById('ttsProgressBar');
+            if (bar) bar.style.width = '100%';
+            if (m) m.textContent = msg || 'Hoàn tất';
+            setTimeout(() => { const c = document.getElementById('ttsProgress'); if (c) c.style.display = 'none'; }, 800);
+        }
+        function ttsProgressError(msg) {
+            const m = document.getElementById('ttsProgressMsg');
+            if (m) m.textContent = msg || 'Có lỗi xảy ra';
+            const bar = document.getElementById('ttsProgressBar');
+            if (bar) bar.style.background = '#ef4444';
+            setTimeout(() => { const c = document.getElementById('ttsProgress'); if (c) c.style.display = 'none'; }, 1500);
+        }
         function clearResponse() { document.getElementById('response').innerHTML = ''; }
         function clearVideoResult() { document.getElementById('videoResult').innerHTML = ''; }
         function showError(message) { document.getElementById('response').innerHTML = `<div class="error"><strong>❌ Lỗi:</strong> ${message}</div>`; }

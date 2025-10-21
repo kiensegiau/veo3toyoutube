@@ -49,6 +49,13 @@ function extractAudioUrlLike(resultObj) {
 async function createTTS(req, res) {
     try {
         const body = req.body || {};
+        console.log('🔊 [createTTS] incoming body:', {
+            keys: Object.keys(body || {}),
+            textPreview: typeof body.text === 'string' ? body.text.slice(0, 80) : undefined,
+            voice: body.voice || body.voice_code,
+            format: body.format || body.audio_type,
+            responseType: body.responseType || body.response_type
+        });
         // Normalize inputs: accept both camelCase (preferred) and snake_case (backward compat)
         const text = body.text ?? body.input_text;
         const voice = body.voice ?? body.voice_code ?? 'hn_female_miu_mini';
@@ -96,7 +103,7 @@ async function createTTS(req, res) {
         });
 
         const data = await resp.json().catch(() => ({}));
-        console.log('Vibee API response:', resp.status, data);
+        console.log('🔊 [createTTS] Vibee response status:', resp.status, 'keys:', Object.keys(data || {}));
         
         if (!resp.ok) {
             return res.status(resp.status).json({ 
@@ -112,6 +119,7 @@ async function createTTS(req, res) {
         const result = data.result || data;
         const requestId = result.request_id || result.job_id || result.id || data.job_id || data.id;
         const status = result.status || data.status || data.message || 'queued';
+        console.log('🔊 [createTTS] normalized =>', { requestId, status });
         return res.json({ success: true, requestId, status, raw: data });
     } catch (err) {
         console.error('❌ Vibee createTTS error:', err);
@@ -123,6 +131,7 @@ async function checkTTSStatus(req, res) {
     try {
         const body = req.body || {};
         const jobId = body.jobId || body.requestId || body.request_id;
+        console.log('🔎 [checkTTSStatus] jobId=', jobId);
         if (!VIBEE_API_KEY) {
             return res.status(400).json({ success: false, message: 'Missing VIBEE_API_KEY env' });
         }
@@ -164,6 +173,7 @@ async function checkTTSStatus(req, res) {
             if (rawStatusStr >= 1 && audioUrl) normalizedStatus = 'COMPLETED';
         }
 
+        console.log('🔎 [checkTTSStatus] normalized =>', { status: normalizedStatus, hasAudioUrl: !!audioUrl, progress });
         return res.json({
             success: true,
             requestId: jobId,
@@ -182,6 +192,7 @@ async function getAudioUrl(req, res) {
     try {
         const body = req.body || {};
         const jobId = body.jobId || body.requestId || body.request_id;
+        console.log('🔗 [getAudioUrl] jobId=', jobId);
         if (!jobId) {
             return res.status(400).json({ success: false, message: 'jobId is required' });
         }
@@ -195,6 +206,7 @@ async function getAudioUrl(req, res) {
         const result = data.result || data;
         const status = result.status || data.status;
         const audioUrl = extractAudioUrlLike(result) || extractAudioUrlLike(data);
+        console.log('🔗 [getAudioUrl] hasAudioUrl=', !!audioUrl);
         return res.json({ success: true, requestId: jobId, status, audioUrl, raw: data });
     } catch (err) {
         console.error('❌ Vibee getAudioUrl error:', err);
@@ -207,6 +219,7 @@ async function downloadTTS(req, res) {
         const body = req.body || {};
         const audioUrl = body.audioUrl || body.url;
         const filename = body.filename;
+        console.log('📥 [downloadTTS] start', { hasAudioUrl: !!audioUrl, filename });
         if (!audioUrl) {
             return res.status(400).json({ success: false, message: 'audioUrl is required' });
         }
@@ -231,6 +244,7 @@ async function downloadTTS(req, res) {
         const safeName = filename && filename.trim().length > 0 ? filename.trim() : `tts_${Date.now()}.mp3`;
         const outPath = path.join(audioDir, safeName);
         fs.writeFileSync(outPath, buffer);
+        console.log('📥 [downloadTTS] saved', { outPath, bytes: buffer.length });
 
         return res.json({ success: true, savedTo: outPath, filename: safeName, publicPath: `/audio/${safeName}` });
     } catch (err) {
@@ -254,6 +268,7 @@ async function waitUntilReady(req, res) {
     try {
         const body = req.body || {};
         const jobId = body.jobId || body.requestId || body.request_id;
+        console.log('⏳ [waitUntilReady] jobId=', jobId, 'intervalMs=', body.intervalMs, 'timeoutMs=', body.timeoutMs);
         // Default poll every 10s; if timeoutMs <= 0 or not provided, wait until available
         const intervalMs = Math.max(1000, Number(body.intervalMs ?? 10000));
         const rawTimeout = body.timeoutMs;
@@ -284,7 +299,9 @@ async function waitUntilReady(req, res) {
             await new Promise(r => setTimeout(r, intervalMs));
         }
 
-        return res.json({ success: true, requestId: jobId, status: lastStatus || 'IN_PROGRESS', audioUrl: null, timedOut: true, waitedMs: Date.now() - start });
+        const waited = Date.now() - start;
+        console.log('⏱️ [waitUntilReady] timeout after ms=', waited);
+        return res.json({ success: true, requestId: jobId, status: lastStatus || 'IN_PROGRESS', audioUrl: null, timedOut: true, waitedMs: waited });
     } catch (err) {
         console.error('❌ Vibee waitUntilReady error:', err);
         return res.status(500).json({ success: false, message: 'Failed while waiting for audio', error: err.message });
@@ -295,6 +312,13 @@ async function waitUntilReady(req, res) {
 async function unifiedTTS(req, res) {
     try {
         const body = req.body || {};
+        console.log('🎼 [unifiedTTS] incoming', {
+            textPreview: (body.text || body.input_text || '').slice(0, 80),
+            voice: body.voice || body.voice_code,
+            waitForCompletion: body.waitForCompletion,
+            download: body.download,
+            filename: body.filename
+        });
         const { 
             // Input text and voice settings
             text, input_text, voice, voice_code, 
@@ -334,7 +358,7 @@ async function unifiedTTS(req, res) {
             audio_type: normalizedFormat,
             bitrate: typeof bitrate === 'number' ? bitrate : 128,
             speed_rate: String(normalizedSpeed),
-            sample_rate: String(normalizedSampleRate)
+            sample_rate: Number(normalizedSampleRate) // Convert to number, not string
         };
 
         const createResp = await fetch(`${VIBEE_BASE_URL}/v1/tts`, {
@@ -347,6 +371,7 @@ async function unifiedTTS(req, res) {
         });
 
         const createData = await createResp.json().catch(() => ({}));
+        console.log('🎼 [unifiedTTS] create status=', createResp.status, 'keys=', Object.keys(createData || {}));
         if (!createResp.ok) {
             return res.status(createResp.status).json({ 
                 success: false, 
@@ -355,10 +380,30 @@ async function unifiedTTS(req, res) {
             });
         }
 
+        // Check for error in response even if status is 200
+        if (createData.error_code || createData.error_message) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vibee API error: ' + (createData.error_message || 'Unknown error'),
+                error: createData
+            });
+        }
+
         const result = createData.result || createData;
         const requestId = result.request_id || createData.job_id || createData.id;
         const initialStatus = result.status || createData.status || 'IN_PROGRESS';
 
+        // Check if we got a valid requestId
+        if (!requestId) {
+            console.log('❌ [unifiedTTS] No requestId found in response:', createData);
+            return res.status(400).json({
+                success: false,
+                message: 'No requestId returned from Vibee API',
+                error: createData
+            });
+        }
+
+        console.log('✅ [unifiedTTS] Got requestId:', requestId);
         const response = {
             success: true,
             requestId,
@@ -395,6 +440,7 @@ async function unifiedTTS(req, res) {
                         response.status = currentStatus;
                         response.audioUrl = audioUrl;
                         response.steps.completed = true;
+                        console.log('🎼 [unifiedTTS] completed with audioUrl');
                         break;
                     }
                 }
@@ -405,6 +451,7 @@ async function unifiedTTS(req, res) {
             if (!audioUrl) {
                 response.timedOut = true;
                 response.waitedMs = Date.now() - startTime;
+                console.log('⏱️ [unifiedTTS] wait timeout after ms=', response.waitedMs);
             }
         }
 
@@ -423,6 +470,7 @@ async function unifiedTTS(req, res) {
                     const safeName = filename || `tts_${requestId}_${Date.now()}.mp3`;
                     const outPath = path.join(audioDir, safeName);
                     fs.writeFileSync(outPath, buffer);
+                    console.log('📥 [unifiedTTS] downloaded', { outPath, bytes: buffer.length });
                     
                     response.downloaded = {
                         filename: safeName,
@@ -434,6 +482,7 @@ async function unifiedTTS(req, res) {
                 }
             } catch (downloadErr) {
                 response.downloadError = downloadErr.message;
+                console.error('❌ [unifiedTTS] download error:', downloadErr);
             }
         }
 
