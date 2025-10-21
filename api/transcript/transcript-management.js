@@ -899,8 +899,8 @@ async function rewriteWithChatGPT(req, res) {
         let systemPrompt, userPrompt;
         
         // Optimized single style with 15% change target
-        systemPrompt = "You are a professional Vietnamese content editor. Your task is to rewrite the text with approximately 15% word changes while preserving the exact same meaning, story, emotional tone, and speaking style. Change word choices, sentence structures, and phrasing moderately to create natural variation. Keep all names, events, plot points, dialogue, and the original speaking voice exactly the same. The goal is to make it sound fresh while maintaining the same narrative flow and character voice.";
-        userPrompt = "Please rewrite this Vietnamese transcript with moderate modifications (around 15% word changes) to create natural variation while keeping the exact same story, characters, plot points, and speaking style. Make it sound fresh and natural but maintain the original voice and tone:";
+        systemPrompt = "You are a professional Vietnamese content editor. Your task is to rewrite the text with approximately 15% word changes while preserving the exact same meaning, story, emotional tone, and speaking style. Change word choices, sentence structures, and phrasing moderately to create natural variation. Keep all events, plot points, dialogue, and the original speaking voice exactly the same. IMPORTANT: Normalize any channel or brand mentions to 'Ken Ken Audio'. The goal is to make it sound fresh while maintaining the same narrative flow and character voice.";
+        userPrompt = "Please rewrite this Vietnamese transcript with moderate modifications (around 15% word changes) to create natural variation while keeping the exact same story, characters, plot points, and speaking style. Make it sound fresh and natural but maintain the original voice and tone. Also, replace any channel/brand mentions (e.g., 'Thỏ Ngọc', 'Thỏ Ngọc Audio', 'Chu Chu', 'ChuChu Audio', etc.) with 'Ken Ken' or 'Ken Ken Audio' accordingly:";
 
         // Split content into chunks if too long (ChatGPT has token limits)
         const maxChunkSize = 3000; // Conservative limit
@@ -982,7 +982,12 @@ async function rewriteWithChatGPT(req, res) {
             { from: /Chu Chu Audio/gi, to: 'Ken Ken Audio' },
             { from: /ChuChu Audio/gi, to: 'Ken Ken Audio' },
             { from: /Chu Chu/gi, to: 'Ken Ken' },
-            { from: /ChuChu/gi, to: 'Ken Ken' }
+            { from: /ChuChu/gi, to: 'Ken Ken' },
+            // Thêm các biến thể Thỏ Ngọc
+            { from: /Thỏ Ngọc Audio/gi, to: 'Ken Ken Audio' },
+            { from: /Tho Ngoc Audio/gi, to: 'Ken Ken Audio' },
+            { from: /Thỏ Ngọc/gi, to: 'Ken Ken' },
+            { from: /Tho Ngoc/gi, to: 'Ken Ken' }
         ];
 
         let replacementCount = 0;

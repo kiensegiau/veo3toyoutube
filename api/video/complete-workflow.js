@@ -132,25 +132,102 @@ async function createVideoFromYouTube(req, res) {
         
         // Bước 2: Viết lại transcript bằng ChatGPT
         console.log(`🤖 [Step 2] Viết lại transcript bằng ChatGPT...`);
-        // Sử dụng transcript trực tiếp thay vì rewrite vì không có OpenAI key
-        // Giới hạn độ dài transcript để tránh lỗi TTS và làm sạch ký tự đặc biệt
+        
+        // Lấy transcript text
         let transcriptText = workflow.files.transcript;
-        // Kiểm tra nếu transcript là object thì lấy content
         if (typeof transcriptText === 'object' && transcriptText.content) {
             transcriptText = transcriptText.content;
         }
-        // Đảm bảo transcriptText là string
         transcriptText = String(transcriptText || '');
-        if (transcriptText.length > 200) {
-            transcriptText = transcriptText.substring(0, 200) + '...';
+        
+        // Giới hạn độ dài để tránh lỗi TTS
+        if (transcriptText.length > 500) {
+            transcriptText = transcriptText.substring(0, 500) + '...';
             console.log(`⚠️ [Step 2] Giới hạn transcript từ ${workflow.files.transcript.length} xuống ${transcriptText.length} ký tự`);
         }
-        // Làm sạch ký tự đặc biệt có thể gây lỗi TTS
-        transcriptText = transcriptText.replace(/[^\w\s.,!?àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/gi, ' ');
-        transcriptText = transcriptText.replace(/\s+/g, ' ').trim();
-        workflow.steps.rewrite = true;
-        workflow.files.rewritten = transcriptText; // Sử dụng transcript gốc đã giới hạn
-        console.log(`✅ [Step 2] Sử dụng transcript gốc (${workflow.files.rewritten.length} ký tự)`);
+        
+        // Sử dụng ChatGPT API để rewrite (khoảng 15% thay đổi)
+        try {
+            const { rewriteWithChatGPT } = require('../transcript/transcript-management');
+            
+            // Tạo file tạm để ChatGPT có thể đọc
+            const fs = require('fs');
+            const path = require('path');
+            const tempFilename = `temp_workflow_${Date.now()}.txt`;
+            const tempFilePath = path.join(__dirname, '../../transcripts', tempFilename);
+            
+            // Tạo thư mục transcripts nếu chưa có
+            const transcriptDir = path.join(__dirname, '../../transcripts');
+            if (!fs.existsSync(transcriptDir)) {
+                fs.mkdirSync(transcriptDir, { recursive: true });
+            }
+            
+            // Ghi file tạm
+            fs.writeFileSync(tempFilePath, transcriptText, 'utf8');
+            
+            // Gọi ChatGPT API để rewrite
+            const rewriteReq = {
+                body: {
+                    filename: tempFilename,
+                    openaiApiKey: process.env.OPENAI_API_KEY || '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'
+                }
+            };
+            
+            const rewriteResult = await rewriteWithChatGPT(rewriteReq, mockRes);
+            
+            if (rewriteResult.success) {
+                // Đọc nội dung đã rewrite
+                const rewrittenFilePath = rewriteResult.rewrittenPath;
+                const rewrittenContent = fs.readFileSync(rewrittenFilePath, 'utf8');
+                
+                // Làm sạch ký tự đặc biệt
+                let cleanedText = rewrittenContent.replace(/[^\w\s.,!?àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/gi, ' ');
+                cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+                
+                workflow.steps.rewrite = true;
+                workflow.files.rewritten = cleanedText;
+                console.log(`✅ [Step 2] ChatGPT rewrite thành công (${workflow.files.rewritten.length} ký tự)`);
+                
+                // Xóa file tạm
+                try {
+                    fs.unlinkSync(tempFilePath);
+                    fs.unlinkSync(rewrittenFilePath);
+                } catch (e) {
+                    console.log(`⚠️ Không thể xóa file tạm: ${e.message}`);
+                }
+            } else {
+                throw new Error('ChatGPT rewrite failed');
+            }
+        } catch (error) {
+            console.error(`❌ [Step 2] ChatGPT rewrite thất bại: ${error.message}`);
+            console.error(`🛑 [Step 2] Dừng workflow do lỗi ChatGPT API`);
+            
+            // Dừng workflow và báo lỗi
+            return res.status(500).json({
+                success: false,
+                message: 'Workflow thất bại ở bước ChatGPT rewrite',
+                error: error.message,
+                step: 'ChatGPT rewrite',
+                workflow: {
+                    youtubeUrl: youtubeUrl,
+                    voice: voice,
+                    filename: filename,
+                    steps: {
+                        transcript: true,
+                        rewrite: false,
+                        audio: false,
+                        videoMerge: false,
+                        mute: false,
+                        final: false
+                    },
+                    error: {
+                        step: 'ChatGPT rewrite',
+                        message: error.message,
+                        details: 'OpenAI API key không hợp lệ hoặc ChatGPT service không khả dụng'
+                    }
+                }
+            });
+        }
         
         // Bước 3: Tạo âm thanh bằng Vibee TTS
         console.log(`🎵 [Step 3] Tạo âm thanh bằng Vibee TTS...`);
