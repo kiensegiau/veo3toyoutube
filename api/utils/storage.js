@@ -138,11 +138,44 @@ function clearHistory(storageData) {
     }
 }
 
+// Remove operation from storage
+function removeOperation(storageData, operationName) {
+    try {
+        // Remove from request history
+        if (storageData.requestHistory) {
+            storageData.requestHistory = storageData.requestHistory.filter(
+                req => req.operationName !== operationName
+            );
+        }
+        
+        // Clear current operation if it matches
+        if (storageData.currentOperationName === operationName) {
+            storageData.currentOperationName = null;
+        }
+        
+        saveStorageData(storageData);
+        
+        console.log(`🗑️ Removed operation ${operationName} from storage`);
+        
+        return {
+            success: true,
+            message: `Operation ${operationName} removed from storage`
+        };
+    } catch (error) {
+        console.error('❌ Error removing operation:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
 module.exports = {
     loadStorageData,
     saveStorageData,
     getTokenStatus,
     listVideos,
     getHistory,
-    clearHistory
+    clearHistory,
+    removeOperation
 };

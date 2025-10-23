@@ -5,47 +5,622 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Video Generator</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }
-        .header { background: #0f172a; color: white; padding: 30px; text-align: center; }
-        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
-        .header p { font-size: 1.1em; opacity: 0.9; }
-        .content { padding: 40px; }
-        .form-group { margin-bottom: 25px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 15px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; transition: border-color 0.3s ease; }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #4facfe; }
-        .btn { background: #0ea5e9; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s ease; margin-right: 10px; margin-bottom: 10px; }
-        .btn:hover { transform: translateY(-2px); }
-        .btn:active { transform: translateY(0); }
-        .btn-secondary { background: #64748b; }
-        .btn-danger { background: #ef4444; }
-        .btn-success { background: #22c55e; }
-        .response { margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4facfe; }
-        .response h3 { margin-bottom: 15px; color: #333; }
-        .response pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 14px; }
-        .history { margin-top: 30px; }
-        .history-item { background: #f8f9fa; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #28a745; }
-        .history-item h4 { color: #333; margin-bottom: 5px; }
-        .history-item p { color: #666; font-size: 14px; }
-        .loading { display: none; text-align: center; margin: 20px 0; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #4facfe; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #dc3545; }
-        .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #28a745; }
-        .video-result { background: #e8f5e8; color: #155724; padding: 20px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #28a745; text-align: center; }
-        .video-result video { max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; }
-        .video-result a { color: #155724; text-decoration: none; font-weight: bold; }
-        .video-result a:hover { text-decoration: underline; }
-        .polling-status { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ffc107; }
-        .polling-status.active { background: #d1ecf1; color: #0c5460; border-left-color: #17a2b8; }
-        .section { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
-        .section h3 { color: #333; margin-bottom: 15px; }
-        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
-        table { width: 100%; border-collapse: collapse; background: #fff; }
-        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-        th { background: #f8f9fa; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); 
+            min-height: 100vh; 
+            padding: 12px; 
+            line-height: 1.6;
+        }
+        
+        .container { 
+            max-width: 100%; 
+            margin: 0; 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(20px);
+            border-radius: 24px; 
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.25),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+            overflow: hidden; 
+            display: grid;
+            grid-template-rows: auto 1fr;
+            min-height: calc(100vh - 24px);
+        }
+        
+        .header { 
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white; 
+            padding: 32px; 
+            text-align: center; 
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .header h1 { 
+            font-size: 2.5em; 
+            margin-bottom: 12px; 
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p { 
+            font-size: 1.1em; 
+            opacity: 0.9; 
+            font-weight: 400;
+        }
+        
+        .content { 
+            padding: 32px; 
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            overflow-y: auto;
+        }
+        
+        .left-column, .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .form-group { 
+            margin-bottom: 24px; 
+        }
+        
+        .form-group label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 600; 
+            color: #1e293b; 
+            font-size: 14px;
+            letter-spacing: 0.025em;
+        }
+        
+        .form-group input, .form-group select, .form-group textarea { 
+            width: 100%; 
+            padding: 14px 16px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 12px; 
+            font-size: 14px; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+        }
+        
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { 
+            outline: none; 
+            border-color: #3b82f6; 
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        .btn { 
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 10px; 
+            font-size: 14px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-right: 8px; 
+            margin-bottom: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn:active { 
+            transform: translateY(0); 
+        }
+        
+        .btn-secondary { 
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+        }
+        
+        .btn-danger { 
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .btn-success { 
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .response { 
+            margin-top: 24px; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 12px; 
+            border-left: 4px solid #3b82f6;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .response h3 { 
+            margin-bottom: 12px; 
+            color: #1e293b; 
+            font-size: 16px; 
+            font-weight: 600;
+        }
+        
+        .response pre { 
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: #e2e8f0; 
+            padding: 16px; 
+            border-radius: 8px; 
+            overflow-x: auto; 
+            font-size: 13px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .history { 
+            margin-top: 24px; 
+        }
+        
+        .history-item { 
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 16px; 
+            margin-bottom: 12px; 
+            border-radius: 12px; 
+            border-left: 4px solid #10b981;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .history-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .history-item h4 { 
+            color: #1e293b; 
+            margin-bottom: 6px; 
+            font-size: 15px; 
+            font-weight: 600;
+        }
+        
+        .history-item p { 
+            color: #64748b; 
+            font-size: 13px;
+        }
+        
+        .loading { 
+            display: none; 
+            text-align: center; 
+            margin: 20px 0; 
+        }
+        
+        .spinner { 
+            border: 4px solid #f3f4f6; 
+            border-top: 4px solid #3b82f6; 
+            border-radius: 50%; 
+            width: 40px; 
+            height: 40px; 
+            animation: spin 1s linear infinite; 
+            margin: 0 auto;
+        }
+        
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        
+        .error { 
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            color: #991b1b; 
+            padding: 16px; 
+            border-radius: 12px; 
+            margin-top: 16px; 
+            border-left: 4px solid #ef4444; 
+            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.1);
+        }
+        
+        .success { 
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            color: #166534; 
+            padding: 16px; 
+            border-radius: 12px; 
+            margin-top: 16px; 
+            border-left: 4px solid #22c55e; 
+            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(34, 197, 94, 0.1);
+        }
+        
+        .video-result { 
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            color: #166534; 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-top: 16px; 
+            border-left: 4px solid #22c55e; 
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(34, 197, 94, 0.1);
+        }
+        
+        .video-result video { 
+            max-width: 100%; 
+            height: auto; 
+            border-radius: 12px; 
+            margin-top: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .video-result a { 
+            color: #166534; 
+            text-decoration: none; 
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .video-result a:hover { 
+            text-decoration: underline;
+            color: #15803d;
+        }
+        
+        .polling-status { 
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            color: #92400e; 
+            padding: 16px; 
+            border-radius: 12px; 
+            margin-top: 16px; 
+            border-left: 4px solid #f59e0b; 
+            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(245, 158, 11, 0.1);
+        }
+        
+        .polling-status.active { 
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            color: #065f46; 
+            border-left-color: #10b981;
+        }
+        
+        .section { 
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            padding: 24px; 
+            border-radius: 16px; 
+            margin-bottom: 24px;
+            box-shadow: 
+                0 4px 6px rgba(0, 0, 0, 0.05),
+                0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 10px 25px rgba(0, 0, 0, 0.1),
+                0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .section h3 { 
+            color: #1e293b; 
+            margin-bottom: 16px; 
+            font-size: 18px; 
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+        
+        .btn-group { 
+            display: flex; 
+            gap: 12px; 
+            flex-wrap: wrap; 
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            background: #fff; 
+            font-size: 13px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        th, td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #e2e8f0; 
+        }
+        
+        th { 
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 8px; }
+            .container { min-height: calc(100vh - 16px); }
+            .content { padding: 20px; }
+            .header { padding: 24px; }
+            .header h1 { font-size: 2em; }
+            .section { padding: 20px; }
+            .btn { padding: 10px 20px; font-size: 13px; }
+        }
+        
+        /* Full width sections for better horizontal layout */
+        .full-width-section {
+            grid-column: 1 / -1;
+        }
+        
+        /* Compact form styling */
+        .form-group textarea { min-height: 100px; }
+        .form-group input[type="url"] { font-size: 13px; }
+        
+        /* Better button spacing */
+        .btn-group .btn { margin-bottom: 8px; }
+        
+        /* Status indicators */
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .status-error { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        .status-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .status-info { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+        }
+        
+        /* Section-specific styling */
+        .section-description {
+            color: #64748b;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+        }
+        
+        .workflow-section {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-left: 4px solid #0ea5e9;
+            position: relative;
+        }
+        
+        .workflow-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, transparent 100%);
+            border-radius: 50%;
+            transform: translate(30px, -30px);
+        }
+        
+        .tts-section {
+            background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+            border-left: 4px solid #fb923c;
+            position: relative;
+        }
+        
+        .tts-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, transparent 100%);
+            border-radius: 50%;
+            transform: translate(20px, -20px);
+        }
+        
+        .profile-section {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-left: 4px solid #64748b;
+            position: relative;
+        }
+        
+        .profile-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, rgba(100, 116, 139, 0.1) 0%, transparent 100%);
+            border-radius: 50%;
+            transform: translate(15px, -15px);
+        }
+        
+        .labs-section {
+            background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+            border-left: 4px solid #3b82f6;
+            position: relative;
+        }
+        
+        .labs-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%);
+            border-radius: 50%;
+            transform: translate(25px, -25px);
+        }
+        
+        .youtube-section {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-left: 4px solid #22c55e;
+            position: relative;
+        }
+        
+        .youtube-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%);
+            border-radius: 50%;
+            transform: translate(18px, -18px);
+        }
+        
+        .ai-section {
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+            border-left: 4px solid #a855f7;
+            position: relative;
+        }
+        
+        .ai-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 85px;
+            height: 85px;
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, transparent 100%);
+            border-radius: 50%;
+            transform: translate(22px, -22px);
+        }
+        
+        /* Enhanced status styling */
+        #labsStatus {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #475569;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        #labsStatus:hover {
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+        }
+        
+        /* Progress bar enhancements */
+        .polling-status {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .polling-status::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        /* Enhanced form focus states */
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: #3b82f6;
+            box-shadow: 
+                0 0 0 3px rgba(59, 130, 246, 0.1),
+                0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Button hover effects */
+        .btn-group .btn {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-group .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-group .btn:hover::after {
+            width: 300px;
+            height: 300px;
+        }
     </style>
 </head>
 <body>
@@ -56,14 +631,16 @@
         </div>
 
         <div class="content">
+            <!-- Left Column -->
+            <div class="left-column">
             <!-- Complete Workflow -->
-            <div class="section" style="background:#f0f9ff; border-left:4px solid #0ea5e9;">
-                <h3 style="color:#0c4a6e;">🎬 Workflow Hoàn Chỉnh: YouTube → Video Mới</h3>
-                <p style="color:#64748b; margin-bottom:15px; font-size:14px;">
-                    Tự động: Lấy transcript → ChatGPT viết lại → TTS → Ghép video → Thay audio
+                <div class="section workflow-section">
+                    <h3>🎬 Workflow Hoàn Chỉnh</h3>
+                    <p class="section-description">
+                        YouTube → Transcript → ChatGPT → TTS → Video
                 </p>
                 <div class="form-group">
-                    <label for="youtubeUrl">🔗 URL Video YouTube:</label>
+                        <label for="youtubeUrl">🔗 URL YouTube:</label>
                     <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." />
                 </div>
                 <div class="form-group">
@@ -74,127 +651,132 @@
                     </select>
                 </div>
                 <div class="btn-group">
-                    <button type="button" id="btnWorkflow" class="btn btn-success" onclick="runCompleteWorkflow()">🚀 Tạo Video Hoàn Chỉnh</button>
-                    <button type="button" class="btn btn-secondary" onclick="listFinalVideos()">📁 Danh sách Video</button>
+                        <button type="button" id="btnWorkflow" class="btn btn-success" onclick="runCompleteWorkflow()">🚀 Tạo Video</button>
+                        <button type="button" class="btn btn-secondary" onclick="listFinalVideos()">📁 Danh sách</button>
                 </div>
-                <div id="workflowProgress" class="polling-status" style="display:none; margin-top:10px;">
-                    <strong id="workflowProgressTitle">🔄 Đang xử lý workflow...</strong>
-                    <div style="height:6px; background:#e5e7eb; border-radius:4px; overflow:hidden; margin-top:8px;">
-                        <div id="workflowProgressBar" style="width:0%; height:6px; background:#0ea5e9; transition: width .4s ease;"></div>
+                    <div id="workflowProgress" class="polling-status" style="display:none; margin-top:8px;">
+                        <strong id="workflowProgressTitle">🔄 Đang xử lý...</strong>
+                        <div style="height:4px; background:#e5e7eb; border-radius:3px; overflow:hidden; margin-top:6px;">
+                            <div id="workflowProgressBar" style="width:0%; height:4px; background:#0ea5e9; transition: width .4s ease;"></div>
                     </div>
-                    <p id="workflowProgressMsg" style="margin-top:8px; color:#0c5460; font-size:14px;">Bắt đầu workflow...</p>
+                        <p id="workflowProgressMsg" style="margin-top:6px; color:#0c5460; font-size:12px;">Bắt đầu workflow...</p>
                 </div>
-                <div id="workflowResult" style="margin-top:15px;"></div>
+                    <div id="workflowResult" style="margin-top:12px;"></div>
             </div>
 
-            <!-- Simple Vibee TTS UI -->
-            <div class="section" style="background:#fff7ed; border-left:4px solid #fb923c;">
-                <h3 style="color:#7c2d12;">🔊 Text-to-Speech (Vibee)</h3>
+                <!-- TTS Section -->
+                <div class="section tts-section">
+                    <h3>🔊 Text-to-Speech</h3>
                 <div class="form-group">
-                    <label for="ttsText">📝 Nhập văn bản (tiếng Việt hỗ trợ đầy đủ UTF-8)</label>
-                    <textarea id="ttsText" rows="4" placeholder="Nhập văn bản để chuyển thành giọng nói...">Xin cảm ơn mọi người đã lắng nghe truyện trên Ken Ken Audio.</textarea>
+                        <label for="ttsText">📝 Văn bản cần đọc:</label>
+                        <textarea id="ttsText" rows="3" placeholder="Nhập văn bản để chuyển thành giọng nói...">Xin cảm ơn mọi người đã lắng nghe truyện trên Ken Ken Audio.</textarea>
                 </div>
                 <div class="form-group">
-                    <label for="ttsVoice">🎤 Giọng đọc</label>
+                        <label for="ttsVoice">🎤 Giọng đọc:</label>
                     <select id="ttsVoice">
                         <option value="hn_female_ngochuyen_full_48k-fhg">Nữ Hà Nội - Ngọc Huyền</option>
                         <option value="hn_female_miu_mini">Nữ Hà Nội - Miu (nhanh)</option>
                     </select>
                 </div>
                 <div class="btn-group">
-                    <button type="button" id="btnTTSFull" class="btn btn-success" onclick="runTTS()">▶️ Tạo MP3 (chờ hoàn thành)</button>
-                    <button type="button" id="btnTTSQuick" class="btn" onclick="runTTSQuick()">⚡ Tạo nhanh (không chờ)</button>
-                    <button type="button" class="btn btn-secondary" onclick="listAudio()">📁 Danh sách MP3</button>
+                        <button type="button" id="btnTTSFull" class="btn btn-success" onclick="runTTS()">▶️ Tạo MP3</button>
+                        <button type="button" id="btnTTSQuick" class="btn" onclick="runTTSQuick()">⚡ Nhanh</button>
+                        <button type="button" class="btn btn-secondary" onclick="listAudio()">📁 MP3</button>
                 </div>
-                <div id="ttsProgress" class="polling-status" style="display:none; margin-top:10px;">
+                    <div id="ttsProgress" class="polling-status" style="display:none; margin-top:8px;">
                     <strong id="ttsProgressTitle">🔄 Đang xử lý TTS...</strong>
-                    <div style="height:6px; background:#e5e7eb; border-radius:4px; overflow:hidden; margin-top:8px;">
-                        <div id="ttsProgressBar" style="width:0%; height:6px; background:#0ea5e9; transition: width .4s ease;"></div>
+                        <div style="height:4px; background:#e5e7eb; border-radius:3px; overflow:hidden; margin-top:6px;">
+                            <div id="ttsProgressBar" style="width:0%; height:4px; background:#0ea5e9; transition: width .4s ease;"></div>
                     </div>
-                    <p id="ttsProgressMsg" style="margin-top:8px; color:#0c5460; font-size:14px;">Bắt đầu gửi yêu cầu...</p>
+                        <p id="ttsProgressMsg" style="margin-top:6px; color:#0c5460; font-size:12px;">Bắt đầu gửi yêu cầu...</p>
                 </div>
-                <div id="ttsResult" style="margin-top:15px;"></div>
+                    <div id="ttsResult" style="margin-top:12px;"></div>
             </div>
+
             <!-- Chrome Profile Management -->
-            <div class="section">
-                <h3>🔧 Quản lý Chrome Profile</h3>
+                <div class="section profile-section">
+                    <h3>🔧 Chrome Profile</h3>
                 <div class="form-group">
                     <label for="profileName">📁 Tên Profile:</label>
                     <input type="text" id="profileName" placeholder="YouTube, GoogleLabs, Default..." value="Default">
                 </div>
                 <div class="btn-group">
-                    <button type="button" class="btn btn-secondary" onclick="createProfile()">➕ Tạo Profile</button>
+                        <button type="button" class="btn btn-secondary" onclick="createProfile()">➕ Tạo</button>
                     <button type="button" class="btn btn-secondary" onclick="listProfiles()">📋 Danh sách</button>
-                    <button type="button" class="btn btn-secondary" onclick="checkProfile()">💾 Kiểm tra Profile</button>
-                    <button type="button" class="btn btn-secondary" onclick="checkYouTubeLogin()">🔍 Kiểm tra YouTube</button>
-                    <button type="button" class="btn btn-secondary" onclick="checkLabsLogin()">🔍 Kiểm tra Labs</button>
-                    <button type="button" class="btn btn-success" onclick="openProfileForLogin('youtube')">🌐 Đăng nhập YouTube</button>
-                    <button type="button" class="btn btn-success" onclick="openProfileForLogin('labs')">🌐 Đăng nhập Labs</button>
-                    <button type="button" class="btn btn-danger" onclick="deleteProfile()">🗑️ Xóa Profile</button>
+                        <button type="button" class="btn btn-secondary" onclick="checkProfile()">💾 Kiểm tra</button>
+                        <button type="button" class="btn btn-success" onclick="openProfileForLogin('youtube')">🌐 YouTube</button>
+                        <button type="button" class="btn btn-success" onclick="openProfileForLogin('labs')">🌐 Labs</button>
+                        <button type="button" class="btn btn-danger" onclick="deleteProfile()">🗑️ Xóa</button>
+                    </div>
                 </div>
             </div>
 
+            <!-- Right Column -->
+            <div class="right-column">
             <!-- Labs Profile Management -->
-            <div class="section" style="background: #f0f9ff; border-left: 4px solid #0ea5e9;">
-                <h3 style="color: #0c4a6e;">🧪 Google Labs Auto Cookie System</h3>
-                <p style="color: #64748b; margin-bottom: 15px; font-size: 14px;">
-                    Tự động lấy cookies từ Google Labs - Chạy mỗi 30 phút
+                <div class="section labs-section">
+                    <h3>🧪 Google Labs</h3>
+                    <p class="section-description">
+                        Tự động lấy cookies từ Google Labs
                 </p>
                 <div class="btn-group">
-                    <button type="button" class="btn btn-success" onclick="openLabsBrowser()">🚀 Mở Chrome Labs</button>
-                    <button type="button" class="btn" onclick="extractLabsCookies()">🍪 Lấy Cookies Ngay</button>
-                    <button type="button" class="btn btn-danger" onclick="closeLabsBrowser()">🔒 Đóng Chrome Labs</button>
+                        <button type="button" class="btn btn-success" onclick="openLabsBrowser()">🚀 Mở Labs</button>
+                        <button type="button" class="btn" onclick="extractLabsCookies()">🍪 Lấy Cookies</button>
+                        <button type="button" class="btn btn-danger" onclick="closeLabsBrowser()">🔒 Đóng</button>
                 </div>
-                <div id="labsStatus" style="margin-top: 15px; padding: 10px; background: #f1f5f9; border-radius: 5px; font-size: 14px; color: #475569;">
+                    <div id="labsStatus" style="margin-top: 12px; padding: 8px; background: #f1f5f9; border-radius: 4px; font-size: 12px; color: #475569;">
                     Trạng thái: Chưa mở Chrome Labs
                 </div>
             </div>
 
             <!-- YouTube Upload -->
-            <div class="section" style="background: #e8f5e8;">
-                <h3 style="color: #155724;">📺 Upload lên YouTube</h3>
+                <div class="section youtube-section">
+                    <h3>📺 Upload YouTube</h3>
                 <div class="form-group">
                     <label for="uploadVideoPath">📁 Đường dẫn video:</label>
                     <input type="text" id="uploadVideoPath" placeholder="public/videos/video.mp4" value="public/videos/">
                 </div>
                 <div class="form-group">
-                    <label for="uploadTitle">📝 Tiêu đề video:</label>
+                        <label for="uploadTitle">📝 Tiêu đề:</label>
                     <input type="text" id="uploadTitle" placeholder="Tiêu đề video">
                 </div>
                 <div class="form-group">
                     <label for="uploadDescription">📄 Mô tả:</label>
-                    <textarea id="uploadDescription" rows="3" placeholder="Mô tả video..."></textarea>
+                        <textarea id="uploadDescription" rows="2" placeholder="Mô tả video..."></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="uploadVisibility">👁️ Chế độ hiển thị:</label>
+                        <label for="uploadVisibility">👁️ Chế độ:</label>
                     <select id="uploadVisibility">
-                        <option value="UNLISTED">Không công khai (Unlisted)</option>
-                        <option value="PRIVATE">Riêng tư (Private)</option>
-                        <option value="PUBLIC">Công khai (Public)</option>
+                            <option value="UNLISTED">Không công khai</option>
+                            <option value="PRIVATE">Riêng tư</option>
+                            <option value="PUBLIC">Công khai</option>
                     </select>
                 </div>
                 <div class="btn-group">
-                    <button type="button" class="btn btn-success" onclick="uploadToYouTube()">🚀 Upload YouTube</button>
-                    <button type="button" class="btn btn-secondary" onclick="listVideoFiles()">📁 Danh sách video</button>
+                        <button type="button" class="btn btn-success" onclick="uploadToYouTube()">🚀 Upload</button>
+                        <button type="button" class="btn btn-secondary" onclick="listVideoFiles()">📁 Video</button>
                 </div>
             </div>
 
             <!-- AI Video Generation -->
-            <div class="section">
+                <div class="section ai-section">
                 <h3>🎬 Tạo Video AI</h3>
                 <form id="videoForm">
                     <div class="form-group">
-                        <label for="prompts">📝 Mô tả video bạn muốn tạo (mỗi dòng một prompt)</label>
-                        <textarea id="prompts" name="prompts" rows="6" placeholder="Ví dụ:\na cat playing piano in space\na dog surfing a wave\na robot dancing in the rain">cat</textarea>
+                            <label for="prompts">📝 Mô tả video (mỗi dòng một prompt)</label>
+                            <textarea id="prompts" name="prompts" rows="4" placeholder="Ví dụ:\na cat playing piano in space\na dog surfing a wave\na robot dancing in the rain">cat</textarea>
                     </div>
                     <div class="btn-group">
                         <button type="submit" class="btn btn-success">🎬 Tạo Video</button>
                         <button type="button" class="btn btn-secondary" onclick="loadHistory()">📋 Lịch sử</button>
-                        <button type="button" class="btn btn-danger" onclick="clearHistory()">🗑️ Xóa lịch sử</button>
+                            <button type="button" class="btn btn-danger" onclick="clearHistory()">🗑️ Xóa</button>
                     </div>
                 </form>
+                </div>
             </div>
 
+            <!-- Full Width Results Section -->
+            <div class="full-width-section">
             <div class="loading" id="loading">
                 <div class="spinner"></div>
                 <p>Đang xử lý...</p>
@@ -209,6 +791,7 @@
             <div id="batchTable" style="margin-top: 20px;"></div>
             <div id="videoResult"></div>
             <div id="history"></div>
+            </div>
         </div>
     </div>
 
@@ -462,11 +1045,17 @@
                         updatePollingMessage('✅ Video đã sẵn sàng!');
                         return;
                     }
-                    if (result.videoStatus === 'COMPLETED' || result.videoStatus === 'FAILED') {
+                    if (result.videoStatus === 'COMPLETED' || result.videoStatus === 'FAILED' || result.videoStatus === 'SKIPPED') {
                         stopPolling();
-                        updatePollingMessage(result.videoStatus === 'FAILED' ? 
-                            '❌ Video generation failed: ' + (result.errorMessage || 'Unknown error') : 
-                            '✅ Video processing finished');
+                        let message = '';
+                        if (result.videoStatus === 'FAILED') {
+                            message = '❌ Video generation failed: ' + (result.errorMessage || 'Unknown error');
+                        } else if (result.videoStatus === 'SKIPPED') {
+                            message = '⚠️ Video bị bỏ qua: ' + (result.errorMessage || 'Lỗi không thể xử lý');
+                        } else {
+                            message = '✅ Video processing finished';
+                        }
+                        updatePollingMessage(message);
                         return;
                     }
                 }
@@ -535,6 +1124,21 @@
                         clearInterval(rowIntervals[index]);
                     } else if (statusData.videoStatus === 'FAILED') {
                         updateRowStatus(index, '❌ Thất bại', escapeHtml(statusData.errorMessage || 'Unknown error'));
+                        clearInterval(rowIntervals[index]);
+                    } else if (statusData.videoStatus === 'SKIPPED') {
+                        if (statusData.removedFromStorage) {
+                            // Xóa row khỏi bảng nếu operation đã bị xóa khỏi storage
+                            const row = document.getElementById(`row-${index}`);
+                            if (row) {
+                                row.style.opacity = '0.5';
+                                row.style.textDecoration = 'line-through';
+                                setTimeout(() => {
+                                    row.remove();
+                                }, 2000);
+                            }
+                        } else {
+                            updateRowStatus(index, '⚠️ Bỏ qua', escapeHtml(statusData.errorMessage || 'Video bị bỏ qua do lỗi không thể xử lý'));
+                        }
                         clearInterval(rowIntervals[index]);
                     } else {
                         updateRowStatus(index, '⏳ Đang tạo...', 'Vui lòng chờ...');

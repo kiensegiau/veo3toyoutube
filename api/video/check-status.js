@@ -2,6 +2,7 @@ const fetch = require('node-fetch');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const { removeOperation } = require('../utils/storage');
 
 // Google Labs Configuration
 const GOOGLE_LABS_CONFIG = {
@@ -201,6 +202,41 @@ async function checkStatus(req, res, storageData) {
         let videoUrl = null;
         let downloadInfo = null;
         let finalStatus = 'PENDING';
+
+        // Kiểm tra lỗi cụ thể và bỏ qua nếu là lỗi không thể xử lý
+        if (targetOperation.operation && targetOperation.operation.error) {
+            const errorCode = targetOperation.operation.error.code;
+            const errorMessage = targetOperation.operation.error.message;
+            
+            // Bỏ qua các lỗi không thể xử lý được
+            if (errorMessage === 'PUBLIC_ERROR_UNSAFE_GENERATION' || 
+                errorCode === 3 || 
+                errorMessage.includes('UNSAFE_GENERATION')) {
+                console.log(`⚠️ Bỏ qua video ${operationName} - Lỗi không thể xử lý: ${errorMessage}`);
+                
+                // Xóa operation khỏi storage
+                try {
+                    removeOperation(storageData, operationName);
+                    console.log(`🗑️ Đã xóa operation ${operationName} khỏi storage`);
+                } catch (removeError) {
+                    console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
+                }
+                
+                return res.json({
+                    success: true,
+                    data: data,
+                    status: 200,
+                    videoStatus: 'SKIPPED',
+                    videoUrl: null,
+                    errorMessage: `Video bị bỏ qua do lỗi: ${errorMessage}`,
+                    downloadInfo: null,
+                    operationName: operationName,
+                    prompt: storageData.requestHistory?.find(req => req.operationName === operationName)?.prompt || 'Unknown',
+                    skipReason: 'UNSAFE_GENERATION',
+                    removedFromStorage: true
+                });
+            }
+        }
 
         if (status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
             // Tìm video URL trong metadata
