@@ -20,6 +20,7 @@ const storageUtils = require('./api/utils/storage');
 const { splitVideoAPI } = require('./api/video/veo3-video-splitter');
 const { analyzeFramesAPI, generateVeo3JSONAPI } = require('./api/video/veo3-frame-analyzer');
 const { veo3UnifiedWorkflowAPI, veo3SimpleWorkflowAPI } = require('./api/video/veo3-unified-workflow');
+const { veo3CompleteWorkflowAPI } = require('./api/video/veo3-complete-workflow');
 
 const app = express();
 const PORT = Number(process.env.PORT || 8888);
@@ -124,6 +125,7 @@ app.post('/api/analyze-frames', analyzeFramesAPI);
 app.post('/api/generate-veo3-json', generateVeo3JSONAPI);
 app.post('/api/veo3-unified-workflow', veo3UnifiedWorkflowAPI);
 app.post('/api/veo3-simple-workflow', veo3SimpleWorkflowAPI);
+app.post('/api/veo3-complete-workflow', veo3CompleteWorkflowAPI);
 
 // YouTube Upload API
 app.post('/api/upload-youtube', uploadYouTube);
@@ -271,6 +273,7 @@ app.listen(PORT, () => {
     console.log(`   POST /api/generate-veo3-json - Tạo JSON format cho Veo3`);
     console.log(`   POST /api/veo3-unified-workflow - Workflow thống nhất Veo3`);
     console.log(`   POST /api/veo3-simple-workflow - Workflow đơn giản Veo3`);
+    console.log(`   POST /api/veo3-complete-workflow - Workflow hoàn chỉnh: Video → Phân tích → ChatGPT → Veo3`);
     console.log(`   GET  /api/history - Xem lịch sử requests`);
     console.log(`   DELETE /api/history - Xóa lịch sử`);
     console.log(`   GET  /api/token-status - Kiểm tra trạng thái token`);
