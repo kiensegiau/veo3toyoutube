@@ -16,6 +16,17 @@ const { vbeeTTS } = require('./api/tts/vbee-tts');
 const vibeeTTS = require('./api/tts/vibee-tts');
 const storageUtils = require('./api/utils/storage');
 
+// Veo3 Hybrid APIs
+const { extractFramesAPI } = require('./api/video/extract-frames');
+const { analyzeVideoAPI } = require('./api/video/analyze-video-chatgpt');
+const { createVeo3VideosAPI } = require('./api/video/veo3-generator');
+const { veo3HybridWorkflowAPI } = require('./api/video/veo3-hybrid-workflow');
+const { analyzeSecondBySecondAPI } = require('./api/video/analyze-second-by-second');
+const { generateVeo3FormatAPI } = require('./api/video/veo3-format-generator');
+const { generateVeo3TimelineAPI } = require('./api/video/veo3-timeline-generator');
+const { createVeo3CompleteVideoAPI } = require('./api/video/veo3-complete-workflow');
+const { createSimple8sVideoAPI } = require('./api/video/veo3-simple-workflow');
+
 const app = express();
 const PORT = Number(process.env.PORT || 8888);
 
@@ -112,6 +123,20 @@ app.get('/api/merge-videos/list', listAvailableVideos);
 
 // Complete Workflow API
 app.post('/api/create-video-from-youtube', createVideoFromYouTube);
+
+// Veo3 Hybrid APIs
+app.post('/api/extract-frames', extractFramesAPI);
+app.post('/api/analyze-video', analyzeVideoAPI);
+app.post('/api/create-veo3-videos', createVeo3VideosAPI);
+app.post('/api/veo3-hybrid-workflow', veo3HybridWorkflowAPI);
+app.post('/api/analyze-second-by-second', analyzeSecondBySecondAPI);
+app.post('/api/generate-veo3-format', generateVeo3FormatAPI);
+app.post('/api/generate-veo3-timeline', generateVeo3TimelineAPI);
+app.post('/api/create-veo3-complete-video', createVeo3CompleteVideoAPI);
+app.post('/api/create-simple-8s-video', (req, res) => {
+    console.log('🔥 [server.js] Route /api/create-simple-8s-video được gọi!');
+    return createSimple8sVideoAPI(req, res);
+});
 
 // YouTube Upload API
 app.post('/api/upload-youtube', uploadYouTube);
@@ -285,6 +310,15 @@ app.listen(PORT, () => {
     console.log(`   POST /api/merge-videos - Ghép video ngẫu nhiên theo thời gian`);
     console.log(`   GET  /api/merge-videos/list - Liệt kê video có sẵn để ghép`);
     console.log(`   POST /api/create-video-from-youtube - Workflow hoàn chỉnh: YouTube → ChatGPT → TTS → Video`);
+    console.log(`   POST /api/extract-frames - Extract frames từ video`);
+    console.log(`   POST /api/analyze-video - Phân tích video với ChatGPT`);
+    console.log(`   POST /api/create-veo3-videos - Tạo video Veo3 từ prompts`);
+    console.log(`   POST /api/veo3-hybrid-workflow - Workflow Veo3 Hybrid hoàn chỉnh`);
+    console.log(`   POST /api/analyze-second-by-second - Phân tích chi tiết từng giây`);
+    console.log(`   POST /api/generate-veo3-format - Tạo format JSON cho Veo3 API`);
+    console.log(`   POST /api/generate-veo3-timeline - Tạo timeline JSON cho Veo3`);
+    console.log(`   POST /api/create-veo3-complete-video - Tạo video hoàn chỉnh 2 phút từ video gốc`);
+    console.log(`   POST /api/create-simple-8s-video - Tạo video 8s đơn giản`);
     
     // Start auto batch polling
     startAutoBatchPolling();
