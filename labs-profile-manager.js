@@ -144,12 +144,26 @@ class LabsProfileManager {
             }
 
             // Chờ để đảm bảo trang load hoàn toàn
-            await this.page.waitForTimeout(3000);
+            await this.page.waitForTimeout(5000);
             
             // Chờ thêm để đảm bảo cookies được load
             try {
-                await this.page.waitForSelector('body', { timeout: 5000 });
+                await this.page.waitForSelector('body', { timeout: 10000 });
                 console.log('✅ Trang đã load hoàn toàn');
+                
+                // Chờ thêm để đảm bảo JavaScript đã chạy
+                await this.page.waitForTimeout(3000);
+                
+                // Kiểm tra trang đã sẵn sàng
+                const isReady = await this.page.evaluate(() => {
+                    return document.readyState === 'complete';
+                });
+                
+                if (!isReady) {
+                    console.log('⏳ Chờ trang hoàn thành load...');
+                    await this.page.waitForTimeout(5000);
+                }
+                
             } catch (error) {
                 console.log('⚠️ Không thể chờ selector body, tiếp tục...');
             }
@@ -352,7 +366,7 @@ class LabsProfileManager {
      * Kiểm tra Chrome Labs có đang mở không
      */
     isLabsBrowserOpen() {
-        return this.browser !== null && this.page !== null;
+        return this.browser !== null && this.page !== null && this.browser.isConnected();
     }
 
     /**

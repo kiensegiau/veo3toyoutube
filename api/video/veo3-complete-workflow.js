@@ -24,7 +24,8 @@ async function veo3CompleteWorkflow(videoPath, options = {}) {
             duration = 8,
             frameInterval = 1,
             maxFrames = 8,
-            outputDir = './temp/veo3-complete'
+            outputDir = './temp/veo3-complete',
+            themeContext = null
         } = options;
         
         // Tạo thư mục output
@@ -95,10 +96,25 @@ async function veo3CompleteWorkflow(videoPath, options = {}) {
                 };
             }
             
-            // Tạo prompt chi tiết cho từng frame
+            // Tạo prompt chi tiết cho từng frame với chủ đề chung
+            const themeContextText = themeContext ? `
+            
+            CHỦ ĐỀ CHUNG CỦA VIDEO:
+            - Chủ đề chính: ${themeContext.mainTheme}
+            - Địa điểm: ${themeContext.location}
+            - Phong cách visual: ${themeContext.visualStyle}
+            - Màu sắc chủ đạo: ${themeContext.colorPalette?.join(', ') || 'N/A'}
+            - Tâm trạng: ${themeContext.mood}
+            - Tính liên kết: ${themeContext.continuity}
+            - Hướng phát triển: ${themeContext.sceneProgression}
+            - Nội dung tóm tắt: ${themeContext.contentSummary || 'N/A'}
+            - Prompt tổng thể: ${themeContext.unifiedPrompt || 'N/A'}
+            
+            YÊU CẦU: Đảm bảo phân tích và prompt phù hợp với chủ đề chung và nội dung thực tế này.` : '';
+            
             const systemPrompt = `Bạn là chuyên gia phân tích video frame-by-frame với khả năng mô tả cực kỳ chi tiết.
             
-            Nhiệm vụ: Phân tích frame này (giây ${second}) và mô tả CHI TIẾT từng element, từng chi tiết nhỏ nhất.
+            Nhiệm vụ: Phân tích frame này (giây ${second}) và mô tả CHI TIẾT từng element, từng chi tiết nhỏ nhất.${themeContextText}
             
             Yêu cầu mô tả chi tiết:
             1. Mô tả từng object, màu sắc, texture, ánh sáng
@@ -106,6 +122,7 @@ async function veo3CompleteWorkflow(videoPath, options = {}) {
             3. Mô tả camera angle, movement, focus
             4. Phân tích mood, atmosphere, emotion
             5. Tạo prompt Veo3 cực kỳ chi tiết và cụ thể
+            6. Đảm bảo phù hợp với chủ đề chung của video
             
             Trả về JSON format:
             {
@@ -125,8 +142,9 @@ async function veo3CompleteWorkflow(videoPath, options = {}) {
                 "mood": "mô tả chi tiết mood và atmosphere",
                 "emotion": "mô tả chi tiết cảm xúc",
                 "atmosphere": "mô tả chi tiết không khí",
-                "veo3_prompt": "PROMPT CỰC KỲ CHI TIẾT cho Veo3 với từng element cụ thể",
-                "continuity": "mô tả chi tiết cách kết nối với frame trước/sau"
+                "veo3_prompt": "PROMPT CỰC KỲ CHI TIẾT cho Veo3 với từng element cụ thể, phù hợp với chủ đề chung",
+                "continuity": "mô tả chi tiết cách kết nối với frame trước/sau",
+                "themeConsistency": "cách frame này phù hợp với chủ đề chung"
             }`;
 
             const userPrompt = `Phân tích frame này (giây ${second}) và tạo mô tả chi tiết cho Veo3.`;
@@ -486,7 +504,7 @@ async function veo3CompleteWorkflowAPI(req, res) {
     try {
         console.log(`🎬 [veo3CompleteWorkflowAPI] API workflow hoàn chỉnh được gọi`);
         
-        const { videoPath, startSecond, duration, frameInterval, maxFrames, outputDir } = req.body;
+        const { videoPath, startSecond, duration, frameInterval, maxFrames, outputDir, themeContext } = req.body;
         
         if (!videoPath) {
             return res.status(400).json({
@@ -500,7 +518,8 @@ async function veo3CompleteWorkflowAPI(req, res) {
             duration,
             frameInterval,
             maxFrames,
-            outputDir
+            outputDir,
+            themeContext
         });
         
         if (result.success) {

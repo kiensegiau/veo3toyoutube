@@ -21,6 +21,9 @@ const { splitVideoAPI } = require('./api/video/veo3-video-splitter');
 const { analyzeFramesAPI, generateVeo3JSONAPI } = require('./api/video/veo3-frame-analyzer');
 const { veo3UnifiedWorkflowAPI, veo3SimpleWorkflowAPI } = require('./api/video/veo3-unified-workflow');
 const { veo3CompleteWorkflowAPI } = require('./api/video/veo3-complete-workflow');
+const { veo3Parallel32sWorkflowAPI } = require('./api/video/veo3-parallel-32s-workflow');
+const { veo3Sequential32sWorkflowAPI } = require('./api/video/veo3-sequential-32s-workflow');
+const { veo3Optimized32sWorkflowAPI } = require('./api/video/veo3-optimized-32s-workflow');
 
 const app = express();
 const PORT = Number(process.env.PORT || 8888);
@@ -126,6 +129,9 @@ app.post('/api/generate-veo3-json', generateVeo3JSONAPI);
 app.post('/api/veo3-unified-workflow', veo3UnifiedWorkflowAPI);
 app.post('/api/veo3-simple-workflow', veo3SimpleWorkflowAPI);
 app.post('/api/veo3-complete-workflow', veo3CompleteWorkflowAPI);
+app.post('/api/veo3-parallel-32s-workflow', veo3Parallel32sWorkflowAPI);
+app.post('/api/veo3-sequential-32s-workflow', veo3Sequential32sWorkflowAPI);
+app.post('/api/veo3-optimized-32s-workflow', veo3Optimized32sWorkflowAPI);
 
 // YouTube Upload API
 app.post('/api/upload-youtube', uploadYouTube);
@@ -274,6 +280,9 @@ app.listen(PORT, () => {
     console.log(`   POST /api/veo3-unified-workflow - Workflow thống nhất Veo3`);
     console.log(`   POST /api/veo3-simple-workflow - Workflow đơn giản Veo3`);
     console.log(`   POST /api/veo3-complete-workflow - Workflow hoàn chỉnh: Video → Phân tích → ChatGPT → Veo3`);
+    console.log(`   POST /api/veo3-parallel-32s-workflow - Workflow 32s song song: 4 đoạn 8s → Ghép lại`);
+    console.log(`   POST /api/veo3-sequential-32s-workflow - Workflow 32s TUẦN TỰ: 4 đoạn 8s → Ghép lại`);
+    console.log(`   POST /api/veo3-optimized-32s-workflow - Workflow 32s TỐI ƯU: Gửi Veo3 → Tiếp tục xử lý`);
     console.log(`   GET  /api/history - Xem lịch sử requests`);
     console.log(`   DELETE /api/history - Xóa lịch sử`);
     console.log(`   GET  /api/token-status - Kiểm tra trạng thái token`);
