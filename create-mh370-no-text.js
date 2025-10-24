@@ -67,38 +67,65 @@ async function createMH370VideoNoText() {
 
 QUAN TRỌNG: KHÔNG BAO GIỜ thêm bất cứ chữ, text, subtitle, hoặc văn bản nào vào video. Chỉ tạo video thuần túy với hình ảnh.
 
-Nhiệm vụ: Dựa trên transcript về MH370, tạo 4 prompts cho 4 segments 8s (tổng 32s) với:
-1. HÌNH ẢNH ĐỒNG NHẤT về chủ đề MH370
-2. MÀU SẮC NHẤT QUÁN (xanh dương đậm, đen, trắng)
-3. PHONG CÁCH TÀI LIỆU ĐIỀU TRA
-4. CHUYỂN TIẾP MƯỢT MÀ giữa các segments
-5. CHI TIẾT CỤ THỂ cho từng segment
-6. TUYỆT ĐỐI KHÔNG CÓ CHỮ, TEXT, SUBTITLE
+Nhiệm vụ: Phân tích chi tiết transcript về MH370 và tạo 4 prompts cho 4 segments 8s (tổng 32s) với:
+
+YÊU CẦU CHI TIẾT:
+1. PHÂN TÍCH TRANSCRIPT: Đọc kỹ transcript, xác định các sự kiện chính, thời gian, địa điểm, nhân vật
+2. TẠO CÂU CHUYỆN LOGIC: Xây dựng câu chuyện có đầu, giữa, cuối dựa trên nội dung transcript
+3. HÌNH ẢNH ĐỒNG NHẤT: Mỗi segment phải liên quan trực tiếp đến nội dung transcript
+4. MÀU SẮC NHẤT QUÁN: Xanh dương đậm, đen, trắng, xám - phong cách điều tra chuyên nghiệp
+5. PHONG CÁCH TÀI LIỆU: Như phim tài liệu điều tra, nghiêm túc, chuyên nghiệp
+6. CHUYỂN TIẾP MƯỢT MÀ: Segment sau phải tiếp nối logic từ segment trước
+7. CHI TIẾT CỤ THỂ: Mô tả rõ ràng camera angle, lighting, objects, movements
+8. TUYỆT ĐỐI KHÔNG CÓ CHỮ, TEXT, SUBTITLE
+
+CẤU TRÚC LOGIC:
+- Segment 1 (0-8s): Mở đầu - Bối cảnh, sự kiện ban đầu
+- Segment 2 (8-16s): Phát triển - Chi tiết điều tra, dữ liệu
+- Segment 3 (16-24s): Cao trào - Tìm kiếm, khám phá
+- Segment 4 (24-32s): Kết thúc - Hiện trạng, tương lai
 
 Trả về JSON format:
 {
-    "overallTheme": "Chủ đề tổng thể",
+    "overallTheme": "Chủ đề tổng thể dựa trên transcript",
     "colorScheme": "Bảng màu chính",
     "visualStyle": "Phong cách visual",
+    "storyline": "Cốt truyện logic dựa trên transcript",
     "segments": [
         {
             "timeRange": "0-8s",
-            "focus": "Nội dung chính của segment",
+            "focus": "Nội dung chính của segment dựa trên transcript",
+            "transcriptContent": "Phần transcript tương ứng",
+            "visualElements": "Các yếu tố hình ảnh cụ thể",
+            "cameraWork": "Góc quay, chuyển động camera",
+            "lighting": "Ánh sáng, tông màu",
             "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể - KHÔNG CÓ CHỮ"
         },
         {
             "timeRange": "8-16s", 
-            "focus": "Nội dung chính của segment",
+            "focus": "Nội dung chính của segment dựa trên transcript",
+            "transcriptContent": "Phần transcript tương ứng",
+            "visualElements": "Các yếu tố hình ảnh cụ thể",
+            "cameraWork": "Góc quay, chuyển động camera",
+            "lighting": "Ánh sáng, tông màu",
             "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể - KHÔNG CÓ CHỮ"
         },
         {
             "timeRange": "16-24s",
-            "focus": "Nội dung chính của segment", 
+            "focus": "Nội dung chính của segment dựa trên transcript", 
+            "transcriptContent": "Phần transcript tương ứng",
+            "visualElements": "Các yếu tố hình ảnh cụ thể",
+            "cameraWork": "Góc quay, chuyển động camera",
+            "lighting": "Ánh sáng, tông màu",
             "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể - KHÔNG CÓ CHỮ"
         },
         {
             "timeRange": "24-32s",
-            "focus": "Nội dung chính của segment",
+            "focus": "Nội dung chính của segment dựa trên transcript",
+            "transcriptContent": "Phần transcript tương ứng",
+            "visualElements": "Các yếu tố hình ảnh cụ thể",
+            "cameraWork": "Góc quay, chuyển động camera",
+            "lighting": "Ánh sáng, tông màu",
             "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể - KHÔNG CÓ CHỮ"
         }
     ]
@@ -106,21 +133,46 @@ Trả về JSON format:
                     },
                     { 
                         role: "user", 
-                        content: `Dựa trên transcript về MH370 này, tạo 4 prompts đồng nhất cho video 32s:
+                        content: `Phân tích chi tiết transcript về MH370 và tạo 4 prompts logic cho video 32s:
 
 TRANSCRIPT:
 ${transcriptText}
 
-YÊU CẦU QUAN TRỌNG:
-- Mỗi segment 8s phải có hình ảnh cụ thể về MH370
-- Đồng nhất về màu sắc và phong cách
-- Chuyển tiếp mượt mà giữa các segments
-- Chi tiết cụ thể: máy bay, biển, vệ tinh, đồ họa điều tra
-- TUYỆT ĐỐI KHÔNG CÓ CHỮ, TEXT, SUBTITLE, VĂN BẢN NÀO
-- Chỉ tạo video thuần túy với hình ảnh đẹp` 
+YÊU CẦU CHI TIẾT:
+1. PHÂN TÍCH TRANSCRIPT: Đọc kỹ từng câu, xác định:
+   - Sự kiện chính theo thời gian
+   - Địa điểm, nhân vật, tình huống
+   - Cảm xúc, tông điệu của câu chuyện
+   - Chi tiết kỹ thuật, dữ liệu
+
+2. TẠO CÂU CHUYỆN LOGIC VỀ MH370:
+   - Segment 1: Mở đầu - MH370 cất cánh từ Kuala Lumpur, mất tích
+   - Segment 2: Phát triển - Điều tra radar, dữ liệu vệ tinh MH370
+   - Segment 3: Cao trào - Tìm kiếm MH370 ở Ấn Độ Dương, Ocean Infinity
+   - Segment 4: Kết thúc - Hiện trạng tìm kiếm MH370, hy vọng
+
+3. HÌNH ẢNH CỤ THỂ VỀ MH370:
+   - Mỗi segment PHẢI liên quan trực tiếp đến MH370
+   - Boeing 777-200ER (loại máy bay MH370)
+   - Sân bay Kuala Lumpur (nơi MH370 cất cánh)
+   - Ấn Độ Dương (nơi tìm kiếm MH370)
+   - Dữ liệu radar, vệ tinh về MH370
+   - Camera work: angles, movements, transitions
+   - Lighting: mood, atmosphere, color temperature
+
+4. TÍNH NHẤT QUÁN:
+   - Màu sắc: Xanh dương đậm, đen, trắng, xám
+   - Phong cách: Tài liệu điều tra chuyên nghiệp về MH370
+   - Chuyển tiếp: Logic từ segment trước sang segment sau
+
+5. TUYỆT ĐỐI KHÔNG CÓ CHỮ, TEXT, SUBTITLE, VĂN BẢN NÀO
+
+QUAN TRỌNG: TẤT CẢ 4 SEGMENTS PHẢI LIÊN QUAN ĐẾN MH370 - KHÔNG ĐƯỢC TẠO VIDEO KHÁC CHỦ ĐỀ!
+
+Hãy phân tích transcript và tạo câu chuyện logic về MH370, sau đó tạo 4 prompts chi tiết cho Veo3.` 
                     }
                 ],
-                max_tokens: 2000,
+                max_tokens: 3000,
                 temperature: 0.7
             })
         });
@@ -129,56 +181,139 @@ YÊU CẦU QUAN TRỌNG:
         console.log('🤖 [Step 2] ChatGPT result:', chatGPTResult.choices ? '✅ Success' : '❌ Failed');
         
         if (!chatGPTResult.choices) {
+            console.error('❌ [Step 2] ChatGPT API Error:', chatGPTResult);
             throw new Error('ChatGPT không trả về kết quả');
+        }
+        
+        if (chatGPTResult.error) {
+            console.error('❌ [Step 2] ChatGPT API Error:', chatGPTResult.error);
+            throw new Error(`ChatGPT API Error: ${chatGPTResult.error.message}`);
         }
         
         const analysisText = chatGPTResult.choices[0].message.content;
         console.log(`🤖 [Step 2] Phân tích hoàn chỉnh:`);
         console.log(analysisText);
         
-        // Parse JSON từ response
+        // Parse JSON từ response - Cải thiện để sử dụng ChatGPT hiệu quả hơn
         let analysis;
         try {
+            console.log(`🔍 [Step 2] Đang phân tích response từ ChatGPT...`);
+            
+            // Tìm JSON trong response - cải thiện regex để tìm JSON tốt hơn
             const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                analysis = JSON.parse(jsonMatch[0]);
-                console.log(`✅ [Step 2] Đã phân tích: ${analysis.overallTheme}`);
+                const jsonString = jsonMatch[0];
+                console.log(`🔍 [Step 2] Tìm thấy JSON, đang parse...`);
+                
+                analysis = JSON.parse(jsonString);
+                console.log(`✅ [Step 2] ChatGPT phân tích thành công!`);
+                console.log(`✅ [Step 2] Chủ đề: ${analysis.overallTheme}`);
                 console.log(`✅ [Step 2] Màu sắc: ${analysis.colorScheme}`);
                 console.log(`✅ [Step 2] Phong cách: ${analysis.visualStyle}`);
+                console.log(`✅ [Step 2] Cốt truyện: ${analysis.storyline || 'N/A'}`);
+                
+                // Validate segments có đủ thông tin
+                if (analysis.segments && analysis.segments.length === 4) {
+                    console.log(`✅ [Step 2] Đã tạo ${analysis.segments.length} segments từ ChatGPT:`);
+                    analysis.segments.forEach((segment, index) => {
+                        console.log(`✅ [Step 2] Segment ${index + 1}: ${segment.focus}`);
+                        console.log(`✅ [Step 2] - Transcript: ${segment.transcriptContent ? segment.transcriptContent.substring(0, 100) + '...' : 'N/A'}`);
+                        console.log(`✅ [Step 2] - Visual: ${segment.visualElements || 'N/A'}`);
+                        console.log(`✅ [Step 2] - Camera: ${segment.cameraWork || 'N/A'}`);
+                    });
+                } else {
+                    console.warn(`⚠️ [Step 2] ChatGPT trả về segments không đúng format, đang sửa...`);
+                    // Sửa segments nếu ChatGPT trả về không đúng format
+                    if (!analysis.segments || analysis.segments.length !== 4) {
+                        analysis.segments = analysis.segments || [];
+                        while (analysis.segments.length < 4) {
+                            analysis.segments.push({
+                                timeRange: `${analysis.segments.length * 8}-${(analysis.segments.length + 1) * 8}s`,
+                                focus: `Segment ${analysis.segments.length + 1} from ChatGPT`,
+                                transcriptContent: "Content from ChatGPT analysis",
+                                visualElements: "Professional documentary visuals",
+                                cameraWork: "Professional documentary camera work",
+                                lighting: "Professional documentary lighting",
+                                prompt: segment.prompt || "Professional documentary video"
+                            });
+                        }
+                    }
+                }
             } else {
-                throw new Error('No JSON found in response');
+                console.warn(`⚠️ [Step 2] Không tìm thấy JSON trong response ChatGPT`);
+                console.warn(`⚠️ [Step 2] Response content: ${analysisText.substring(0, 200)}...`);
+                throw new Error('No JSON found in ChatGPT response');
             }
         } catch (parseError) {
-            console.warn(`⚠️ [Step 2] Không thể parse JSON, tạo mock analysis`);
+            console.error(`❌ [Step 2] Lỗi parse ChatGPT response: ${parseError.message}`);
+            console.error(`❌ [Step 2] ChatGPT response: ${analysisText.substring(0, 300)}...`);
             
-            // Mock analysis fallback - KHÔNG CÓ CHỮ
-            analysis = {
-                overallTheme: "MH370 Investigation Documentary - No Text",
-                colorScheme: "Deep blue, black, white",
-                visualStyle: "Documentary investigation style - pure visuals",
-                segments: [
-                    {
-                        timeRange: "0-8s",
-                        focus: "MH370 disappearance overview",
-                        prompt: "Create a documentary-style video showing Malaysia Airlines Boeing 777-200ER flying over dark ocean waters at night. Deep blue and black color scheme with professional investigation graphics and satellite imagery background. NO TEXT, NO SUBTITLES, NO WORDS - pure visual storytelling."
+            // Thử lại ChatGPT lần nữa với prompt đơn giản hơn
+            console.log(`🔄 [Step 2] Thử lại ChatGPT với prompt đơn giản hơn...`);
+            
+            try {
+                const retryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                        'Content-Type': 'application/json'
                     },
-                    {
-                        timeRange: "8-16s",
-                        focus: "Search efforts and satellite data",
-                        prompt: "Show detailed satellite imagery and search operations in the Indian Ocean. Deep blue ocean waters with search vessels and aircraft. Investigation graphics showing radar data and flight path analysis. Professional documentary style with blue and white color scheme. NO TEXT, NO SUBTITLES, NO WORDS - pure visual storytelling."
-                    },
-                    {
-                        timeRange: "16-24s",
-                        focus: "Ocean Infinity search operations",
-                        prompt: "Display Ocean Infinity's advanced search technology and underwater vehicles searching the ocean floor. Deep blue underwater scenes with high-tech equipment. Professional investigation graphics showing search patterns and sonar data. NO TEXT, NO SUBTITLES, NO WORDS - pure visual storytelling."
-                    },
-                    {
-                        timeRange: "24-32s",
-                        focus: "Current investigation status",
-                        prompt: "Show current investigation status with updated search data and ongoing efforts. Deep blue ocean with investigation graphics and timeline. Professional documentary conclusion with blue and white color scheme, showing continued search efforts. NO TEXT, NO SUBTITLES, NO WORDS - pure visual storytelling."
+                    body: JSON.stringify({
+                        model: 'gpt-4o',
+                        messages: [
+                            { 
+                                role: "system", 
+                                content: `Tạo 4 segments video 32s về MH370 dựa trên transcript. Trả về JSON format:
+{
+    "overallTheme": "Chủ đề",
+    "colorScheme": "Màu sắc", 
+    "visualStyle": "Phong cách",
+    "segments": [
+        {"timeRange": "0-8s", "focus": "Nội dung", "prompt": "Prompt cho Veo3 - KHÔNG CÓ CHỮ"},
+        {"timeRange": "8-16s", "focus": "Nội dung", "prompt": "Prompt cho Veo3 - KHÔNG CÓ CHỮ"},
+        {"timeRange": "16-24s", "focus": "Nội dung", "prompt": "Prompt cho Veo3 - KHÔNG CÓ CHỮ"},
+        {"timeRange": "24-32s", "focus": "Nội dung", "prompt": "Prompt cho Veo3 - KHÔNG CÓ CHỮ"}
+    ]
+}` 
+                            },
+                            { 
+                                role: "user", 
+                                content: `Dựa trên transcript này, tạo 4 segments video MH370:
+
+TRANSCRIPT:
+${transcriptText}
+
+Yêu cầu: Video tài liệu điều tra MH370, màu xanh dương đậm, đen, trắng. KHÔNG CÓ CHỮ, TEXT, SUBTITLE.` 
+                            }
+                        ],
+                        max_tokens: 2000,
+                        temperature: 0.5
+                    })
+                });
+                
+                const retryResult = await retryResponse.json();
+                
+                if (retryResult.choices && !retryResult.error) {
+                    const retryText = retryResult.choices[0].message.content;
+                    console.log(`🔄 [Step 2] ChatGPT retry response: ${retryText.substring(0, 200)}...`);
+                    
+                    const retryJsonMatch = retryText.match(/\{[\s\S]*\}/);
+                    if (retryJsonMatch) {
+                        analysis = JSON.parse(retryJsonMatch[0]);
+                        console.log(`✅ [Step 2] ChatGPT retry thành công!`);
+                        console.log(`✅ [Step 2] Chủ đề: ${analysis.overallTheme}`);
+                        console.log(`✅ [Step 2] Đã tạo ${analysis.segments?.length || 0} segments`);
+                    } else {
+                        throw new Error('Retry response không có JSON');
                     }
-                ]
-            };
+                } else {
+                    throw new Error('ChatGPT retry thất bại');
+                }
+                
+            } catch (retryError) {
+                console.error(`❌ [Step 2] ChatGPT retry cũng thất bại: ${retryError.message}`);
+                throw new Error(`ChatGPT không thể xử lý transcript sau 2 lần thử: ${parseError.message}`);
+            }
         }
         
         // Step 3: Tạo 4 video Veo3 tuần tự với prompts KHÔNG CÓ CHỮ
@@ -190,15 +325,36 @@ YÊU CẦU QUAN TRỌNG:
             const segment = analysis.segments[i];
             console.log(`🎬 [Step 3] Tạo video segment ${i + 1}: ${segment.timeRange}`);
             console.log(`🎬 [Step 3] Focus: ${segment.focus}`);
-            console.log(`🎬 [Step 3] Prompt: ${segment.prompt.substring(0, 100)}...`);
+            console.log(`🎬 [Step 3] Transcript: ${segment.transcriptContent ? segment.transcriptContent.substring(0, 100) + '...' : 'N/A'}`);
+            console.log(`🎬 [Step 3] Visual: ${segment.visualElements || 'N/A'}`);
+            console.log(`🎬 [Step 3] Camera: ${segment.cameraWork || 'N/A'}`);
+            console.log(`🎬 [Step 3] Prompt: ${segment.prompt.substring(0, 150)}...`);
             
             try {
+                // Tạo prompt chi tiết hơn với thông tin từ segment - ĐẢM BẢO LIÊN QUAN ĐẾN MH370
+                const enhancedPrompt = `MH370 INVESTIGATION DOCUMENTARY - ${segment.prompt}
+
+MH370 SPECIFIC REQUIREMENTS:
+- MUST be about Malaysia Airlines flight MH370 disappearance
+- MUST show Boeing 777-200ER aircraft (MH370's aircraft type)
+- MUST relate to the 2014 disappearance and ongoing investigation
+- MUST include MH370-specific elements: Kuala Lumpur airport, Indian Ocean search, satellite data, Ocean Infinity search
+
+SEGMENT DETAILS:
+- Time Range: ${segment.timeRange}
+- Focus: ${segment.focus}
+- Visual Elements: ${segment.visualElements || 'MH370 investigation visuals'}
+- Camera Work: ${segment.cameraWork || 'Professional documentary camera work'}
+- Lighting: ${segment.lighting || 'Professional documentary lighting'}
+
+CRITICAL: NO TEXT, NO SUBTITLES, NO WORDS - PURE VISUAL STORYTELLING ONLY - MUST BE ABOUT MH370`;
+
                 const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        input: segment.prompt,
-                        prompt: segment.prompt
+                        input: enhancedPrompt,
+                        prompt: enhancedPrompt
                     })
                 });
                 
@@ -210,7 +366,11 @@ YÊU CẦU QUAN TRỌNG:
                         segmentIndex: i,
                         timeRange: segment.timeRange,
                         focus: segment.focus,
-                        prompt: segment.prompt,
+                        transcriptContent: segment.transcriptContent,
+                        visualElements: segment.visualElements,
+                        cameraWork: segment.cameraWork,
+                        lighting: segment.lighting,
+                        prompt: enhancedPrompt,
                         operationId: veo3Result.operationName,
                         success: true
                     });
@@ -219,15 +379,16 @@ YÊU CẦU QUAN TRỌNG:
                     veo3Results.push({
                         segmentIndex: i,
                         timeRange: segment.timeRange,
+                        focus: segment.focus,
                         error: veo3Result.message,
                         success: false
                     });
                 }
                 
-                // Chờ giữa các requests để tránh spam
+                // Chờ giữa các requests để tránh spam và đảm bảo chất lượng
                 if (i < analysis.segments.length - 1) {
-                    console.log(`⏳ [Step 3] Chờ 5 giây trước khi tạo segment tiếp theo...`);
-                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    console.log(`⏳ [Step 3] Chờ 8 giây trước khi tạo segment tiếp theo để đảm bảo chất lượng...`);
+                    await new Promise(resolve => setTimeout(resolve, 8000));
                 }
                 
             } catch (error) {
@@ -235,6 +396,7 @@ YÊU CẦU QUAN TRỌNG:
                 veo3Results.push({
                     segmentIndex: i,
                     timeRange: segment.timeRange,
+                    focus: segment.focus,
                     error: error.message,
                     success: false
                 });
