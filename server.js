@@ -16,16 +16,10 @@ const { vbeeTTS } = require('./api/tts/vbee-tts');
 const vibeeTTS = require('./api/tts/vibee-tts');
 const storageUtils = require('./api/utils/storage');
 
-// Veo3 Hybrid APIs
-const { extractFramesAPI } = require('./api/video/extract-frames');
-const { analyzeVideoAPI } = require('./api/video/analyze-video-chatgpt');
-const { createVeo3VideosAPI } = require('./api/video/veo3-generator');
-const { veo3HybridWorkflowAPI } = require('./api/video/veo3-hybrid-workflow');
-const { analyzeSecondBySecondAPI } = require('./api/video/analyze-second-by-second');
-const { generateVeo3FormatAPI } = require('./api/video/veo3-format-generator');
-const { generateVeo3TimelineAPI } = require('./api/video/veo3-timeline-generator');
-const { createVeo3CompleteVideoAPI } = require('./api/video/veo3-complete-workflow');
-const { createSimple8sVideoAPI } = require('./api/video/veo3-simple-workflow');
+// Veo3 Unified APIs
+const { splitVideoAPI } = require('./api/video/veo3-video-splitter');
+const { analyzeFramesAPI, generateVeo3JSONAPI } = require('./api/video/veo3-frame-analyzer');
+const { veo3UnifiedWorkflowAPI, veo3SimpleWorkflowAPI } = require('./api/video/veo3-unified-workflow');
 
 const app = express();
 const PORT = Number(process.env.PORT || 8888);
@@ -124,19 +118,12 @@ app.get('/api/merge-videos/list', listAvailableVideos);
 // Complete Workflow API
 app.post('/api/create-video-from-youtube', createVideoFromYouTube);
 
-// Veo3 Hybrid APIs
-app.post('/api/extract-frames', extractFramesAPI);
-app.post('/api/analyze-video', analyzeVideoAPI);
-app.post('/api/create-veo3-videos', createVeo3VideosAPI);
-app.post('/api/veo3-hybrid-workflow', veo3HybridWorkflowAPI);
-app.post('/api/analyze-second-by-second', analyzeSecondBySecondAPI);
-app.post('/api/generate-veo3-format', generateVeo3FormatAPI);
-app.post('/api/generate-veo3-timeline', generateVeo3TimelineAPI);
-app.post('/api/create-veo3-complete-video', createVeo3CompleteVideoAPI);
-app.post('/api/create-simple-8s-video', (req, res) => {
-    console.log('🔥 [server.js] Route /api/create-simple-8s-video được gọi!');
-    return createSimple8sVideoAPI(req, res);
-});
+// Veo3 Unified APIs
+app.post('/api/split-video', splitVideoAPI);
+app.post('/api/analyze-frames', analyzeFramesAPI);
+app.post('/api/generate-veo3-json', generateVeo3JSONAPI);
+app.post('/api/veo3-unified-workflow', veo3UnifiedWorkflowAPI);
+app.post('/api/veo3-simple-workflow', veo3SimpleWorkflowAPI);
 
 // YouTube Upload API
 app.post('/api/upload-youtube', uploadYouTube);
@@ -279,6 +266,11 @@ app.listen(PORT, () => {
     console.log(`   POST /api/open-profile-login - Mở profile để đăng nhập`);
     console.log(`   POST /api/delete-profile - Xóa Chrome profile`);
     console.log(`   GET  /api/list-videos - Liệt kê video files`);
+    console.log(`   POST /api/split-video - Tách video thành các đoạn 8s`);
+    console.log(`   POST /api/analyze-frames - Phân tích frames với ChatGPT`);
+    console.log(`   POST /api/generate-veo3-json - Tạo JSON format cho Veo3`);
+    console.log(`   POST /api/veo3-unified-workflow - Workflow thống nhất Veo3`);
+    console.log(`   POST /api/veo3-simple-workflow - Workflow đơn giản Veo3`);
     console.log(`   GET  /api/history - Xem lịch sử requests`);
     console.log(`   DELETE /api/history - Xóa lịch sử`);
     console.log(`   GET  /api/token-status - Kiểm tra trạng thái token`);
