@@ -31,6 +31,7 @@ function execWithTimeout(command, timeoutMs = 300000) { // 5 phút timeout
 // Import các function trực tiếp thay vì qua API
 const { getTranscript } = require('../transcript/transcript-management');
 const { mergeVideos } = require('./merge-videos');
+const { chunkedTTS } = require('../tts/vibee-tts');
 const fetch = require('node-fetch');
 
 // Mỗi video dài 8 giây
@@ -189,7 +190,7 @@ async function createVideoFromYouTube(req, res) {
             const rewriteReq = {
                 body: {
                     filename: tempFilename,
-                    openaiApiKey: process.env.OPENAI_API_KEY || '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'
+                    openaiApiKey: process.env.OPENAI_API_KEY || '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'
                 }
             };
             
@@ -231,7 +232,7 @@ async function createVideoFromYouTube(req, res) {
                 workflow: {
                     youtubeUrl: youtubeUrl,
                     voice: voice,
-                    filename: filename,
+                    filename: outputFilename,
                     steps: {
                         transcript: true,
                         rewrite: false,
@@ -249,31 +250,19 @@ async function createVideoFromYouTube(req, res) {
             });
         }
         
-        // Bước 3: Tạo âm thanh từ transcript đã viết lại bằng API endpoint
+        // Bước 3: Tạo âm thanh từ transcript đã viết lại bằng chunkedTTS
         console.log(`🎵 [Step 3] Tạo âm thanh từ transcript (${workflow.files.rewritten.length} ký tự)...`);
         
-        // Gọi API TTS endpoint
-        const ttsResponse = await fetch('http://localhost:8888/api/tts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                text: workflow.files.rewritten,
-                voice: voice,
-                format: 'mp3',
-                waitForCompletion: true,
-                filename: `workflow_audio_${Date.now()}.mp3`
-            })
-        });
+        // Sử dụng chunkedTTS trực tiếp
+        const ttsResult = await chunkedTTS(workflow.files.rewritten, voice, `workflow_audio_${Date.now()}.mp3`);
         
-        const ttsResult = await ttsResponse.json();
-        if (!ttsResult.success || !ttsResult.downloaded) {
-            throw new Error(`TTS thất bại: ${ttsResult.message || 'Unknown error'}`);
+        if (!ttsResult.success) {
+            throw new Error(`TTS thất bại: ${ttsResult.message}`);
         }
+        
         workflow.steps.audio = true;
-        workflow.files.audio = ttsResult.downloaded.path;
-        console.log(`✅ [Step 3] Đã tạo âm thanh: ${ttsResult.downloaded.filename}`);
+        workflow.files.audio = ttsResult.audioPath;
+        console.log(`✅ [Step 3] Đã tạo âm thanh: ${ttsResult.filename}`);
         
         // Bước 4: Lấy thời lượng âm thanh và tính số video cần
         console.log(`⏱️ [Step 4] Tính toán thời lượng và số video cần...`);
