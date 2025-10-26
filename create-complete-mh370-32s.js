@@ -14,15 +14,33 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-proj-n1SKpjn9MWjYSZ_UkQ
  */
 async function createCompleteMH370Video5min() {
     try {
-        console.log('🚀 [MH370] Tạo video 5 phút hoàn chỉnh với transcript MH370...');
+        console.log('🚀 [MH370] Tạo video 1 phút hoàn chỉnh với transcript MH370...');
         
         const serverUrl = 'http://localhost:8888';
-        const youtubeUrl = 'https://youtu.be/52ru0qDc0LQ?si=zahSVRyDiQy7Jd6H';
-        const outputDir = './temp/mh370-complete-5min';
+        const youtubeUrl = 'https://www.youtube.com/watch?v=52ru0qDc0LQ';
+        const outputDir = './temp/mh370-complete';
+        const MAX_DURATION = 60; // Giới hạn 1 phút (60 giây)
         
-        // 5 phút = 300 giây, chia thành 36 segments 8s (288 giây ≈ 4.8 phút)
-        const TOTAL_SEGMENTS = 36;
-        const SEGMENT_DURATION = 8;
+        // Validate URL
+        const validUrl = youtubeUrl.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/);
+        if (!validUrl) {
+            throw new Error('URL YouTube không hợp lệ');
+        }
+        
+        // Validate URL
+        if (!youtubeUrl.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/)) {
+            throw new Error('URL YouTube không hợp lệ');
+        }
+        
+        // Thông số segments
+        const SEGMENT_DURATION = 8; // Mỗi segment dài 8 giây
+
+        // Sử dụng giới hạn 5 phút cố định
+        const videoDuration = MAX_DURATION; // 5 phút = 300 giây
+        const TOTAL_SEGMENTS = Math.ceil(videoDuration / SEGMENT_DURATION);
+        
+        console.log(`📊 [Info] Thời lượng sẽ xử lý: ${videoDuration} giây (giới hạn ${MAX_DURATION} giây)`);
+        console.log(`📊 [Info] Số lượng segments: ${TOTAL_SEGMENTS} (${SEGMENT_DURATION}s/segment)`);
         
         // Tạo thư mục output
         if (!fs.existsSync(outputDir)) {
@@ -54,7 +72,7 @@ async function createCompleteMH370Video5min() {
         console.log(`📝 [Step 1] Transcript: ${transcriptText.substring(0, 300)}...`);
         
         // Step 2: ChatGPT phân tích và tạo prompt đồng nhất cho 36 segments
-        console.log('🤖 [Step 2] ChatGPT tạo prompt đồng nhất cho 36 segments (5 phút)...');
+        console.log(`🤖 [Step 2] ChatGPT tạo prompt đồng nhất cho ${TOTAL_SEGMENTS} segments (1 phút)...`);
         
         const chatGPTResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -69,7 +87,21 @@ async function createCompleteMH370Video5min() {
                         role: "system", 
                         content: `Bạn là chuyên gia tạo prompt video cho Veo3 với khả năng tạo hình ảnh đồng nhất và liền mạch.
 
-Nhiệm vụ: Dựa trên transcript về MH370, tạo 36 prompts cho 36 segments 8s (tổng 288s ≈ 5 phút) với:
+Nhiệm vụ: Dựa trên transcript về MH370, tạo kịch bản chi tiết cho ${TOTAL_SEGMENTS} segments video, mỗi segment ${SEGMENT_DURATION}s (tổng ${TOTAL_SEGMENTS * SEGMENT_DURATION}s = ${Math.floor((TOTAL_SEGMENTS * SEGMENT_DURATION) / 60)} phút ${(TOTAL_SEGMENTS * SEGMENT_DURATION) % 60} giây).
+
+MỖI SEGMENT 8 GIÂY CẦN:
+1. Tập trung vào MỘT chủ đề/nội dung chính
+2. Chi tiết timeline theo từng 2 giây:
+   {
+     "timeStart": 0,
+     "timeEnd": 2,
+     "action": "Mô tả hành động/cảnh quay cụ thể",
+     "cameraStyle": "Góc máy và phong cách quay",
+     "soundFocus": "Focus âm thanh chính",
+     "visualDetails": "Chi tiết về ánh sáng và không khí"
+   }
+
+2. Đặc điểm chung cho mỗi segment:
 1. HÌNH ẢNH ĐỒNG NHẤT về chủ đề MH370
 2. MÀU SẮC NHẤT QUÁN (xanh dương đậm, đen, trắng)
 3. PHONG CÁCH TÀI LIỆU ĐIỀU TRA
@@ -85,13 +117,29 @@ Trả về JSON format:
         {
             "timeRange": "0-8s",
             "focus": "Nội dung chính của segment",
-            "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
+            "prompt": "Prompt tổng quát",
+            "detailedTimeline": [
+                {
+                    "timeStart": 0,
+                    "timeEnd": 2,
+                    "action": "Mô tả chi tiết hành động/cảnh quay (ví dụ: Close-up of radar screen showing MH370's last known position)",
+                    "cameraStyle": "Góc máy và kỹ thuật quay cụ thể (ví dụ: Macro close-up, slow push in)",
+                    "visualStyle": "Chi tiết về ánh sáng và không khí (ví dụ: Low-key lighting, blue tint)",
+                    "transitionEffect": "Hiệu ứng chuyển cảnh (ví dụ: Subtle fade through)",
+                    "graphicElements": "Đồ họa overlay (ví dụ: Flight path overlay, timestamp)",
+                    "soundFocus": "Focus âm thanh (ví dụ: Radar beeping, muffled radio chatter)"
+                },
+                ... // Chi tiết cho từng 2 giây
+            ]
         },
-        ... (tất cả 36 segments)
+        ... (tất cả ${TOTAL_SEGMENTS} segments)
     ]
 }
 
-Chú ý: Tạo đủ 36 segments, mỗi segment 8s. Phân chia nội dung transcript để cover toàn bộ câu chuyện MH370.` 
+Chú ý: 
+1. Tạo đủ ${TOTAL_SEGMENTS} segments, mỗi segment ${SEGMENT_DURATION}s
+2. Phân chia nội dung transcript để cover toàn bộ câu chuyện MH370 theo thời lượng video gốc ${Math.floor(videoDuration / 60)} phút ${videoDuration % 60} giây
+3. Đảm bảo nội dung được phân bổ đều và hợp lý theo timeline của video` 
                     },
                     { 
                         role: "user", 
@@ -137,69 +185,142 @@ YÊU CẦU:
                 throw new Error('No JSON found in response');
             }
         } catch (parseError) {
-            console.warn(`⚠️ [Step 2] Không thể parse JSON, tạo mock analysis`);
-            
-            // Mock analysis fallback - Tạo 36 segments tự động
-            const topics = [
-                "MH370 disappearance and passenger perspective",
-                "Flight path deviation over Malaysian peninsula", 
-                "Radar tracking the aircraft",
-                "Last transmission and communication",
-                "Satellite pings in Indian Ocean",
-                "Initial search operations in South China Sea",
-                "Malaysian authorities investigation",
-                "International search coordination",
-                "Oceanic search in Southern Indian Ocean",
-                "Deep sea search technology",
-                "Underwater vehicle deployment",
-                "Satellite data analysis",
-                "Radar and military tracking",
-                "Passenger manifest and investigation",
-                "Debris field discoveries",
-                "Flight recorder search",
-                "Black box detection technology",
-                "Wave and current analysis",
-                "Ocean depth mapping",
-                "Search vessel operations",
-                "Underwater vehicles deployment",
-                "Sonar scanning operations",
-                "Deep ocean exploration",
-                "Technical search equipment",
-                "International cooperation",
-                "Search timeline and milestones",
-                "Debris identification process",
-                "Ocean current modeling",
-                "Search area calculations",
-                "Technology advances in search",
-                "Continued investigation efforts",
-                "Family perspectives and impact",
-                "Media coverage and documentation",
-                "Scientific analysis",
-                "Current search status",
-                "Future investigation plans"
-            ];
-            
-            const segments = [];
-            for (let i = 0; i < 36; i++) {
-                const startTime = i * 8;
-                const endTime = (i + 1) * 8;
-                segments.push({
-                    timeRange: `${startTime}-${endTime}s`,
-                    focus: topics[i] || `MH370 investigation segment ${i + 1}`,
-                    prompt: `Create a professional documentary-style video about ${topics[i] || 'MH370 investigation'}. Deep blue and black color scheme with white text overlays. Professional investigation graphics showing detailed information about Malaysia Airlines MH370 investigation. Cinematic camera movements with ocean imagery, satellite graphics, and investigation equipment.`
-                });
-            }
-            
-            analysis = {
-                overallTheme: "MH370 Investigation Documentary - 5 Minutes",
-                colorScheme: "Deep blue, black, white",
-                visualStyle: "Documentary investigation style",
-                segments: segments
-            };
+            console.error(`❌ [Step 2] Lỗi khi parse JSON response: ${parseError.message}`);
+            throw new Error('Không thể phân tích kết quả từ ChatGPT. Vui lòng thử lại.');
         }
         
-        // Step 3: Tạo 36 video Veo3 tuần tự với prompts đồng nhất
-        console.log('🎬 [Step 3] Tạo 36 video Veo3 tuần tự với prompts đồng nhất (5 phút)...');
+        // Step 3: Tối ưu prompt cho từng segment bằng ChatGPT
+        console.log('🤖 [Step 3] Tối ưu prompt cho từng segment bằng ChatGPT...');
+        
+        const optimizedSegments = [];
+        for (let i = 0; i < analysis.segments.length; i++) {
+            const segment = analysis.segments[i];
+            console.log(`🤖 [Step 3] Tối ưu prompt cho segment ${i + 1}: ${segment.timeRange}`);
+            
+            try {
+                const optimizationResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            {
+                                role: "system",
+                                content: `Bạn là chuyên gia tối ưu prompt cho Veo3 AI.
+Nhiệm vụ: Tối ưu prompt cho segment video 8 giây để tạo video mượt mà và chuyên nghiệp.
+
+YÊU CẦU:
+1. Tập trung vào MỘT chủ đề chính trong 8 giây
+2. Phân tích chi tiết từng 2 giây theo format:
+   {
+     "timeStart": 0,
+     "timeEnd": 2,
+     "action": "Mô tả hành động/cảnh quay chi tiết",
+     "cameraStyle": "Góc máy và phong cách quay cụ thể",
+     "soundFocus": "Focus âm thanh chính của cảnh",
+     "visualDetails": "Chi tiết về ánh sáng và không khí"
+   }
+3. Đảm bảo mỗi đoạn 2 giây có:
+   - Một hành động rõ ràng, cụ thể
+   - Góc máy và chuyển động camera chuyên nghiệp
+   - Âm thanh phù hợp với cảnh
+   - Visual và ánh sáng đặc trưng
+4. Chuyển cảnh mượt mà giữa các đoạn 2 giây
+5. Trả về JSON format:
+{
+    "segmentTheme": "Chủ đề chính của segment 8 giây",
+    "timeline": [
+        {
+            "timeStart": 0,
+            "timeEnd": 2,
+            "action": "Mô tả hành động/cảnh quay cụ thể",
+            "cameraStyle": "Góc máy và phong cách quay",
+            "soundFocus": "Focus âm thanh chính",
+            "visualDetails": "Chi tiết về ánh sáng và không khí"
+        },
+        ... // Chi tiết cho mỗi 2-3 giây
+    ],
+    "visualNotes": {
+        "cameraMovement": "Ghi chú về chuyển động camera",
+        "lightingSetup": "Thiết lập ánh sáng",
+        "graphicsStyle": "Phong cách đồ họa",
+        "colorPalette": "Bảng màu chi tiết"
+    },
+    "transitionNotes": {
+        "fromPrevious": "Chuyển cảnh từ segment trước",
+        "toNext": "Chuyển cảnh sang segment sau"
+    }
+}`
+                            },
+                            {
+                                role: "user",
+                                content: `Tối ưu prompt sau cho segment ${segment.timeRange}:
+Focus: ${segment.focus}
+Original prompt: ${segment.prompt}
+
+Hãy tối ưu để tạo video 8 giây đẹp và chuyên nghiệp nhất.`
+                            }
+                        ],
+                        max_tokens: 1000,
+                        temperature: 0.7
+                    })
+                });
+
+                const optimizationResult = await optimizationResponse.json();
+                
+                if (optimizationResult.choices) {
+                    const content = optimizationResult.choices[0].message.content;
+                    console.log('\n🔍 [DEBUG] Raw ChatGPT Response for segment ' + (i + 1) + ':');
+                    console.log(content);
+                    
+                    // Tìm và parse phần JSON trong response
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        try {
+                            const optimization = JSON.parse(jsonMatch[0]);
+                            console.log('\n✅ [DEBUG] Parsed optimization object:');
+                            console.log(JSON.stringify(optimization, null, 2));
+                            
+                            console.log(`✅ [Step 3] Đã tối ưu segment ${i + 1}`);
+                            optimizedSegments.push({
+                                ...segment,
+                                originalPrompt: segment.prompt,
+                                prompt: optimization.optimizedPrompt || optimization.segmentTheme,
+                                timeline: optimization.timeline,
+                                visualDetails: optimization.visualNotes,
+                                transitionNotes: optimization.transitionNotes
+                            });
+                        } catch (jsonError) {
+                            console.error(`❌ [DEBUG] JSON Parse error: ${jsonError.message}`);
+                            console.error('❌ [DEBUG] Problem JSON:', jsonMatch[0]);
+                            throw new Error(`Không thể parse JSON từ response: ${jsonError.message}`);
+                        }
+                    } else {
+                        console.error('❌ [DEBUG] No JSON found in response');
+                        console.error('❌ [DEBUG] Full response:', content);
+                        throw new Error('Không tìm thấy JSON trong response của ChatGPT');
+                    }
+                } else {
+                    console.log(`⚠️ [Step 3] Không thể tối ưu segment ${i + 1}, giữ nguyên prompt gốc`);
+                    optimizedSegments.push(segment);
+                }
+
+                // Chờ giữa các requests để tránh rate limit
+                if (i < analysis.segments.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+
+            } catch (error) {
+                console.log(`❌ [Step 3] Lỗi khi tối ưu segment ${i + 1}: ${error.message}`);
+                optimizedSegments.push(segment);
+            }
+        }
+
+        // Step 4: Tạo 36 video Veo3 tuần tự với prompts đã tối ưu
+        console.log(`🎬 [Step 4] Tạo ${TOTAL_SEGMENTS} video Veo3 tuần tự với prompts đã tối ưu (1 phút)...`);
         
         const veo3Results = [];
         
@@ -214,8 +335,50 @@ YÊU CẦU:
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        input: segment.prompt,
-                        prompt: segment.prompt
+                        input: segment.focus,
+                        prompt: JSON.stringify({
+                            theme: segment.focus,
+                            timeline: segment.timeline || [
+                                {
+                                    timeStart: 0,
+                                    timeEnd: 2,
+                                    action: (segment.detailedTimeline && segment.detailedTimeline[0] && segment.detailedTimeline[0].action) || "Initial scene setup",
+                                    cameraStyle: (segment.detailedTimeline && segment.detailedTimeline[0] && segment.detailedTimeline[0].cameraStyle) || "Wide establishing shot",
+                                    soundFocus: "Documentary style background music, subtle aircraft sounds",
+                                    visualDetails: (segment.detailedTimeline && segment.detailedTimeline[0] && segment.detailedTimeline[0].visualStyle) || "Professional lighting, cinematic look"
+                                },
+                                {
+                                    timeStart: 2,
+                                    timeEnd: 4,
+                                    action: segment.detailedTimeline[1].action,
+                                    cameraStyle: segment.detailedTimeline[1].cameraStyle,
+                                    soundFocus: "Gentle atmospheric sounds, soft transitions",
+                                    visualDetails: segment.detailedTimeline[1].visualStyle
+                                },
+                                {
+                                    timeStart: 4,
+                                    timeEnd: 6,
+                                    action: segment.detailedTimeline[2].action,
+                                    cameraStyle: segment.detailedTimeline[2].cameraStyle,
+                                    soundFocus: "Subtle tension building sounds",
+                                    visualDetails: segment.detailedTimeline[2].visualStyle
+                                },
+                                {
+                                    timeStart: 6,
+                                    timeEnd: 8,
+                                    action: segment.detailedTimeline[3].action,
+                                    cameraStyle: segment.detailedTimeline[3].cameraStyle,
+                                    soundFocus: "Smooth transition sounds to next segment",
+                                    visualDetails: segment.detailedTimeline[3].visualStyle
+                                }
+                            ],
+                            visualNotes: {
+                                cameraMovement: "Professional documentary style, smooth transitions",
+                                lightingSetup: "Dramatic lighting for investigation scenes",
+                                graphicsStyle: "Clean, modern infographics",
+                                colorPalette: "Deep blues, blacks, and whites"
+                            }
+                        })
                     })
                 });
                 
@@ -281,7 +444,7 @@ YÊU CẦU:
                 visualStyle: analysis.visualStyle,
                 segmentsCreated: analysis.segments.length,
                 veo3OperationsSent: successfulOperations.length,
-                segments: analysis.segments,
+                segments: optimizedSegments,
                 veo3Results: veo3Results,
                 outputDir: outputDir
             };
@@ -291,7 +454,7 @@ YÊU CẦU:
             
             console.log(`📊 [Step 3] Đã lưu kết quả vào: ${resultPath}`);
             
-            console.log('🎉 [MH370] Hoàn thành tạo video 5 phút với transcript MH370!');
+            console.log('🎉 [MH370] Hoàn thành tạo video 1 phút với transcript MH370!');
             console.log(`🎉 [MH370] Chủ đề: ${analysis.overallTheme}`);
             console.log(`🎉 [MH370] Màu sắc: ${analysis.colorScheme}`);
             console.log(`🎉 [MH370] Đã gửi ${successfulOperations.length} Veo3 requests`);
@@ -315,7 +478,7 @@ YÊU CẦU:
     }
 }
 
-console.log('🚀 [START] Tạo video 5 phút hoàn chỉnh với transcript MH370...');
+console.log('🚀 [START] Tạo video 1 phút hoàn chỉnh với transcript MH370...');
 createCompleteMH370Video5min().then(result => {
     if (result.success) {
         console.log('🎉 [MH370] Hoàn thành thành công!');
