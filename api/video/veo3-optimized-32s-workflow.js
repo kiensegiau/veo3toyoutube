@@ -105,7 +105,7 @@ Yêu cầu: Tạo prompt Veo3 phù hợp với nội dung thực tế của vide
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: messages,
                 max_tokens: 1500,
                 temperature: 0.7

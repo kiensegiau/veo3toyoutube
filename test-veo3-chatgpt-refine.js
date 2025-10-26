@@ -46,7 +46,7 @@ Trả về prompt hoàn chỉnh cho Veo3:`;
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [
                     { role: 'system', content: 'Bạn là chuyên gia tạo prompt video cho Veo3 với khả năng mô tả chi tiết và đồng nhất.' },
                     { role: 'user', content: chatgptPrompt }

@@ -169,7 +169,7 @@ async function veo3CompleteWorkflow(videoPath, options = {}) {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o',
+                        model: 'gpt-4o-mini',
                         messages: messages,
                         max_tokens: 2000,
                         temperature: 0.7

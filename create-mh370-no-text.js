@@ -59,7 +59,7 @@ async function createMH370VideoNoText() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [
                     { 
                         role: "system", 
@@ -259,7 +259,7 @@ Hãy phân tích transcript và tạo câu chuyện logic về MH370, sau đó t
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o',
+                        model: 'gpt-4o-mini',
                         messages: [
                             { 
                                 role: "system", 

@@ -10,15 +10,19 @@ const execAsync = promisify(exec);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
 
 /**
- * Tạo video 32s hoàn chỉnh với transcript MH370
+ * Tạo video 5 phút hoàn chỉnh với transcript MH370
  */
-async function createCompleteMH370Video32s() {
+async function createCompleteMH370Video5min() {
     try {
-        console.log('🚀 [MH370] Tạo video 32s hoàn chỉnh với transcript MH370...');
+        console.log('🚀 [MH370] Tạo video 5 phút hoàn chỉnh với transcript MH370...');
         
         const serverUrl = 'http://localhost:8888';
         const youtubeUrl = 'https://youtu.be/52ru0qDc0LQ?si=zahSVRyDiQy7Jd6H';
-        const outputDir = './temp/mh370-complete-32s';
+        const outputDir = './temp/mh370-complete-5min';
+        
+        // 5 phút = 300 giây, chia thành 36 segments 8s (288 giây ≈ 4.8 phút)
+        const TOTAL_SEGMENTS = 36;
+        const SEGMENT_DURATION = 8;
         
         // Tạo thư mục output
         if (!fs.existsSync(outputDir)) {
@@ -49,8 +53,8 @@ async function createCompleteMH370Video32s() {
         
         console.log(`📝 [Step 1] Transcript: ${transcriptText.substring(0, 300)}...`);
         
-        // Step 2: ChatGPT phân tích và tạo prompt đồng nhất cho 4 segments
-        console.log('🤖 [Step 2] ChatGPT tạo prompt đồng nhất cho 4 segments...');
+        // Step 2: ChatGPT phân tích và tạo prompt đồng nhất cho 36 segments
+        console.log('🤖 [Step 2] ChatGPT tạo prompt đồng nhất cho 36 segments (5 phút)...');
         
         const chatGPTResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -59,13 +63,13 @@ async function createCompleteMH370Video32s() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [
                     { 
                         role: "system", 
                         content: `Bạn là chuyên gia tạo prompt video cho Veo3 với khả năng tạo hình ảnh đồng nhất và liền mạch.
 
-Nhiệm vụ: Dựa trên transcript về MH370, tạo 4 prompts cho 4 segments 8s (tổng 32s) với:
+Nhiệm vụ: Dựa trên transcript về MH370, tạo 36 prompts cho 36 segments 8s (tổng 288s ≈ 5 phút) với:
 1. HÌNH ẢNH ĐỒNG NHẤT về chủ đề MH370
 2. MÀU SẮC NHẤT QUÁN (xanh dương đậm, đen, trắng)
 3. PHONG CÁCH TÀI LIỆU ĐIỀU TRA
@@ -83,27 +87,15 @@ Trả về JSON format:
             "focus": "Nội dung chính của segment",
             "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
         },
-        {
-            "timeRange": "8-16s", 
-            "focus": "Nội dung chính của segment",
-            "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
-        },
-        {
-            "timeRange": "16-24s",
-            "focus": "Nội dung chính của segment", 
-            "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
-        },
-        {
-            "timeRange": "24-32s",
-            "focus": "Nội dung chính của segment",
-            "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
-        }
+        ... (tất cả 36 segments)
     ]
-}` 
+}
+
+Chú ý: Tạo đủ 36 segments, mỗi segment 8s. Phân chia nội dung transcript để cover toàn bộ câu chuyện MH370.` 
                     },
                     { 
                         role: "user", 
-                        content: `Dựa trên transcript về MH370 này, tạo 4 prompts đồng nhất cho video 32s:
+                        content: `Dựa trên transcript về MH370 này, tạo 36 prompts đồng nhất cho video 5 phút:
 
 TRANSCRIPT:
 ${transcriptText}
@@ -112,10 +104,11 @@ YÊU CẦU:
 - Mỗi segment 8s phải có hình ảnh cụ thể về MH370
 - Đồng nhất về màu sắc và phong cách
 - Chuyển tiếp mượt mà giữa các segments
-- Chi tiết cụ thể: máy bay, biển, vệ tinh, đồ họa điều tra` 
+- Chi tiết cụ thể: máy bay, biển, vệ tinh, đồ họa điều tra
+- Phân chia nội dung transcript đều nhau cho 36 segments` 
                     }
                 ],
-                max_tokens: 2000,
+                max_tokens: 8000,
                 temperature: 0.7
             })
         });
@@ -146,38 +139,67 @@ YÊU CẦU:
         } catch (parseError) {
             console.warn(`⚠️ [Step 2] Không thể parse JSON, tạo mock analysis`);
             
-            // Mock analysis fallback
+            // Mock analysis fallback - Tạo 36 segments tự động
+            const topics = [
+                "MH370 disappearance and passenger perspective",
+                "Flight path deviation over Malaysian peninsula", 
+                "Radar tracking the aircraft",
+                "Last transmission and communication",
+                "Satellite pings in Indian Ocean",
+                "Initial search operations in South China Sea",
+                "Malaysian authorities investigation",
+                "International search coordination",
+                "Oceanic search in Southern Indian Ocean",
+                "Deep sea search technology",
+                "Underwater vehicle deployment",
+                "Satellite data analysis",
+                "Radar and military tracking",
+                "Passenger manifest and investigation",
+                "Debris field discoveries",
+                "Flight recorder search",
+                "Black box detection technology",
+                "Wave and current analysis",
+                "Ocean depth mapping",
+                "Search vessel operations",
+                "Underwater vehicles deployment",
+                "Sonar scanning operations",
+                "Deep ocean exploration",
+                "Technical search equipment",
+                "International cooperation",
+                "Search timeline and milestones",
+                "Debris identification process",
+                "Ocean current modeling",
+                "Search area calculations",
+                "Technology advances in search",
+                "Continued investigation efforts",
+                "Family perspectives and impact",
+                "Media coverage and documentation",
+                "Scientific analysis",
+                "Current search status",
+                "Future investigation plans"
+            ];
+            
+            const segments = [];
+            for (let i = 0; i < 36; i++) {
+                const startTime = i * 8;
+                const endTime = (i + 1) * 8;
+                segments.push({
+                    timeRange: `${startTime}-${endTime}s`,
+                    focus: topics[i] || `MH370 investigation segment ${i + 1}`,
+                    prompt: `Create a professional documentary-style video about ${topics[i] || 'MH370 investigation'}. Deep blue and black color scheme with white text overlays. Professional investigation graphics showing detailed information about Malaysia Airlines MH370 investigation. Cinematic camera movements with ocean imagery, satellite graphics, and investigation equipment.`
+                });
+            }
+            
             analysis = {
-                overallTheme: "MH370 Investigation Documentary",
+                overallTheme: "MH370 Investigation Documentary - 5 Minutes",
                 colorScheme: "Deep blue, black, white",
                 visualStyle: "Documentary investigation style",
-                segments: [
-                    {
-                        timeRange: "0-8s",
-                        focus: "MH370 disappearance overview",
-                        prompt: "Create a documentary-style video showing Malaysia Airlines Boeing 777-200ER flying over dark ocean waters at night. Deep blue and black color scheme with white text overlays showing flight path. Professional investigation graphics with satellite imagery background."
-                    },
-                    {
-                        timeRange: "8-16s",
-                        focus: "Search efforts and satellite data",
-                        prompt: "Show detailed satellite imagery and search operations in the Indian Ocean. Deep blue ocean waters with search vessels and aircraft. Investigation graphics showing radar data and flight path analysis. Professional documentary style with blue and white color scheme."
-                    },
-                    {
-                        timeRange: "16-24s",
-                        focus: "Ocean Infinity search operations",
-                        prompt: "Display Ocean Infinity's advanced search technology and underwater vehicles searching the ocean floor. Deep blue underwater scenes with high-tech equipment. Professional investigation graphics showing search patterns and sonar data."
-                    },
-                    {
-                        timeRange: "24-32s",
-                        focus: "Current investigation status",
-                        prompt: "Show current investigation status with updated search data and ongoing efforts. Deep blue ocean with investigation graphics and timeline. Professional documentary conclusion with blue and white color scheme, showing continued search efforts."
-                    }
-                ]
+                segments: segments
             };
         }
         
-        // Step 3: Tạo 4 video Veo3 tuần tự với prompts đồng nhất
-        console.log('🎬 [Step 3] Tạo 4 video Veo3 tuần tự với prompts đồng nhất...');
+        // Step 3: Tạo 36 video Veo3 tuần tự với prompts đồng nhất
+        console.log('🎬 [Step 3] Tạo 36 video Veo3 tuần tự với prompts đồng nhất (5 phút)...');
         
         const veo3Results = [];
         
@@ -237,7 +259,7 @@ YÊU CẦU:
         }
         
         const successfulOperations = veo3Results.filter(r => r.success);
-        console.log(`✅ [Step 3] Đã gửi ${successfulOperations.length}/4 Veo3 requests`);
+        console.log(`✅ [Step 3] Đã gửi ${successfulOperations.length}/36 Veo3 requests`);
         
         if (successfulOperations.length > 0) {
             console.log(`🚀 [Step 3] Tất cả Veo3 đang chạy ngầm...`);
@@ -264,12 +286,12 @@ YÊU CẦU:
                 outputDir: outputDir
             };
             
-            const resultPath = path.join(outputDir, 'mh370-complete-32s-result.json');
+            const resultPath = path.join(outputDir, 'mh370-complete-5min-result.json');
             fs.writeFileSync(resultPath, JSON.stringify(finalResult, null, 2));
             
             console.log(`📊 [Step 3] Đã lưu kết quả vào: ${resultPath}`);
             
-            console.log('🎉 [MH370] Hoàn thành tạo video 32s với transcript MH370!');
+            console.log('🎉 [MH370] Hoàn thành tạo video 5 phút với transcript MH370!');
             console.log(`🎉 [MH370] Chủ đề: ${analysis.overallTheme}`);
             console.log(`🎉 [MH370] Màu sắc: ${analysis.colorScheme}`);
             console.log(`🎉 [MH370] Đã gửi ${successfulOperations.length} Veo3 requests`);
@@ -293,8 +315,8 @@ YÊU CẦU:
     }
 }
 
-console.log('🚀 [START] Tạo video 32s hoàn chỉnh với transcript MH370...');
-createCompleteMH370Video32s().then(result => {
+console.log('🚀 [START] Tạo video 5 phút hoàn chỉnh với transcript MH370...');
+createCompleteMH370Video5min().then(result => {
     if (result.success) {
         console.log('🎉 [MH370] Hoàn thành thành công!');
         console.log(`🎉 [MH370] Chủ đề: ${result.result.overallTheme}`);
