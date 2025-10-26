@@ -19,7 +19,7 @@ async function createCompleteMH370Video5min() {
         const serverUrl = 'http://localhost:8888';
         const youtubeUrl = 'https://www.youtube.com/watch?v=52ru0qDc0LQ';
         const outputDir = './temp/mh370-complete';
-        const MAX_DURATION = 60; // Giới hạn 1 phút (60 giây)
+        const MAX_DURATION = 30; // Test với 30 giây
         
         // Validate URL
         const validUrl = youtubeUrl.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/);
@@ -284,14 +284,27 @@ Hãy tối ưu để tạo video 8 giây đẹp và chuyên nghiệp nhất.`
                             console.log('\n✅ [DEBUG] Parsed optimization object:');
                             console.log(JSON.stringify(optimization, null, 2));
                             
+                            // Kiểm tra cấu trúc JSON trước khi sử dụng
+                            if (!optimization.segmentTheme || !optimization.timeline || !optimization.visualNotes || !optimization.transitionNotes) {
+                                throw new Error('JSON response thiếu các trường bắt buộc');
+                            }
+
+                            // Kiểm tra timeline array
+                            if (!Array.isArray(optimization.timeline) || optimization.timeline.length === 0) {
+                                throw new Error('Timeline không hợp lệ hoặc rỗng');
+                            }
+
                             console.log(`✅ [Step 3] Đã tối ưu segment ${i + 1}`);
                             optimizedSegments.push({
                                 ...segment,
                                 originalPrompt: segment.prompt,
-                                prompt: optimization.optimizedPrompt || optimization.segmentTheme,
-                                timeline: optimization.timeline,
-                                visualDetails: optimization.visualNotes,
-                                transitionNotes: optimization.transitionNotes
+                                segmentTheme: optimization.segmentTheme,
+                                prompt: {
+                                    theme: optimization.segmentTheme,
+                                    timeline: optimization.timeline,
+                                    visualNotes: optimization.visualNotes,
+                                    transitionNotes: optimization.transitionNotes
+                                }
                             });
                         } catch (jsonError) {
                             console.error(`❌ [DEBUG] JSON Parse error: ${jsonError.message}`);
@@ -319,73 +332,45 @@ Hãy tối ưu để tạo video 8 giây đẹp và chuyên nghiệp nhất.`
             }
         }
 
-        // Step 4: Tạo 36 video Veo3 tuần tự với prompts đã tối ưu
+        // Step 4: Tạo video Veo3 tuần tự với prompts đã tối ưu
         console.log(`🎬 [Step 4] Tạo ${TOTAL_SEGMENTS} video Veo3 tuần tự với prompts đã tối ưu (1 phút)...`);
         
         const veo3Results = [];
         
-        for (let i = 0; i < analysis.segments.length; i++) {
-            const segment = analysis.segments[i];
-            console.log(`🎬 [Step 3] Tạo video segment ${i + 1}: ${segment.timeRange}`);
-            console.log(`🎬 [Step 3] Focus: ${segment.focus}`);
-            console.log(`🎬 [Step 3] Prompt: ${segment.prompt.substring(0, 100)}...`);
+        for (let i = 0; i < optimizedSegments.length; i++) {
+            const segment = optimizedSegments[i];
+            console.log(`🎬 [Step 4] Tạo video segment ${i + 1}: ${segment.timeRange}`);
+            console.log(`🎬 [Step 4] Focus: ${segment.focus}`);
+            console.log(`🎬 [Step 4] Theme: ${segment.prompt.theme}`);
+            console.log('🎬 [Step 4] Full prompt:', JSON.stringify(segment.prompt, null, 2));
             
             try {
+                // Kiểm tra cấu trúc prompt một lần nữa trước khi gửi
+                const promptToSend = segment.prompt;
+                if (!promptToSend.theme || !promptToSend.timeline || !promptToSend.visualNotes || !promptToSend.transitionNotes) {
+                    throw new Error(`Segment ${i + 1}: Prompt thiếu trường bắt buộc`);
+                }
+                
+                // Log chi tiết để kiểm tra
+                console.log(`\n🔍 [DEBUG] Segment ${i + 1} Prompt Details:`);
+                console.log('Theme:', promptToSend.theme);
+                console.log('Timeline count:', promptToSend.timeline.length);
+                console.log('Visual Notes:', Object.keys(promptToSend.visualNotes).join(', '));
+                console.log('Transition Notes:', Object.keys(promptToSend.transitionNotes).join(', '));
+                
                 const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        input: segment.focus,
-                        prompt: JSON.stringify({
-                            theme: segment.focus,
-                            timeline: segment.timeline || [
-                                {
-                                    timeStart: 0,
-                                    timeEnd: 2,
-                                    action: (segment.detailedTimeline && segment.detailedTimeline[0] && segment.detailedTimeline[0].action) || "Initial scene setup",
-                                    cameraStyle: (segment.detailedTimeline && segment.detailedTimeline[0] && segment.detailedTimeline[0].cameraStyle) || "Wide establishing shot",
-                                    soundFocus: "Documentary style background music, subtle aircraft sounds",
-                                    visualDetails: (segment.detailedTimeline && segment.detailedTimeline[0] && segment.detailedTimeline[0].visualStyle) || "Professional lighting, cinematic look"
-                                },
-                                {
-                                    timeStart: 2,
-                                    timeEnd: 4,
-                                    action: segment.detailedTimeline[1].action,
-                                    cameraStyle: segment.detailedTimeline[1].cameraStyle,
-                                    soundFocus: "Gentle atmospheric sounds, soft transitions",
-                                    visualDetails: segment.detailedTimeline[1].visualStyle
-                                },
-                                {
-                                    timeStart: 4,
-                                    timeEnd: 6,
-                                    action: segment.detailedTimeline[2].action,
-                                    cameraStyle: segment.detailedTimeline[2].cameraStyle,
-                                    soundFocus: "Subtle tension building sounds",
-                                    visualDetails: segment.detailedTimeline[2].visualStyle
-                                },
-                                {
-                                    timeStart: 6,
-                                    timeEnd: 8,
-                                    action: segment.detailedTimeline[3].action,
-                                    cameraStyle: segment.detailedTimeline[3].cameraStyle,
-                                    soundFocus: "Smooth transition sounds to next segment",
-                                    visualDetails: segment.detailedTimeline[3].visualStyle
-                                }
-                            ],
-                            visualNotes: {
-                                cameraMovement: "Professional documentary style, smooth transitions",
-                                lightingSetup: "Dramatic lighting for investigation scenes",
-                                graphicsStyle: "Clean, modern infographics",
-                                colorPalette: "Deep blues, blacks, and whites"
-                            }
-                        })
+                        input: segment.segmentTheme || segment.focus,
+                        prompt: promptToSend
                     })
                 });
                 
                 const veo3Result = await veo3Response.json();
                 
                 if (veo3Result.success) {
-                    console.log(`✅ [Step 3] Segment ${i + 1} Veo3: ${veo3Result.operationName}`);
+                    console.log(`✅ [Step 4] Segment ${i + 1} Veo3: ${veo3Result.operationName}`);
                     veo3Results.push({
                         segmentIndex: i,
                         timeRange: segment.timeRange,
@@ -395,7 +380,7 @@ Hãy tối ưu để tạo video 8 giây đẹp và chuyên nghiệp nhất.`
                         success: true
                     });
                 } else {
-                    console.log(`❌ [Step 3] Segment ${i + 1} thất bại: ${veo3Result.message}`);
+                    console.log(`❌ [Step 4] Segment ${i + 1} thất bại: ${veo3Result.message}`);
                     veo3Results.push({
                         segmentIndex: i,
                         timeRange: segment.timeRange,
@@ -405,13 +390,13 @@ Hãy tối ưu để tạo video 8 giây đẹp và chuyên nghiệp nhất.`
                 }
                 
                 // Chờ giữa các requests để tránh spam
-                if (i < analysis.segments.length - 1) {
-                    console.log(`⏳ [Step 3] Chờ 5 giây trước khi tạo segment tiếp theo...`);
+                if (i < optimizedSegments.length - 1) {
+                    console.log(`⏳ [Step 4] Chờ 5 giây trước khi tạo segment tiếp theo...`);
                     await new Promise(resolve => setTimeout(resolve, 5000));
                 }
                 
             } catch (error) {
-                console.log(`❌ [Step 3] Segment ${i + 1} lỗi: ${error.message}`);
+                console.log(`❌ [Step 4] Segment ${i + 1} lỗi: ${error.message}`);
                 veo3Results.push({
                     segmentIndex: i,
                     timeRange: segment.timeRange,
@@ -422,17 +407,17 @@ Hãy tối ưu để tạo video 8 giây đẹp và chuyên nghiệp nhất.`
         }
         
         const successfulOperations = veo3Results.filter(r => r.success);
-        console.log(`✅ [Step 3] Đã gửi ${successfulOperations.length}/36 Veo3 requests`);
+        console.log(`✅ [Step 4] Đã gửi ${successfulOperations.length}/36 Veo3 requests`);
         
         if (successfulOperations.length > 0) {
-            console.log(`🚀 [Step 3] Tất cả Veo3 đang chạy ngầm...`);
-            console.log(`🚀 [Step 3] Các operation IDs:`);
+            console.log(`🚀 [Step 4] Tất cả Veo3 đang chạy ngầm...`);
+            console.log(`🚀 [Step 4] Các operation IDs:`);
             successfulOperations.forEach(op => {
-                console.log(`🚀 [Step 3] - Segment ${op.segmentIndex + 1}: ${op.operationId}`);
+                console.log(`🚀 [Step 4] - Segment ${op.segmentIndex + 1}: ${op.operationId}`);
             });
             
-            console.log(`⏳ [Step 3] Video sẽ được tải về trong vài phút...`);
-            console.log(`⏳ [Step 3] Kiểm tra thư mục public/audio/ để xem video mới`);
+            console.log(`⏳ [Step 4] Video sẽ được tải về trong vài phút...`);
+            console.log(`⏳ [Step 4] Kiểm tra thư mục public/audio/ để xem video mới`);
             
             // Lưu kết quả hoàn chỉnh
             const finalResult = {
@@ -452,7 +437,7 @@ Hãy tối ưu để tạo video 8 giây đẹp và chuyên nghiệp nhất.`
             const resultPath = path.join(outputDir, 'mh370-complete-5min-result.json');
             fs.writeFileSync(resultPath, JSON.stringify(finalResult, null, 2));
             
-            console.log(`📊 [Step 3] Đã lưu kết quả vào: ${resultPath}`);
+            console.log(`📊 [Step 4] Đã lưu kết quả vào: ${resultPath}`);
             
             console.log('🎉 [MH370] Hoàn thành tạo video 1 phút với transcript MH370!');
             console.log(`🎉 [MH370] Chủ đề: ${analysis.overallTheme}`);
