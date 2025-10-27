@@ -11,6 +11,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-proj-n1SKpjn9MWjYSZ_UkQ
 
 // Video Configuration
 const SEGMENT_DURATION = 8; // Each segment duration (seconds)
+const BATCH_SIZE = 50; // Số segments mỗi batch (do giới hạn ChatGPT tokens)
 
 // Cache cookie để tránh lấy liên tục
 let cachedCookie = null;
@@ -145,14 +146,17 @@ async function createMH370Video32s() {
             console.log(`⚠️ [Step 0] Sử dụng thời gian mặc định: ${VIDEO_DURATION}s`);
         }
 
-        const NUM_SEGMENTS = Math.floor(VIDEO_DURATION / SEGMENT_DURATION);
-        console.log(`📹 [Step 0] Số segments: ${NUM_SEGMENTS} (${SEGMENT_DURATION}s/segment)`);
+        const TOTAL_SEGMENTS = Math.floor(VIDEO_DURATION / SEGMENT_DURATION);
+        const NUM_BATCHES = Math.ceil(TOTAL_SEGMENTS / BATCH_SIZE);
+
+        console.log(`📹 [Step 0] Tổng số segments: ${TOTAL_SEGMENTS} (${SEGMENT_DURATION}s/segment)`);
+        console.log(`📹 [Step 0] Chia thành ${NUM_BATCHES} batches (${BATCH_SIZE} segments/batch)`);
 
         const videoMinutes = Math.floor(VIDEO_DURATION / 60);
         const videoSeconds = VIDEO_DURATION % 60;
         const durationText = videoMinutes > 0 ? `${videoMinutes}:${videoSeconds.toString().padStart(2, '0')}` : `${videoSeconds}s`;
 
-        console.log(`🚀 Tạo video ${durationText} (${VIDEO_DURATION}s) từ YouTube với ${NUM_SEGMENTS} segments...`);
+        console.log(`🚀 Tạo video ${durationText} (${VIDEO_DURATION}s) từ YouTube với ${TOTAL_SEGMENTS} segments (${NUM_BATCHES} batches)...`);
 
         const outputDir = `./temp/youtube-${VIDEO_DURATION}s-video`;
 
@@ -184,9 +188,27 @@ async function createMH370Video32s() {
             JSON.stringify(transcriptResult.transcript);
         
         console.log(`📝 [Step 1] Transcript: ${transcriptText.substring(0, 300)}...`);
-        
-        // Step 2: ChatGPT phân tích và tạo prompt đồng nhất
-        console.log(`🤖 [Step 2] ChatGPT tạo prompt đồng nhất cho ${NUM_SEGMENTS} segments (${VIDEO_DURATION}s)...`);
+
+        // Step 2: Xử lý từng batch
+        console.log(`🤖 [Step 2] Xử lý ${NUM_BATCHES} batches...`);
+
+        let allSegments = [];
+        let overallTheme = '';
+        let colorScheme = '';
+        let visualStyle = '';
+
+        // Xử lý từng batch
+        for (let batchIndex = 0; batchIndex < NUM_BATCHES; batchIndex++) {
+            const startSegment = batchIndex * BATCH_SIZE;
+            const endSegment = Math.min((batchIndex + 1) * BATCH_SIZE, TOTAL_SEGMENTS);
+            const batchSegmentCount = endSegment - startSegment;
+            const batchStartTime = startSegment * SEGMENT_DURATION;
+            const batchEndTime = endSegment * SEGMENT_DURATION;
+
+            console.log(`\n🔄 [Batch ${batchIndex + 1}/${NUM_BATCHES}] Xử lý segments ${startSegment + 1}-${endSegment} (${batchStartTime}s-${batchEndTime}s, ${batchSegmentCount} segments)...`);
+
+        // Step 2: ChatGPT phân tích và tạo prompt cho batch này
+        console.log(`🤖 [Batch ${batchIndex + 1}] ChatGPT tạo prompt cho ${batchSegmentCount} segments...`);
         
         const chatGPTResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -208,7 +230,7 @@ async function createMH370Video32s() {
 4. ❌ KHÔNG tạo cảnh không liên quan đến transcript
 5. ❌ KHÔNG có text/chữ/caption trong video (Veo3 không hỗ trợ)
 
-Nhiệm vụ: Phân tích transcript thành ${NUM_SEGMENTS} segments (${SEGMENT_DURATION}s/segment, tổng ${VIDEO_DURATION}s):
+Nhiệm vụ: Phân tích transcript thành ${batchSegmentCount} segments (${SEGMENT_DURATION}s/segment, từ ${batchStartTime}s đến ${batchEndTime}s):
 1. ĐÚNG NỘI DUNG: Mỗi prompt phải visual hóa ĐÚNG 1 phần cụ thể trong transcript
 2. MÀU SẮC ĐỒNG NHẤT: Chọn bảng màu phù hợp với chủ đề thực tế của transcript
 3. PHONG CÁCH PHÙ HỢP: Documentary/cinematic/artistic tùy nội dung transcript
@@ -216,36 +238,36 @@ Nhiệm vụ: Phân tích transcript thành ${NUM_SEGMENTS} segments (${SEGMENT_
 5. CHI TIẾT CỤ THỂ: Visual cụ thể từ transcript - KHÔNG sáng tạo
 6. CÂU CHUYỆN ĐÚNG: Theo đúng logic và thứ tự của transcript
 
-Trả về JSON format với ${NUM_SEGMENTS} segments LIÊN TỤC:
+Trả về JSON format với ${batchSegmentCount} segments LIÊN TỤC (từ ${batchStartTime}s đến ${batchEndTime}s):
 {
     "overallTheme": "Chủ đề CHÍNH duy nhất xuyên suốt video (dựa trên transcript)",
     "colorScheme": "Bảng màu NHẤT QUÁN cho toàn bộ video",
     "visualStyle": "Phong cách ĐỒNG NHẤT (documentary/cinematic/artistic)",
     "segments": [
         {
-            "timeRange": "0-${SEGMENT_DURATION}s",
-            "focus": "Phần đầu của chủ đề (từ transcript)",
-            "prompt": "Visual mở đầu - đúng nội dung transcript, CÓ LIÊN KẾT với segment sau"
+            "timeRange": "${batchStartTime}-${batchStartTime + SEGMENT_DURATION}s",
+            "focus": "Phần đầu của batch (từ transcript)",
+            "prompt": "Visual mở đầu batch - đúng nội dung transcript, CÓ LIÊN KẾT với segment sau"
         },
         {
-            "timeRange": "${SEGMENT_DURATION}-${SEGMENT_DURATION * 2}s", 
+            "timeRange": "${batchStartTime + SEGMENT_DURATION}-${batchStartTime + SEGMENT_DURATION * 2}s",
             "focus": "Tiếp tục chủ đề (từ transcript)",
             "prompt": "Visual tiếp nối segment trước - cùng BỐI CẢNH, LIÊN KẾT với segment trước/sau"
         },
-        ... (tổng ${NUM_SEGMENTS} segments - TẤT CẢ PHẢI CÙNG CHỦ ĐỀ/BỐI CẢNH)
+        ... (tổng ${batchSegmentCount} segments - TẤT CẢ PHẢI CÙNG CHỦ ĐỀ/BỐI CẢNH)
         {
-            "timeRange": "${VIDEO_DURATION - SEGMENT_DURATION}-${VIDEO_DURATION}s",
-            "focus": "Kết thúc chủ đề (từ transcript)",
-            "prompt": "Visual kết thúc - LIÊN KẾT với segment trước, đúng nội dung transcript"
+            "timeRange": "${batchEndTime - SEGMENT_DURATION}-${batchEndTime}s",
+            "focus": "Kết thúc batch (từ transcript)",
+            "prompt": "Visual kết thúc batch - LIÊN KẾT với segment trước, đúng nội dung transcript"
         }
     ]
 }
 
 ⚠️ LƯU Ý: Tất cả segments PHẢI cùng overallTheme và visualStyle, KHÔNG nhảy sang chủ đề khác!` 
                     },
-                    { 
-                        role: "user", 
-                        content: `🎯 ĐỌC KỸ transcript và tạo ${NUM_SEGMENTS} prompts ĐÚNG NỘI DUNG cho video ${VIDEO_DURATION}s:
+                    {
+                        role: "user",
+                        content: `🎯 ĐỌC KỸ transcript và tạo ${batchSegmentCount} prompts ĐÚNG NỘI DUNG cho batch ${batchIndex + 1}/${NUM_BATCHES} (${batchStartTime}s-${batchEndTime}s):
 
 📄 TRANSCRIPT:
 ${transcriptText}
@@ -256,9 +278,9 @@ ${transcriptText}
 - Nắm rõ các sự kiện, khái niệm, hành động được đề cập
 - Xác định MÔI TRƯỜNG/BỐI CẢNH chung xuyên suốt video
 
-🎬 BƯỚC 2 - TẠO ${NUM_SEGMENTS} PROMPTS LIÊN TỤC:
+🎬 BƯỚC 2 - TẠO ${batchSegmentCount} PROMPTS LIÊN TỤC CHO BATCH NÀY:
 1. CHỦ ĐỀ & BỐI CẢNH XUYÊN SUỐT:
-   - Tất cả ${NUM_SEGMENTS} segments PHẢI cùng 1 chủ đề/bối cảnh chính
+   - Tất cả ${batchSegmentCount} segments PHẢI cùng 1 chủ đề/bối cảnh chính${batchIndex > 0 ? ` (tiếp nối từ batch trước)` : ''}
    - KHÔNG nhảy sang chủ đề/bối cảnh khác không liên quan
    - Visual phải CÓ SỰ LIÊN KẾT giữa các segments
    
@@ -288,46 +310,75 @@ ${transcriptText}
 ✅ CHỈ visual thuần: objects, scenes, actions, movements, atmosphere
 
 🎯 KIỂM TRA CUỐI CÙNG TRƯỚC KHI TRẢ VỀ:
-1. Tất cả ${NUM_SEGMENTS} segments có cùng CHỦ ĐỀ/BỐI CẢNH chính không?
+1. Tất cả ${batchSegmentCount} segments có cùng CHỦ ĐỀ/BỐI CẢNH chính không?
 2. Có segment nào nhảy sang chủ đề khác không liên quan không?
 3. Visual có thể chuyển tiếp mượt mà từ segment này sang segment khác không?
 4. Tất cả đều dựa trên NỘI DUNG CÓ TRONG transcript chứ?
+${batchIndex > 0 ? `5. Batch này có LIÊN KẾT mượt mà với batch trước (chủ đề: ${overallTheme}) không?` : ''}
 
-💡 MỤC TIÊU: ${NUM_SEGMENTS} segments ghép lại phải như 1 video LIỀN MẠCH, XUYÊN SUỐT 1 CHỦ ĐỀ!` 
+💡 MỤC TIÊU: ${batchSegmentCount} segments ghép lại phải như 1 video LIỀN MẠCH, XUYÊN SUỐT 1 CHỦ ĐỀ!`
                     }
                 ],
-                max_tokens: Math.min(16000, NUM_SEGMENTS * 250), // Động dựa trên số segments
+                max_tokens: Math.min(16384, batchSegmentCount * 200), // Động dựa trên số segments trong batch
                 temperature: 0.3 // Thấp để chính xác, ít sáng tạo, tập trung vào transcript
             })
         });
         
         const chatGPTResult = await chatGPTResponse.json();
-        console.log('🤖 [Step 2] ChatGPT result:', chatGPTResult.choices ? '✅ Success' : '❌ Failed');
-        
+        console.log(`🤖 [Batch ${batchIndex + 1}] ChatGPT result:`, chatGPTResult.choices ? '✅ Success' : '❌ Failed');
+
         if (!chatGPTResult.choices) {
             throw new Error('ChatGPT không trả về kết quả');
         }
-        
+
         const analysisText = chatGPTResult.choices[0].message.content;
-        console.log(`🤖 [Step 2] Phân tích hoàn chỉnh:`);
+        console.log(`🤖 [Batch ${batchIndex + 1}] Phân tích hoàn chỉnh:`);
         console.log(analysisText);
-        
+
         // Parse JSON từ response
-        let analysis;
+        let batchAnalysis;
         try {
             const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                analysis = JSON.parse(jsonMatch[0]);
-                console.log(`✅ [Step 2] Đã phân tích: ${analysis.overallTheme}`);
-                console.log(`✅ [Step 2] Màu sắc: ${analysis.colorScheme}`);
-                console.log(`✅ [Step 2] Phong cách: ${analysis.visualStyle}`);
+                batchAnalysis = JSON.parse(jsonMatch[0]);
+
+                // Lưu theme/color/style từ batch đầu tiên
+                if (batchIndex === 0) {
+                    overallTheme = batchAnalysis.overallTheme;
+                    colorScheme = batchAnalysis.colorScheme;
+                    visualStyle = batchAnalysis.visualStyle;
+                    console.log(`✅ [Batch 1] Chủ đề chính: ${overallTheme}`);
+                    console.log(`✅ [Batch 1] Màu sắc: ${colorScheme}`);
+                    console.log(`✅ [Batch 1] Phong cách: ${visualStyle}`);
+                } else {
+                    console.log(`✅ [Batch ${batchIndex + 1}] Tiếp tục chủ đề: ${overallTheme}`);
+                }
+
+                // Thêm segments vào allSegments
+                allSegments.push(...batchAnalysis.segments);
+                console.log(`✅ [Batch ${batchIndex + 1}] Đã thêm ${batchAnalysis.segments.length} segments (tổng: ${allSegments.length}/${TOTAL_SEGMENTS})`);
             } else {
                 throw new Error('No JSON found in response');
             }
         } catch (parseError) {
-            console.error(`❌ [Step 2] Không thể parse JSON từ ChatGPT:`, parseError.message);
+            console.error(`❌ [Batch ${batchIndex + 1}] Không thể parse JSON từ ChatGPT:`, parseError.message);
             throw new Error('ChatGPT không trả về JSON hợp lệ. Vui lòng thử lại.');
         }
+
+        } // Kết thúc vòng lặp batch
+
+        // Tạo analysis object tổng hợp từ tất cả batches
+        const analysis = {
+            overallTheme,
+            colorScheme,
+            visualStyle,
+            segments: allSegments
+        };
+
+        console.log(`\n✅ [Step 2] Hoàn thành ${NUM_BATCHES} batches với ${allSegments.length} segments!`);
+        console.log(`✅ [Step 2] Chủ đề: ${overallTheme}`);
+        console.log(`✅ [Step 2] Màu sắc: ${colorScheme}`);
+        console.log(`✅ [Step 2] Phong cách: ${visualStyle}`);
         
         // Lấy cookie trước khi tạo videos (chỉ lấy 1 lần cho tất cả)
         console.log('🍪 [Step 3] Lấy/cache cookie trước khi tạo videos...');
@@ -402,13 +453,17 @@ CHỈ trả về JSON array, KHÔNG có giải thích hay text khác.`
                                 role: "user", 
                                 content: `Tối ưu prompt này thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà:
 
-OVERALL THEME: ${analysis.overallTheme}
-COLOR SCHEME: ${analysis.colorScheme}
-VISUAL STYLE: ${analysis.visualStyle}
+🎬 CHỦ ĐỀ CHÍNH CỦA TOÀN BỘ VIDEO: ${analysis.overallTheme}
+🎨 MÀU SẮC ĐỒNG NHẤT: ${analysis.colorScheme}
+📹 PHONG CÁCH: ${analysis.visualStyle}
 
-SEGMENT HIỆN TẠI ${index + 1}/4: ${segment.timeRange}
-FOCUS: ${segment.focus}
-ORIGINAL PROMPT: ${segment.prompt}
+📍 SEGMENT HIỆN TẠI ${index + 1}/${analysis.segments.length}: ${segment.timeRange}
+📌 FOCUS CỦA SEGMENT NÀY: ${segment.focus}
+📝 ORIGINAL PROMPT: ${segment.prompt}
+
+⚠️ QUAN TRỌNG: Mỗi scene PHẢI NÊU RÕ chủ đề "${analysis.overallTheme}" trong action description.
+   - Ví dụ: Thay vì "Hình ảnh máy bay bay" → "Hình ảnh máy bay MH370 bay qua vùng trời (chủ đề: ${analysis.overallTheme})"
+   - Mỗi action PHẢI bắt đầu bằng context về chủ đề chính để Veo3 hiểu rõ câu chuyện
 
 BỐI CẢNH LIÊN KẾT:
 ${prevSegment ? `- SEGMENT TRƯỚC (${prevSegment.timeRange}): ${prevSegment.focus}
@@ -426,7 +481,9 @@ ${nextSegment ? `- SEGMENT SAU (${nextSegment.timeRange}): ${nextSegment.focus}
    - CHỈ chia nhỏ thành 4 scenes (0-2s, 2-4s, 4-6s, 6-8s) và thêm chi tiết kỹ thuật
 
 2. CHI TIẾT CẦN THÊM (không đổi nội dung):
-   - action: Mô tả visual ĐÚNG với prompt gốc - KHÔNG TEXT/CHỮ
+   - action: Mô tả visual ĐÚNG với prompt gốc - PHẢI NÊU RÕ CHỦ ĐỀ "${analysis.overallTheme}" - KHÔNG TEXT/CHỮ
+     VÍ DỤ: "Hình ảnh máy bay MH370 cất cánh (chủ đề: cuộc tìm kiếm MH370), với ánh sáng mờ ảo"
+     KHÔNG ĐƯỢC: "Hình ảnh máy bay cất cánh" (thiếu context chủ đề)
    - cameraStyle: camera movement (zoom in/out, pan left/right/up/down, tilt, steady, tracking shot)
    - transition: chuyển cảnh (fade, dissolve, cut, smooth pan, cross dissolve, match cut)
    - soundFocus: âm thanh phù hợp (ambient, dramatic music, nature sounds, effects)
@@ -436,6 +493,7 @@ ${nextSegment ? `- SEGMENT SAU (${nextSegment.timeRange}): ${nextSegment.focus}
 - KHÔNG thêm cảnh/đối tượng/hành động mới không có trong ORIGINAL PROMPT
 - KHÔNG có text overlay, subtitle, caption, chữ viết bất kỳ
 - CHỈ visual thuần: objects, scenes, actions, movements từ ORIGINAL PROMPT
+- NHƯNG PHẢI NÊU RÕ CHỦ ĐỀ "${analysis.overallTheme}" trong mỗi action để Veo3 hiểu context câu chuyện
 
 QUAN TRỌNG VỀ TRANSITION GIỮA SEGMENTS:
 - Scene 1 (0-2s): PHẢI transition mượt mà TỪ ${prevSegment ? `"${prevSegment.focus}" của segment trước` : 'màn hình đen với fade in'}
@@ -445,7 +503,7 @@ QUAN TRỌNG VỀ TRANSITION GIỮA SEGMENTS:
 - Scene 4 (6-${SEGMENT_DURATION}s): PHẢI chuẩn bị transition SANG ${nextSegment ? `"${nextSegment.focus}" của segment sau` : 'kết thúc với fade out'}
   ${nextSegment ? `→ Visual và camera phải setup cho scene đầu segment sau, tạo continuity` : '→ Fade out hoặc slow zoom out để kết thúc'}
 
-🎬 MỤC TIÊU: ${NUM_SEGMENTS} segments ghép lại phải liền mạch như 1 video duy nhất!
+🎬 MỤC TIÊU: ${analysis.segments.length} segments ghép lại phải liền mạch như 1 video duy nhất!
 
 📋 VÍ DỤ TRANSITION TỐT (dựa theo nội dung):
 - Segment kết thúc với "object xa dần" 
@@ -490,11 +548,17 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                 // Convert JSON array thành string prompt cho Veo3
                 let optimizedPrompt;
                 if (detailedTimeline && Array.isArray(detailedTimeline)) {
+                    // Thêm context chủ đề vào đầu prompt
+                    const themeContext = `[CONTEXT: ${analysis.overallTheme}. Style: ${analysis.visualStyle}. Colors: ${analysis.colorScheme}] `;
+
                     // Convert chi tiết timeline thành string description
-                    optimizedPrompt = detailedTimeline.map(scene => {
+                    const scenesDescription = detailedTimeline.map(scene => {
                         const transitionText = scene.transition ? `Transition: ${scene.transition}.` : '';
                         return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${scene.soundFocus}`;
                     }).join(' ');
+
+                    // Kết hợp context + scenes
+                    optimizedPrompt = themeContext + scenesDescription;
                     
                     console.log(`✅ [Step 3] Segment ${index + 1} optimized với ${detailedTimeline.length} scenes chi tiết:`);
                     detailedTimeline.forEach(scene => {
@@ -512,12 +576,12 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                     console.log(`⚠️ [Step 3] Segment ${index + 1} dùng prompt gốc`);
                 }
                 
-                // Tạo video với retry mechanism
+                // Tạo video với retry mechanism (exponential backoff)
                 console.log(`🎬 [Step 3] Tạo video segment ${index + 1} với prompt string tối ưu...`);
-                
+
                 let veo3Result = null;
                 let retryCount = 0;
-                const maxRetries = 3;
+                const maxRetries = 7; // Tăng lên 7 lần retry
                 
                 while (retryCount < maxRetries) {
             try {
@@ -540,12 +604,14 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                     } catch (error) {
                         retryCount++;
                         console.log(`⚠️ [Step 3] Segment ${index + 1} thất bại lần ${retryCount}/${maxRetries}: ${error.message}`);
-                        
+
                         if (retryCount < maxRetries) {
-                            // Đợi 3 giây trước khi retry
-                            console.log(`⏳ [Step 3] Đợi 3s trước khi retry...`);
-                            await new Promise(resolve => setTimeout(resolve, 3000));
-                            
+                            // Exponential backoff: 2^retryCount * 2 giây (2s, 4s, 8s, 16s, 32s, 64s, 128s)
+                            const waitTime = Math.pow(2, retryCount) * 2000;
+                            const waitSeconds = Math.floor(waitTime / 1000);
+                            console.log(`⏳ [Step 3] Đợi ${waitSeconds}s trước khi retry (exponential backoff)...`);
+                            await new Promise(resolve => setTimeout(resolve, waitTime));
+
                             // Refresh cookie nếu lỗi liên quan đến cookie
                             if (error.message.includes('cookie') || error.message.includes('Chrome Labs')) {
                                 console.log(`🔄 [Step 3] Refresh cookie...`);
@@ -689,7 +755,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
         const videoFiles = await Promise.all(downloadPromises);
         const successfulVideos = videoFiles.filter(v => v.success);
         
-        console.log(`✅ [Step 4] Đã tải ${successfulVideos.length}/4 video`);
+        console.log(`✅ [Step 4] Đã tải ${successfulVideos.length}/${successfulOperations.length} video`);
         
         // Step 5: Ghép video thành 1 video kết quả
         if (successfulVideos.length > 0) {
