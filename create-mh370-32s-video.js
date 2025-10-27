@@ -9,6 +9,46 @@ const execAsync = promisify(exec);
 // ChatGPT API configuration
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
 
+// Cache cookie để tránh lấy liên tục
+let cachedCookie = null;
+let cookieCacheTime = 0;
+const COOKIE_CACHE_DURATION = 30 * 60 * 1000; // 30 phút
+
+/**
+ * Lấy cookie từ cache hoặc fetch mới
+ */
+async function getCachedOrFreshCookie(serverUrl) {
+    const now = Date.now();
+    
+    // Nếu có cache và chưa hết hạn
+    if (cachedCookie && (now - cookieCacheTime) < COOKIE_CACHE_DURATION) {
+        console.log(`🍪 Sử dụng cached cookie (còn ${Math.floor((COOKIE_CACHE_DURATION - (now - cookieCacheTime)) / 1000 / 60)} phút)`);
+        return cachedCookie;
+    }
+    
+    // Lấy cookie mới
+    console.log(`🔄 Lấy cookie mới từ server...`);
+    try {
+        const response = await fetch(`${serverUrl}/api/labs/get-cookies`, {
+            method: 'GET'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.cookies) {
+            cachedCookie = result.cookies;
+            cookieCacheTime = now;
+            console.log(`✅ Đã cache cookie mới`);
+            return cachedCookie;
+        } else {
+            throw new Error('Không lấy được cookie từ server');
+        }
+    } catch (error) {
+        console.error(`❌ Lỗi lấy cookie:`, error.message);
+        return null;
+    }
+}
+
 /**
  * Tạo video 32s với transcript MH370 và hình ảnh đồng nhất
  */
@@ -176,42 +216,213 @@ YÊU CẦU:
             };
         }
         
-        // Step 3: Tạo 4 video Veo3 song song với prompts đồng nhất
-        console.log('🎬 [Step 3] Tạo 4 video Veo3 song song với prompts đồng nhất...');
+        // Lấy cookie trước khi tạo videos (chỉ lấy 1 lần cho tất cả)
+        console.log('🍪 [Step 3] Lấy/cache cookie trước khi tạo videos...');
+        await getCachedOrFreshCookie(serverUrl);
         
+        // Step 3: Tối ưu hóa từng prompt với ChatGPT trước khi tạo video
+        console.log('🤖 [Step 3] ChatGPT tối ưu hóa từng prompt cho Veo3...');
+        
+        // Thêm delay giữa các requests để tránh overload
         const veo3Promises = analysis.segments.map(async (segment, index) => {
-            console.log(`🎬 [Step 3] Tạo video segment ${index + 1}: ${segment.timeRange}`);
-            console.log(`🎬 [Step 3] Focus: ${segment.focus}`);
-            console.log(`🎬 [Step 3] Prompt: ${segment.prompt.substring(0, 100)}...`);
+            // Delay 2 giây cho mỗi segment để tránh gọi đồng thời quá nhiều
+            await new Promise(resolve => setTimeout(resolve, index * 2000));
+            console.log(`🤖 [Step 3] Tối ưu segment ${index + 1}: ${segment.timeRange}`);
+            console.log(`🤖 [Step 3] Focus: ${segment.focus}`);
             
             try {
-                const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
+                // Tạo context về segments trước/sau để đảm bảo liên kết
+                const prevSegment = index > 0 ? analysis.segments[index - 1] : null;
+                const nextSegment = index < analysis.segments.length - 1 ? analysis.segments[index + 1] : null;
+                
+                // Gọi ChatGPT để tối ưu prompt với format chi tiết
+                const optimizeResponse = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
-                        input: segment.prompt,
-                        prompt: segment.prompt
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            { 
+                                role: "system", 
+                                content: `Bạn là chuyên gia tối ưu prompt cho Veo3 (Google Video AI).
+
+Nhiệm vụ: Tối ưu hóa prompt thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà.
+
+Trả về ĐÚNG format JSON array này (4 phần tử cho 8 giây):
+[
+  {
+    "timeStart": 0,
+    "timeEnd": 2,
+    "action": "Mô tả hành động cụ thể",
+    "cameraStyle": "Phong cách camera (zoom in, pan left, tilt up, steady shot, etc)",
+    "transition": "Chuyển cảnh từ scene trước (fade in, dissolve, cut, pan transition, zoom transition, etc)",
+    "soundFocus": "Âm thanh tập trung",
+    "visualDetails": "Chi tiết visual (màu sắc, ánh sáng, texture, shadows, etc)"
+  },
+  ...
+]
+
+YÊU CẦU CHUYỂN CẢNH:
+- Scene đầu tiên: transition liên kết với segment trước (hoặc fade in nếu là segment đầu)
+- Các scenes giữa: transition mượt mà (dissolve, smooth pan, gradual zoom)
+- Scene cuối cùng: transition chuẩn bị cho segment sau (hoặc fade out nếu là segment cuối)
+
+CHỈ trả về JSON array, KHÔNG có giải thích hay text khác.` 
+                            },
+                            { 
+                                role: "user", 
+                                content: `Tối ưu prompt này thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà:
+
+OVERALL THEME: ${analysis.overallTheme}
+COLOR SCHEME: ${analysis.colorScheme}
+VISUAL STYLE: ${analysis.visualStyle}
+
+SEGMENT HIỆN TẠI ${index + 1}/4: ${segment.timeRange}
+FOCUS: ${segment.focus}
+ORIGINAL PROMPT: ${segment.prompt}
+
+BỐI CẢNH LIÊN KẾT:
+${prevSegment ? `- SEGMENT TRƯỚC (${prevSegment.timeRange}): ${prevSegment.focus}
+  → Scene đầu tiên (0-2s) cần transition mượt mà từ segment trước
+  → Prompt gốc segment trước: ${prevSegment.prompt}` : '- ĐÂY LÀ SEGMENT ĐẦU TIÊN\n  → Scene đầu (0-2s) dùng "fade in" hoặc "slow zoom in" để mở màn'}
+
+${nextSegment ? `- SEGMENT SAU (${nextSegment.timeRange}): ${nextSegment.focus}
+  → Scene cuối cùng (6-8s) cần transition chuẩn bị cho segment sau
+  → Prompt gốc segment sau: ${nextSegment.prompt}` : '- ĐÂY LÀ SEGMENT CUỐI CÙNG\n  → Scene cuối (6-8s) dùng "fade out" hoặc "slow zoom out" để kết thúc'}
+
+YÊU CẦU CHI TIẾT:
+- Chia thành 4 scenes: 0-2s, 2-4s, 4-6s, 6-8s
+- action: hành động cụ thể về MH370 (máy bay, bản đồ, radar, vệ tinh, tìm kiếm, điều tra)
+- cameraStyle: camera movement rõ ràng (zoom in/out, pan left/right/up/down, tilt, steady, tracking shot)
+- transition: chuyển cảnh phù hợp (fade, dissolve, cut, smooth pan, cross dissolve, match cut)
+- soundFocus: âm thanh tài liệu điều tra (ambient, narration background, dramatic music, ocean sounds, radar beeps)
+- visualDetails: màu ${analysis.colorScheme}, phong cách ${analysis.visualStyle}, lighting, texture, atmosphere
+
+QUAN TRỌNG VỀ TRANSITION:
+- Scene 1 (0-2s): transition TỪ ${prevSegment ? 'segment trước' : 'màn hình đen'}
+- Scenes 2-3: transition mượt giữa các scenes
+- Scene 4 (6-8s): transition SANG ${nextSegment ? 'segment sau' : 'màn hình đen'}
+
+CHỈ trả về JSON array, KHÔNG thêm text nào khác.` 
+                            }
+                        ],
+                        max_tokens: 1200,
+                        temperature: 0.7
                     })
                 });
                 
-                const veo3Result = await veo3Response.json();
+                const optimizeResult = await optimizeResponse.json();
                 
-                if (veo3Result.success) {
+                if (!optimizeResult.choices) {
+                    throw new Error('ChatGPT optimization failed');
+                }
+                
+                const optimizedContent = optimizeResult.choices[0].message.content.trim();
+                
+                // Parse JSON array từ response
+                let detailedTimeline;
+                try {
+                    const jsonMatch = optimizedContent.match(/\[[\s\S]*\]/);
+                    if (jsonMatch) {
+                        detailedTimeline = JSON.parse(jsonMatch[0]);
+                    } else {
+                        throw new Error('No JSON array found in response');
+                    }
+                } catch (parseError) {
+                    console.warn(`⚠️ [Step 3] Không parse được JSON, dùng prompt gốc`);
+                    detailedTimeline = null;
+                }
+                
+                // Convert JSON array thành string prompt cho Veo3
+                let optimizedPrompt;
+                if (detailedTimeline && Array.isArray(detailedTimeline)) {
+                    // Convert chi tiết timeline thành string description
+                    optimizedPrompt = detailedTimeline.map(scene => {
+                        const transitionText = scene.transition ? `Transition: ${scene.transition}.` : '';
+                        return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${scene.soundFocus}`;
+                    }).join(' ');
+                    
+                    console.log(`✅ [Step 3] Segment ${index + 1} optimized với ${detailedTimeline.length} scenes chi tiết:`);
+                    detailedTimeline.forEach(scene => {
+                        console.log(`   [${scene.timeStart}-${scene.timeEnd}s] ${scene.action}`);
+                        if (scene.transition) {
+                            console.log(`      🔄 Transition: ${scene.transition}`);
+                        }
+                        console.log(`      📹 Camera: ${scene.cameraStyle}`);
+                        console.log(`      🎨 Visual: ${scene.visualDetails}`);
+                        console.log(`      🔊 Sound: ${scene.soundFocus}`);
+                    });
+                } else {
+                    // Fallback: dùng prompt gốc
+                    optimizedPrompt = segment.prompt;
+                    console.log(`⚠️ [Step 3] Segment ${index + 1} dùng prompt gốc`);
+                }
+                
+                // Tạo video với retry mechanism
+                console.log(`🎬 [Step 3] Tạo video segment ${index + 1} với prompt string tối ưu...`);
+                
+                let veo3Result = null;
+                let retryCount = 0;
+                const maxRetries = 3;
+                
+                while (retryCount < maxRetries) {
+                    try {
+                        const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                input: optimizedPrompt,
+                                prompt: optimizedPrompt
+                            })
+                        });
+                        
+                        veo3Result = await veo3Response.json();
+                        
+                        if (veo3Result.success) {
+                            break; // Thành công, thoát vòng lặp
+                        } else {
+                            throw new Error(veo3Result.message || 'Create video failed');
+                        }
+                    } catch (error) {
+                        retryCount++;
+                        console.log(`⚠️ [Step 3] Segment ${index + 1} thất bại lần ${retryCount}/${maxRetries}: ${error.message}`);
+                        
+                        if (retryCount < maxRetries) {
+                            // Đợi 3 giây trước khi retry
+                            console.log(`⏳ [Step 3] Đợi 3s trước khi retry...`);
+                            await new Promise(resolve => setTimeout(resolve, 3000));
+                            
+                            // Refresh cookie nếu lỗi liên quan đến cookie
+                            if (error.message.includes('cookie') || error.message.includes('Chrome Labs')) {
+                                console.log(`🔄 [Step 3] Refresh cookie...`);
+                                cachedCookie = null; // Xóa cache
+                                await getCachedOrFreshCookie(serverUrl);
+                            }
+                        }
+                    }
+                }
+                
+                if (veo3Result && veo3Result.success) {
                     console.log(`✅ [Step 3] Segment ${index + 1} Veo3: ${veo3Result.operationName}`);
                     return {
                         segmentIndex: index,
                         timeRange: segment.timeRange,
                         focus: segment.focus,
-                        prompt: segment.prompt,
+                        originalPrompt: segment.prompt,
+                        detailedTimeline: detailedTimeline,
+                        optimizedPrompt: optimizedPrompt,
                         operationId: veo3Result.operationName,
                         success: true
                     };
                 } else {
-                    console.log(`❌ [Step 3] Segment ${index + 1} thất bại: ${veo3Result.message}`);
+                    console.log(`❌ [Step 3] Segment ${index + 1} thất bại sau ${maxRetries} lần thử`);
                     return {
                         segmentIndex: index,
                         timeRange: segment.timeRange,
-                        error: veo3Result.message,
+                        error: veo3Result?.message || 'Failed after retries',
                         success: false
                     };
                 }
@@ -230,8 +441,8 @@ YÊU CẦU:
         const veo3Results = await Promise.all(veo3Promises);
         const successfulOperations = veo3Results.filter(r => r.success);
         
-        console.log(`✅ [Step 3] Đã gửi ${successfulOperations.length}/4 Veo3 requests`);
-        console.log(`🚀 [Step 3] Tất cả Veo3 đang chạy ngầm...`);
+        console.log(`✅ [Step 3] Đã tối ưu và gửi ${successfulOperations.length}/4 Veo3 requests`);
+        console.log(`🚀 [Step 3] Tất cả Veo3 đang chạy ngầm với prompt đã tối ưu...`);
         
         // Step 4: Chạy ngầm - kiểm tra và tải video khi sẵn sàng
         console.log(`🔄 [Step 4] Chạy ngầm - kiểm tra và tải video khi sẵn sàng...`);
@@ -272,13 +483,18 @@ YÊU CẦU:
                         const downloadResult = await downloadResponse.json();
                         
                         if (downloadResult.success) {
+                            // API trả về savedTo, không phải outPath
+                            const videoPath = downloadResult.savedTo || downloadResult.outPath || downloadResult.path;
                             console.log(`✅ [Step 4] Segment ${veo3Result.segmentIndex + 1} đã tải về`);
-                            console.log(`✅ [Step 4] Video path: ${downloadResult.outPath}`);
+                            console.log(`✅ [Step 4] Video path: ${videoPath}`);
+                            console.log(`✅ [Step 4] Public path: ${downloadResult.publicPath}`);
                             return {
                                 segmentIndex: veo3Result.segmentIndex,
                                 timeRange: veo3Result.timeRange,
                                 focus: veo3Result.focus,
-                                path: downloadResult.outPath,
+                                path: videoPath,
+                                publicPath: downloadResult.publicPath,
+                                filename: downloadResult.filename,
                                 operationId: operationId,
                                 success: true
                             };
