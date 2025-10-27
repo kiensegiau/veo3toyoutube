@@ -115,65 +115,105 @@ async function createMH370Video32s() {
                 messages: [
                     { 
                         role: "system", 
-                        content: `Bạn là chuyên gia tạo prompt video cho Veo3 với khả năng tạo hình ảnh đồng nhất và liền mạch.
+                        content: `Bạn là chuyên gia tạo prompt video cho Veo3 với khả năng visual hóa nội dung transcript CHÍNH XÁC.
 
-⚠️ QUAN TRỌNG: Veo3 KHÔNG hỗ trợ text/chữ trong video. TUYỆT ĐỐI KHÔNG tạo prompt có chữ, caption, subtitle.
+⚠️ QUAN TRỌNG TUYỆT ĐỐI:
+1. 🎯 CHỈ tạo visual DỰA TRÊN nội dung CÓ TRONG transcript - KHÔNG sáng tạo thêm
+2. 📖 ĐỌC KỸ transcript, hiểu đúng nội dung, rồi mới visual hóa
+3. ✅ Mỗi segment PHẢI khớp với 1 phần CỤ THỂ trong transcript
+4. ❌ KHÔNG tạo cảnh không liên quan đến transcript
+5. ❌ KHÔNG có text/chữ/caption trong video (Veo3 không hỗ trợ)
 
-Nhiệm vụ: Dựa trên transcript, tạo ${NUM_SEGMENTS} prompts cho ${NUM_SEGMENTS} segments ${SEGMENT_DURATION}s (tổng ${VIDEO_DURATION}s) với:
-1. HÌNH ẢNH ĐỒNG NHẤT về nội dung transcript - CHỈ VISUAL, KHÔNG CHỮ
-2. MÀU SẮC NHẤT QUÁN (chọn bảng màu phù hợp với chủ đề)
-3. PHONG CÁCH phù hợp với nội dung (documentary, cinematic, artistic, etc)
-4. CHUYỂN TIẾP MƯỢT MÀ giữa các segments
-5. CHI TIẾT CỤ THỂ cho từng segment - KHÔNG TEXT OVERLAY
-6. CÂU CHUYỆN LIỀN MẠCH qua ${NUM_SEGMENTS} segments
+Nhiệm vụ: Phân tích transcript thành ${NUM_SEGMENTS} segments (${SEGMENT_DURATION}s/segment, tổng ${VIDEO_DURATION}s):
+1. ĐÚNG NỘI DUNG: Mỗi prompt phải visual hóa ĐÚNG 1 phần cụ thể trong transcript
+2. MÀU SẮC ĐỒNG NHẤT: Chọn bảng màu phù hợp với chủ đề thực tế của transcript
+3. PHONG CÁCH PHÙ HỢP: Documentary/cinematic/artistic tùy nội dung transcript
+4. LIÊN KẾT MƯỢT: Các segments chuyển tiếp tự nhiên theo dòng chảy transcript
+5. CHI TIẾT CỤ THỂ: Visual cụ thể từ transcript - KHÔNG sáng tạo
+6. CÂU CHUYỆN ĐÚNG: Theo đúng logic và thứ tự của transcript
 
-Trả về JSON format với ${NUM_SEGMENTS} segments:
+Trả về JSON format với ${NUM_SEGMENTS} segments LIÊN TỤC:
 {
-    "overallTheme": "Chủ đề tổng thể",
-    "colorScheme": "Bảng màu chính",
-    "visualStyle": "Phong cách visual",
+    "overallTheme": "Chủ đề CHÍNH duy nhất xuyên suốt video (dựa trên transcript)",
+    "colorScheme": "Bảng màu NHẤT QUÁN cho toàn bộ video",
+    "visualStyle": "Phong cách ĐỒNG NHẤT (documentary/cinematic/artistic)",
     "segments": [
         {
             "timeRange": "0-${SEGMENT_DURATION}s",
-            "focus": "Nội dung chính của segment",
-            "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
+            "focus": "Phần đầu của chủ đề (từ transcript)",
+            "prompt": "Visual mở đầu - đúng nội dung transcript, CÓ LIÊN KẾT với segment sau"
         },
         {
             "timeRange": "${SEGMENT_DURATION}-${SEGMENT_DURATION * 2}s", 
-            "focus": "Nội dung chính của segment",
-            "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
+            "focus": "Tiếp tục chủ đề (từ transcript)",
+            "prompt": "Visual tiếp nối segment trước - cùng BỐI CẢNH, LIÊN KẾT với segment trước/sau"
         },
-        ... (tổng ${NUM_SEGMENTS} segments, mỗi segment ${SEGMENT_DURATION}s)
+        ... (tổng ${NUM_SEGMENTS} segments - TẤT CẢ PHẢI CÙNG CHỦ ĐỀ/BỐI CẢNH)
         {
             "timeRange": "${VIDEO_DURATION - SEGMENT_DURATION}-${VIDEO_DURATION}s",
-            "focus": "Kết thúc video",
-            "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
+            "focus": "Kết thúc chủ đề (từ transcript)",
+            "prompt": "Visual kết thúc - LIÊN KẾT với segment trước, đúng nội dung transcript"
         }
     ]
-}` 
+}
+
+⚠️ LƯU Ý: Tất cả segments PHẢI cùng overallTheme và visualStyle, KHÔNG nhảy sang chủ đề khác!` 
                     },
                     { 
                         role: "user", 
-                        content: `Dựa trên transcript này, tạo ${NUM_SEGMENTS} prompts đồng nhất cho video ${VIDEO_DURATION}s:
+                        content: `🎯 ĐỌC KỸ transcript và tạo ${NUM_SEGMENTS} prompts ĐÚNG NỘI DUNG cho video ${VIDEO_DURATION}s:
 
-TRANSCRIPT:
+📄 TRANSCRIPT:
 ${transcriptText}
 
-YÊU CẦU:
-- Mỗi segment 8s phải có hình ảnh cụ thể liên quan đến nội dung transcript
-- Đồng nhất về màu sắc và phong cách
-- Chuyển tiếp mượt mà giữa các segments
-- Chi tiết cụ thể: scenes, objects, actions dựa trên nội dung
+🔍 BƯỚC 1 - ĐỌC VÀ PHÂN TÍCH:
+- Đọc KỸ TOÀN BỘ transcript từ đầu đến cuối
+- Xác định CHỦ ĐỀ CHÍNH, BỐI CẢNH, và LUỒNG CÂU CHUYỆN
+- Nắm rõ các sự kiện, khái niệm, hành động được đề cập
+- Xác định MÔI TRƯỜNG/BỐI CẢNH chung xuyên suốt video
 
-⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC:
-❌ KHÔNG tạo prompt có bất kỳ text/chữ nào xuất hiện trong video
-❌ KHÔNG có text overlay, caption, subtitle, title
-❌ KHÔNG có hiệu ứng đồ họa có chữ
-✅ CHỈ có hình ảnh thuần túy: objects, scenes, actions, movements` 
+🎬 BƯỚC 2 - TẠO ${NUM_SEGMENTS} PROMPTS LIÊN TỤC:
+1. CHỦ ĐỀ & BỐI CẢNH XUYÊN SUỐT:
+   - Tất cả ${NUM_SEGMENTS} segments PHẢI cùng 1 chủ đề/bối cảnh chính
+   - KHÔNG nhảy sang chủ đề/bối cảnh khác không liên quan
+   - Visual phải CÓ SỰ LIÊN KẾT giữa các segments
+   
+2. ĐÚNG NỘI DUNG TRANSCRIPT:
+   - Mỗi segment = visual hóa 1 phần CỤ THỂ trong transcript
+   - Theo đúng THỨ TỰ và LOGIC của transcript
+   - KHÔNG sáng tạo thêm cảnh không được nhắc đến
+
+📋 VÍ DỤ VỀ TÍNH LIÊN TỤC:
+✅ ĐÚNG - Video xuyên suốt về "du lịch biển":
+   Seg 1: Bãi biển buổi sáng → Seg 2: Lặn biển → Seg 3: Ngắm san hô → Seg 4: Hoàng hôn biển
+   → Tất cả cùng BỐI CẢNH BIỂN, liên kết mượt mà
+
+❌ SAI - Nhảy cóc không liên quan:
+   Seg 1: Bãi biển → Seg 2: Núi tuyết → Seg 3: Thành phố → Seg 4: Sa mạc
+   → Nhảy lung tung, không có sự liên kết
+
+📋 VÍ DỤ ĐÚNG SAI VỚI TRANSCRIPT:
+✅ ĐÚNG: Transcript nói "máy bay cất cánh" → Prompt: "Máy bay Boeing cất cánh từ sân bay"
+✅ ĐÚNG: Transcript nói "radar mất tín hiệu" → Prompt: "Màn hình radar với tín hiệu biến mất"
+❌ SAI: Transcript về "nấu ăn" nhưng segment 5 lại viết về "đá bóng" (không liên quan)
+❌ SAI: Tự thêm cảnh không có trong transcript
+
+⚠️ YÊU CẦU VISUAL:
+❌ KHÔNG có text/chữ/caption/subtitle/title trong video
+❌ KHÔNG có graphic text/watermark/logo
+✅ CHỈ visual thuần: objects, scenes, actions, movements, atmosphere
+
+🎯 KIỂM TRA CUỐI CÙNG TRƯỚC KHI TRẢ VỀ:
+1. Tất cả ${NUM_SEGMENTS} segments có cùng CHỦ ĐỀ/BỐI CẢNH chính không?
+2. Có segment nào nhảy sang chủ đề khác không liên quan không?
+3. Visual có thể chuyển tiếp mượt mà từ segment này sang segment khác không?
+4. Tất cả đều dựa trên NỘI DUNG CÓ TRONG transcript chứ?
+
+💡 MỤC TIÊU: ${NUM_SEGMENTS} segments ghép lại phải như 1 video LIỀN MẠCH, XUYÊN SUỐT 1 CHỦ ĐỀ!` 
                     }
                 ],
                 max_tokens: Math.min(16000, NUM_SEGMENTS * 250), // Động dựa trên số segments
-                temperature: 0.7
+                temperature: 0.3 // Thấp để chính xác, ít sáng tạo, tập trung vào transcript
             })
         });
         
@@ -240,11 +280,17 @@ YÊU CẦU:
 
 Nhiệm vụ: Tối ưu hóa prompt thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà.
 
-⚠️ QUAN TRỌNG - TUYỆT ĐỐI KHÔNG ĐƯỢC:
+🎯 QUY TẮC VÀNG:
+1. CHỈ tối ưu visual của prompt GỐC - KHÔNG đổi nội dung chính
+2. KHÔNG thêm cảnh/yếu tố mới không có trong prompt gốc
+3. CHỈ thêm chi tiết về: camera, transition, visual details, sound
+4. GIỮ NGUYÊN ý nghĩa và nội dung của prompt gốc
+
+⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC:
 ❌ KHÔNG có text/chữ/subtitle xuất hiện trong video
-❌ KHÔNG có dòng chữ "MH370", "Mất tích", "Tìm kiếm", etc.
+❌ KHÔNG có dòng chữ bất kỳ
 ❌ KHÔNG có caption, title, watermark
-❌ KHÔNG có biểu tượng chữ viết nào
+❌ KHÔNG có biểu tượng chữ viết
 ✅ CHỈ có hình ảnh thuần, không text overlay
 
 Trả về ĐÚNG format JSON array này (4 phần tử cho 8 giây):
@@ -289,19 +335,23 @@ ${nextSegment ? `- SEGMENT SAU (${nextSegment.timeRange}): ${nextSegment.focus}
   → Scene cuối cùng (6-8s) cần transition chuẩn bị cho segment sau
   → Prompt gốc segment sau: ${nextSegment.prompt}` : '- ĐÂY LÀ SEGMENT CUỐI CÙNG\n  → Scene cuối (6-8s) dùng "fade out" hoặc "slow zoom out" để kết thúc'}
 
-YÊU CẦU CHI TIẾT:
-- Chia thành 4 scenes: 0-2s, 2-4s, 4-6s, 6-8s
-- action: hành động cụ thể dựa trên nội dung - KHÔNG TEXT/CHỮ
-- cameraStyle: camera movement rõ ràng (zoom in/out, pan left/right/up/down, tilt, steady, tracking shot)
-- transition: chuyển cảnh phù hợp (fade, dissolve, cut, smooth pan, cross dissolve, match cut)
-- soundFocus: âm thanh phù hợp với nội dung (ambient, dramatic music, nature sounds, effects)
-- visualDetails: màu ${analysis.colorScheme}, phong cách ${analysis.visualStyle}, lighting, texture, atmosphere
+🎯 YÊU CẦU TUYỆT ĐỐI:
+1. GIỮ NGUYÊN NỘI DUNG của ORIGINAL PROMPT: "${segment.prompt}"
+   - KHÔNG thêm yếu tố mới không có trong prompt gốc
+   - KHÔNG đổi ý nghĩa chính của prompt gốc
+   - CHỈ chia nhỏ thành 4 scenes (0-2s, 2-4s, 4-6s, 6-8s) và thêm chi tiết kỹ thuật
 
-⚠️ TUYỆT ĐỐI:
-- KHÔNG có text overlay, subtitle, caption bất kỳ
-- KHÔNG có chữ viết xuất hiện trong video
-- CHỈ có hình ảnh thuần túy: objects, scenes, actions, movements
-- Veo3 không hỗ trợ render chữ, nên TRÁNH HOÀN TOÀN
+2. CHI TIẾT CẦN THÊM (không đổi nội dung):
+   - action: Mô tả visual ĐÚNG với prompt gốc - KHÔNG TEXT/CHỮ
+   - cameraStyle: camera movement (zoom in/out, pan left/right/up/down, tilt, steady, tracking shot)
+   - transition: chuyển cảnh (fade, dissolve, cut, smooth pan, cross dissolve, match cut)
+   - soundFocus: âm thanh phù hợp (ambient, dramatic music, nature sounds, effects)
+   - visualDetails: màu ${analysis.colorScheme}, phong cách ${analysis.visualStyle}, lighting, texture, atmosphere
+
+⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC:
+- KHÔNG thêm cảnh/đối tượng/hành động mới không có trong ORIGINAL PROMPT
+- KHÔNG có text overlay, subtitle, caption, chữ viết bất kỳ
+- CHỈ visual thuần: objects, scenes, actions, movements từ ORIGINAL PROMPT
 
 QUAN TRỌNG VỀ TRANSITION GIỮA SEGMENTS:
 - Scene 1 (0-2s): PHẢI transition mượt mà TỪ ${prevSegment ? `"${prevSegment.focus}" của segment trước` : 'màn hình đen với fade in'}
@@ -327,7 +377,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                             }
                         ],
                         max_tokens: 1500,
-                        temperature: 0.7
+                        temperature: 0.3 // Thấp để giữ đúng nội dung, không sáng tạo thêm
                     })
                 });
                 
