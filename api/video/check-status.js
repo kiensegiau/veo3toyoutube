@@ -203,16 +203,30 @@ async function checkStatus(req, res, storageData) {
         let downloadInfo = null;
         let finalStatus = 'PENDING';
 
-        // Kiểm tra lỗi cụ thể và bỏ qua nếu là lỗi không thể xử lý
+        // Kiểm tra lỗi cụ thể và xóa khỏi storage nếu là lỗi không thể khắc phục
         if (targetOperation.operation && targetOperation.operation.error) {
             const errorCode = targetOperation.operation.error.code;
             const errorMessage = targetOperation.operation.error.message;
             
-            // Bỏ qua các lỗi không thể xử lý được
-            if (errorMessage === 'PUBLIC_ERROR_UNSAFE_GENERATION' || 
-                errorCode === 3 || 
-                errorMessage.includes('UNSAFE_GENERATION')) {
-                console.log(`⚠️ Bỏ qua video ${operationName} - Lỗi không thể xử lý: ${errorMessage}`);
+            // Danh sách các lỗi cần xóa khỏi storage (không thể retry)
+            const unrecoverableErrors = [
+                'PUBLIC_ERROR_UNSAFE_GENERATION',  // code 3
+                'PUBLIC_ERROR_HIGH_TRAFFIC',       // code 13
+                'PUBLIC_ERROR_QUOTA_EXCEEDED',
+                'PUBLIC_ERROR_INVALID_REQUEST',
+                'UNSAFE_GENERATION',
+                'QUOTA_EXCEEDED',
+                'INVALID_REQUEST'
+            ];
+            
+            const shouldRemove = 
+                unrecoverableErrors.some(err => errorMessage?.includes(err)) ||
+                errorCode === 3 ||  // UNSAFE_GENERATION
+                errorCode === 13 || // HIGH_TRAFFIC
+                errorCode === 8;    // QUOTA_EXCEEDED
+            
+            if (shouldRemove) {
+                console.log(`⚠️ Xóa operation ${operationName} - Lỗi không thể khắc phục: ${errorMessage} (code: ${errorCode})`);
                 
                 // Xóa operation khỏi storage
                 try {
@@ -226,13 +240,14 @@ async function checkStatus(req, res, storageData) {
                     success: true,
                     data: data,
                     status: 200,
-                    videoStatus: 'SKIPPED',
+                    videoStatus: 'FAILED',
                     videoUrl: null,
-                    errorMessage: `Video bị bỏ qua do lỗi: ${errorMessage}`,
+                    errorMessage: `Video thất bại do lỗi: ${errorMessage} (code: ${errorCode})`,
+                    errorCode: errorCode,
                     downloadInfo: null,
                     operationName: operationName,
                     prompt: storageData.requestHistory?.find(req => req.operationName === operationName)?.prompt || 'Unknown',
-                    skipReason: 'UNSAFE_GENERATION',
+                    skipReason: errorMessage,
                     removedFromStorage: true
                 });
             }
@@ -257,6 +272,14 @@ async function checkStatus(req, res, storageData) {
                     console.log(`📥 Đang tải video: ${videoUrl}`);
                     downloadInfo = await downloadVideo(videoUrl, operationName);
                     console.log(`✅ Video đã được tải về: ${downloadInfo.fileName}`);
+                    
+                    // Xóa operation đã hoàn thành khỏi storage (tránh check lại)
+                    try {
+                        removeOperation(storageData, operationName);
+                        console.log(`🗑️ Đã xóa operation ${operationName} khỏi storage (đã hoàn thành)`);
+                    } catch (removeError) {
+                        console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
+                    }
                 } catch (downloadError) {
                     console.error('❌ Lỗi tải video:', downloadError);
                     downloadInfo = { success: false, error: downloadError.message };
@@ -264,9 +287,26 @@ async function checkStatus(req, res, storageData) {
             } else {
                 console.log(`❌ Video URL not found for operation ${operationName}`);
                 finalStatus = 'FAILED';
+                
+                // Xóa operation không có URL khỏi storage
+                try {
+                    removeOperation(storageData, operationName);
+                    console.log(`🗑️ Đã xóa operation ${operationName} khỏi storage (không có URL)`);
+                } catch (removeError) {
+                    console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
+                }
             }
         } else if (status === 'MEDIA_GENERATION_STATUS_FAILED') {
             finalStatus = 'FAILED';
+            
+            // Xóa operation thất bại khỏi storage
+            console.log(`⚠️ Operation ${operationName} thất bại - Xóa khỏi storage`);
+            try {
+                removeOperation(storageData, operationName);
+                console.log(`🗑️ Đã xóa operation ${operationName} khỏi storage`);
+            } catch (removeError) {
+                console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
+            }
         } else if (status === 'MEDIA_GENERATION_STATUS_ACTIVE') {
             console.log(`⏳ Video still processing for operation ${operationName}: ${status}`);
             finalStatus = 'PENDING';

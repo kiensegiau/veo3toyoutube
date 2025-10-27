@@ -105,12 +105,14 @@ async function createMH370Video32s() {
                         role: "system", 
                         content: `Bạn là chuyên gia tạo prompt video cho Veo3 với khả năng tạo hình ảnh đồng nhất và liền mạch.
 
-Nhiệm vụ: Dựa trên transcript về MH370, tạo 4 prompts cho 4 segments 8s (tổng 32s) với:
-1. HÌNH ẢNH ĐỒNG NHẤT về chủ đề MH370
-2. MÀU SẮC NHẤT QUÁN (xanh dương đậm, đen, trắng)
-3. PHONG CÁCH TÀI LIỆU ĐIỀU TRA
+⚠️ QUAN TRỌNG: Veo3 KHÔNG hỗ trợ text/chữ trong video. TUYỆT ĐỐI KHÔNG tạo prompt có chữ, caption, subtitle.
+
+Nhiệm vụ: Dựa trên transcript, tạo 4 prompts cho 4 segments 8s (tổng 32s) với:
+1. HÌNH ẢNH ĐỒNG NHẤT về nội dung transcript - CHỈ VISUAL, KHÔNG CHỮ
+2. MÀU SẮC NHẤT QUÁN (chọn bảng màu phù hợp với chủ đề)
+3. PHONG CÁCH phù hợp với nội dung (documentary, cinematic, artistic, etc)
 4. CHUYỂN TIẾP MƯỢT MÀ giữa các segments
-5. CHI TIẾT CỤ THỂ cho từng segment
+5. CHI TIẾT CỤ THỂ cho từng segment - KHÔNG TEXT OVERLAY
 
 Trả về JSON format:
 {
@@ -143,16 +145,22 @@ Trả về JSON format:
                     },
                     { 
                         role: "user", 
-                        content: `Dựa trên transcript về MH370 này, tạo 4 prompts đồng nhất cho video 32s:
+                        content: `Dựa trên transcript này, tạo 4 prompts đồng nhất cho video 32s:
 
 TRANSCRIPT:
 ${transcriptText}
 
 YÊU CẦU:
-- Mỗi segment 8s phải có hình ảnh cụ thể về MH370
+- Mỗi segment 8s phải có hình ảnh cụ thể liên quan đến nội dung transcript
 - Đồng nhất về màu sắc và phong cách
 - Chuyển tiếp mượt mà giữa các segments
-- Chi tiết cụ thể: máy bay, biển, vệ tinh, đồ họa điều tra` 
+- Chi tiết cụ thể: scenes, objects, actions dựa trên nội dung
+
+⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC:
+❌ KHÔNG tạo prompt có bất kỳ text/chữ nào xuất hiện trong video
+❌ KHÔNG có text overlay, caption, subtitle, title
+❌ KHÔNG có hiệu ứng đồ họa có chữ
+✅ CHỈ có hình ảnh thuần túy: objects, scenes, actions, movements` 
                     }
                 ],
                 max_tokens: 2000,
@@ -184,36 +192,8 @@ YÊU CẦU:
                 throw new Error('No JSON found in response');
             }
         } catch (parseError) {
-            console.warn(`⚠️ [Step 2] Không thể parse JSON, tạo mock analysis`);
-            
-            // Mock analysis fallback
-            analysis = {
-                overallTheme: "MH370 Investigation Documentary",
-                colorScheme: "Deep blue, black, white",
-                visualStyle: "Documentary investigation style",
-                segments: [
-                    {
-                        timeRange: "0-8s",
-                        focus: "MH370 disappearance overview",
-                        prompt: "Create a documentary-style video showing Malaysia Airlines Boeing 777-200ER flying over dark ocean waters at night. Deep blue and black color scheme with white text overlays showing flight path. Professional investigation graphics with satellite imagery background."
-                    },
-                    {
-                        timeRange: "8-16s",
-                        focus: "Search efforts and satellite data",
-                        prompt: "Show detailed satellite imagery and search operations in the Indian Ocean. Deep blue ocean waters with search vessels and aircraft. Investigation graphics showing radar data and flight path analysis. Professional documentary style with blue and white color scheme."
-                    },
-                    {
-                        timeRange: "16-24s",
-                        focus: "Ocean Infinity search operations",
-                        prompt: "Display Ocean Infinity's advanced search technology and underwater vehicles searching the ocean floor. Deep blue underwater scenes with high-tech equipment. Professional investigation graphics showing search patterns and sonar data."
-                    },
-                    {
-                        timeRange: "24-32s",
-                        focus: "Current investigation status",
-                        prompt: "Show current investigation status with updated search data and ongoing efforts. Deep blue ocean with investigation graphics and timeline. Professional documentary conclusion with blue and white color scheme, showing continued search efforts."
-                    }
-                ]
-            };
+            console.error(`❌ [Step 2] Không thể parse JSON từ ChatGPT:`, parseError.message);
+            throw new Error('ChatGPT không trả về JSON hợp lệ. Vui lòng thử lại.');
         }
         
         // Lấy cookie trước khi tạo videos (chỉ lấy 1 lần cho tất cả)
@@ -251,16 +231,23 @@ YÊU CẦU:
 
 Nhiệm vụ: Tối ưu hóa prompt thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà.
 
+⚠️ QUAN TRỌNG - TUYỆT ĐỐI KHÔNG ĐƯỢC:
+❌ KHÔNG có text/chữ/subtitle xuất hiện trong video
+❌ KHÔNG có dòng chữ "MH370", "Mất tích", "Tìm kiếm", etc.
+❌ KHÔNG có caption, title, watermark
+❌ KHÔNG có biểu tượng chữ viết nào
+✅ CHỈ có hình ảnh thuần, không text overlay
+
 Trả về ĐÚNG format JSON array này (4 phần tử cho 8 giây):
 [
   {
     "timeStart": 0,
     "timeEnd": 2,
-    "action": "Mô tả hành động cụ thể",
+    "action": "Mô tả hành động KHÔNG CÓ CHỮ, chỉ visual thuần",
     "cameraStyle": "Phong cách camera (zoom in, pan left, tilt up, steady shot, etc)",
     "transition": "Chuyển cảnh từ scene trước (fade in, dissolve, cut, pan transition, zoom transition, etc)",
     "soundFocus": "Âm thanh tập trung",
-    "visualDetails": "Chi tiết visual (màu sắc, ánh sáng, texture, shadows, etc)"
+    "visualDetails": "Chi tiết visual (màu sắc, ánh sáng, texture, shadows, etc) - KHÔNG CHỮ"
   },
   ...
 ]
@@ -295,11 +282,17 @@ ${nextSegment ? `- SEGMENT SAU (${nextSegment.timeRange}): ${nextSegment.focus}
 
 YÊU CẦU CHI TIẾT:
 - Chia thành 4 scenes: 0-2s, 2-4s, 4-6s, 6-8s
-- action: hành động cụ thể về MH370 (máy bay, bản đồ, radar, vệ tinh, tìm kiếm, điều tra)
+- action: hành động cụ thể dựa trên nội dung - KHÔNG TEXT/CHỮ
 - cameraStyle: camera movement rõ ràng (zoom in/out, pan left/right/up/down, tilt, steady, tracking shot)
 - transition: chuyển cảnh phù hợp (fade, dissolve, cut, smooth pan, cross dissolve, match cut)
-- soundFocus: âm thanh tài liệu điều tra (ambient, narration background, dramatic music, ocean sounds, radar beeps)
+- soundFocus: âm thanh phù hợp với nội dung (ambient, dramatic music, nature sounds, effects)
 - visualDetails: màu ${analysis.colorScheme}, phong cách ${analysis.visualStyle}, lighting, texture, atmosphere
+
+⚠️ TUYỆT ĐỐI:
+- KHÔNG có text overlay, subtitle, caption bất kỳ
+- KHÔNG có chữ viết xuất hiện trong video
+- CHỈ có hình ảnh thuần túy: objects, scenes, actions, movements
+- Veo3 không hỗ trợ render chữ, nên TRÁNH HOÀN TOÀN
 
 QUAN TRỌNG VỀ TRANSITION:
 - Scene 1 (0-2s): transition TỪ ${prevSegment ? 'segment trước' : 'màn hình đen'}
