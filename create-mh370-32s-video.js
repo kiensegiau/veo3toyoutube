@@ -9,6 +9,14 @@ const execAsync = promisify(exec);
 // ChatGPT API configuration
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
 
+// ========================================
+// CẤU HÌNH VIDEO - CHỈ SỬA Ở ĐÂY
+// ========================================
+const VIDEO_DURATION = 120; // Tổng thời lượng video (giây) - SỬA ĐÂY: 32, 60, 120, 300, etc
+const SEGMENT_DURATION = 8; // Mỗi segment (giây) - Veo3 tốt nhất với 8s
+const NUM_SEGMENTS = Math.floor(VIDEO_DURATION / SEGMENT_DURATION); // Tự động tính
+// ========================================
+
 // Cache cookie để tránh lấy liên tục
 let cachedCookie = null;
 let cookieCacheTime = 0;
@@ -50,15 +58,19 @@ async function getCachedOrFreshCookie(serverUrl) {
 }
 
 /**
- * Tạo video 32s với transcript MH370 và hình ảnh đồng nhất
+ * Tạo video với transcript và hình ảnh đồng nhất
  */
 async function createMH370Video32s() {
     try {
-        console.log('🚀 [MH370] Tạo video 32s với transcript MH370...');
+        const videoMinutes = Math.floor(VIDEO_DURATION / 60);
+        const videoSeconds = VIDEO_DURATION % 60;
+        const durationText = videoMinutes > 0 ? `${videoMinutes}:${videoSeconds.toString().padStart(2, '0')}` : `${videoSeconds}s`;
+        
+        console.log(`🚀 Tạo video ${durationText} (${VIDEO_DURATION}s) từ YouTube với ${NUM_SEGMENTS} segments...`);
         
         const serverUrl = 'http://localhost:8888';
         const youtubeUrl = 'https://youtu.be/52ru0qDc0LQ?si=zahSVRyDiQy7Jd6H';
-        const outputDir = './temp/mh370-32s-video';
+        const outputDir = `./temp/youtube-${VIDEO_DURATION}s-video`;
         
         // Tạo thư mục output
         if (!fs.existsSync(outputDir)) {
@@ -66,7 +78,7 @@ async function createMH370Video32s() {
         }
         
         // Step 1: Lấy transcript từ YouTube
-        console.log('📝 [Step 1] Lấy transcript từ YouTube MH370...');
+        console.log('📝 [Step 1] Lấy transcript từ YouTube...');
         const transcriptResponse = await fetch(`${serverUrl}/api/get-transcript`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -89,8 +101,8 @@ async function createMH370Video32s() {
         
         console.log(`📝 [Step 1] Transcript: ${transcriptText.substring(0, 300)}...`);
         
-        // Step 2: ChatGPT phân tích và tạo prompt đồng nhất cho 4 segments
-        console.log('🤖 [Step 2] ChatGPT tạo prompt đồng nhất cho 4 segments...');
+        // Step 2: ChatGPT phân tích và tạo prompt đồng nhất
+        console.log(`🤖 [Step 2] ChatGPT tạo prompt đồng nhất cho ${NUM_SEGMENTS} segments (${VIDEO_DURATION}s)...`);
         
         const chatGPTResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -107,37 +119,34 @@ async function createMH370Video32s() {
 
 ⚠️ QUAN TRỌNG: Veo3 KHÔNG hỗ trợ text/chữ trong video. TUYỆT ĐỐI KHÔNG tạo prompt có chữ, caption, subtitle.
 
-Nhiệm vụ: Dựa trên transcript, tạo 4 prompts cho 4 segments 8s (tổng 32s) với:
+Nhiệm vụ: Dựa trên transcript, tạo ${NUM_SEGMENTS} prompts cho ${NUM_SEGMENTS} segments ${SEGMENT_DURATION}s (tổng ${VIDEO_DURATION}s) với:
 1. HÌNH ẢNH ĐỒNG NHẤT về nội dung transcript - CHỈ VISUAL, KHÔNG CHỮ
 2. MÀU SẮC NHẤT QUÁN (chọn bảng màu phù hợp với chủ đề)
 3. PHONG CÁCH phù hợp với nội dung (documentary, cinematic, artistic, etc)
 4. CHUYỂN TIẾP MƯỢT MÀ giữa các segments
 5. CHI TIẾT CỤ THỂ cho từng segment - KHÔNG TEXT OVERLAY
+6. CÂU CHUYỆN LIỀN MẠCH qua ${NUM_SEGMENTS} segments
 
-Trả về JSON format:
+Trả về JSON format với ${NUM_SEGMENTS} segments:
 {
     "overallTheme": "Chủ đề tổng thể",
     "colorScheme": "Bảng màu chính",
     "visualStyle": "Phong cách visual",
     "segments": [
         {
-            "timeRange": "0-8s",
+            "timeRange": "0-${SEGMENT_DURATION}s",
             "focus": "Nội dung chính của segment",
             "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
         },
         {
-            "timeRange": "8-16s", 
+            "timeRange": "${SEGMENT_DURATION}-${SEGMENT_DURATION * 2}s", 
             "focus": "Nội dung chính của segment",
             "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
         },
+        ... (tổng ${NUM_SEGMENTS} segments, mỗi segment ${SEGMENT_DURATION}s)
         {
-            "timeRange": "16-24s",
-            "focus": "Nội dung chính của segment", 
-            "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
-        },
-        {
-            "timeRange": "24-32s",
-            "focus": "Nội dung chính của segment",
+            "timeRange": "${VIDEO_DURATION - SEGMENT_DURATION}-${VIDEO_DURATION}s",
+            "focus": "Kết thúc video",
             "prompt": "Prompt chi tiết cho Veo3 với hình ảnh cụ thể"
         }
     ]
@@ -145,7 +154,7 @@ Trả về JSON format:
                     },
                     { 
                         role: "user", 
-                        content: `Dựa trên transcript này, tạo 4 prompts đồng nhất cho video 32s:
+                        content: `Dựa trên transcript này, tạo ${NUM_SEGMENTS} prompts đồng nhất cho video ${VIDEO_DURATION}s:
 
 TRANSCRIPT:
 ${transcriptText}
@@ -163,7 +172,7 @@ YÊU CẦU:
 ✅ CHỈ có hình ảnh thuần túy: objects, scenes, actions, movements` 
                     }
                 ],
-                max_tokens: 2000,
+                max_tokens: Math.min(16000, NUM_SEGMENTS * 250), // Động dựa trên số segments
                 temperature: 0.7
             })
         });
@@ -299,10 +308,10 @@ QUAN TRỌNG VỀ TRANSITION GIỮA SEGMENTS:
   ${prevSegment ? `→ Visual phải liên kết với scene cuối segment trước, dùng cross dissolve, match cut hoặc smooth pan` : '→ Fade in từ đen, hoặc slow zoom in'}
 - Scenes 2-3 (2-6s): transition mượt giữa các scenes TRONG segment này
   → Dùng dissolve, smooth camera movement để kết nối
-- Scene 4 (6-8s): PHẢI chuẩn bị transition SANG ${nextSegment ? `"${nextSegment.focus}" của segment sau` : 'kết thúc với fade out'}
+- Scene 4 (6-${SEGMENT_DURATION}s): PHẢI chuẩn bị transition SANG ${nextSegment ? `"${nextSegment.focus}" của segment sau` : 'kết thúc với fade out'}
   ${nextSegment ? `→ Visual và camera phải setup cho scene đầu segment sau, tạo continuity` : '→ Fade out hoặc slow zoom out để kết thúc'}
 
-🎬 MỤC TIÊU: 4 segments ghép lại phải liền mạch như 1 video duy nhất!
+🎬 MỤC TIÊU: ${NUM_SEGMENTS} segments ghép lại phải liền mạch như 1 video duy nhất!
 
 📋 VÍ DỤ TRANSITION TỐT (dựa theo nội dung):
 - Segment kết thúc với "object xa dần" 
@@ -449,7 +458,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
         const veo3Results = await Promise.all(veo3Promises);
         const successfulOperations = veo3Results.filter(r => r.success);
         
-        console.log(`✅ [Step 3] Đã tối ưu và gửi ${successfulOperations.length}/4 Veo3 requests`);
+        console.log(`✅ [Step 3] Đã tối ưu và gửi ${successfulOperations.length}/${analysis.segments.length} Veo3 requests`);
         console.log(`🚀 [Step 3] Tất cả Veo3 đang chạy ngầm với prompt đã tối ưu...`);
         
         // Step 4: Chạy ngầm - kiểm tra và tải video khi sẵn sàng
@@ -484,7 +493,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 audioUrl: statusResult.videoUrl,
-                                filename: `mh370_segment_${veo3Result.segmentIndex}_${Date.now()}.mp4`
+                                filename: `video_segment_${veo3Result.segmentIndex}_${Date.now()}.mp4`
                             })
                         });
                         
@@ -571,7 +580,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
             console.log(`📝 [Step 5] Có ${validVideoFiles.length} file video hợp lệ để ghép`);
             
             // Tạo file list cho ffmpeg
-            const listPath = path.join(outputDir, 'mh370_video_list.txt');
+            const listPath = path.join(outputDir, 'video_list.txt');
             const listContent = validVideoFiles.map(video => {
                 const absolutePath = path.resolve(video.path);
                 const normalizedPath = absolutePath.replace(/\\/g, '/');
@@ -582,7 +591,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
             fs.writeFileSync(listPath, listContent, 'utf8');
             
             // Ghép video
-            const finalVideoPath = path.join(outputDir, `mh370_32s_final_${Date.now()}.mp4`);
+            const finalVideoPath = path.join(outputDir, `video_${VIDEO_DURATION}s_final_${Date.now()}.mp4`);
             const mergeCmd = `ffmpeg -f concat -safe 0 -i "${listPath}" -c copy "${finalVideoPath}"`;
             
             await execAsync(mergeCmd);
@@ -607,15 +616,15 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                 outputDir: outputDir
             };
             
-            const resultPath = path.join(outputDir, 'mh370-32s-result.json');
+            const resultPath = path.join(outputDir, `video-${VIDEO_DURATION}s-result.json`);
             fs.writeFileSync(resultPath, JSON.stringify(finalResult, null, 2));
             
             console.log(`📊 [Step 5] Đã lưu kết quả vào: ${resultPath}`);
             
-            console.log('🎉 [MH370] Hoàn thành tạo video 32s với transcript MH370!');
-            console.log(`🎉 [MH370] Video kết quả: ${finalVideoPath}`);
-            console.log(`🎉 [MH370] Chủ đề: ${analysis.overallTheme}`);
-            console.log(`🎉 [MH370] Màu sắc: ${analysis.colorScheme}`);
+            console.log(`🎉 Hoàn thành tạo video ${VIDEO_DURATION}s!`);
+            console.log(`🎉 Video kết quả: ${finalVideoPath}`);
+            console.log(`🎉 Chủ đề: ${analysis.overallTheme}`);
+            console.log(`🎉 Màu sắc: ${analysis.colorScheme}`);
             
             return {
                 success: true,
@@ -627,7 +636,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
         }
         
     } catch (error) {
-        console.error(`❌ [MH370] Lỗi:`, error.message);
+        console.error(`❌ Lỗi:`, error.message);
         return {
             success: false,
             error: error.message
@@ -635,12 +644,12 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
     }
 }
 
-console.log('🚀 [START] Tạo video 32s với transcript MH370...');
+console.log(`🚀 [START] Tạo video ${VIDEO_DURATION}s với ${NUM_SEGMENTS} segments từ YouTube...`);
 createMH370Video32s().then(result => {
     if (result.success) {
-        console.log('🎉 [MH370] Hoàn thành thành công!');
-        console.log(`🎉 [MH370] Video: ${result.result.finalVideo}`);
+        console.log('🎉 Hoàn thành thành công!');
+        console.log(`🎉 Video: ${result.result.finalVideo}`);
     } else {
-        console.log(`❌ [MH370] Thất bại: ${result.error}`);
+        console.log(`❌ Thất bại: ${result.error}`);
     }
 });
