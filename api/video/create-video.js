@@ -64,27 +64,39 @@ async function createVideo(req, res, storageData) {
         const labsProfileManager = LabsProfileManager;
         const extractResult = await labsProfileManager.extractLabsCookies();
         
-        if (!extractResult.success) {
-            return res.status(400).json({
-                success: false,
-                message: `Không thể lấy cookies từ Chrome Labs: ${extractResult.error}`
-            });
+        let labsCookies = null;
+        
+        if (extractResult.success) {
+            labsCookies = extractResult.cookies;
+            console.log(`🍪 Labs cookies mới:`, labsCookies ? 'Found' : 'Not found');
+            console.log(`🍪 Số lượng cookies: ${extractResult.cookieCount}`);
+            
+            // Cập nhật thời gian lấy cookies
+            labsProfileManager.lastExtractTime = new Date().toISOString();
+            
+            // Cập nhật currentCookies và lưu file
+            storageData.currentCookies = labsCookies;
+            storageData.tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
+            saveStorageData(storageData);
+            
+            // Lưu cookies vào file riêng
+            labsProfileManager.saveLabsCookies(labsCookies);
+        } else {
+            console.log(`⚠️ Không thể lấy cookies từ Chrome Labs: ${extractResult.error}`);
+            console.log(`🔄 Thử lấy cookies từ file txt cũ...`);
+            
+            // Fallback: Lấy cookies từ file txt cũ
+            labsCookies = await getLabsCookies();
+            
+            if (!labsCookies) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Không thể lấy cookies từ Chrome Labs và file txt cũ: ${extractResult.error}`
+                });
+            }
+            
+            console.log(`🍪 Sử dụng cookies từ file txt cũ`);
         }
-        
-        const labsCookies = extractResult.cookies;
-        console.log(`🍪 Labs cookies mới:`, labsCookies ? 'Found' : 'Not found');
-        console.log(`🍪 Số lượng cookies: ${extractResult.cookieCount}`);
-        
-        // Cập nhật thời gian lấy cookies
-        labsProfileManager.lastExtractTime = new Date().toISOString();
-        
-        // Cập nhật currentCookies và lưu file
-        storageData.currentCookies = labsCookies;
-        storageData.tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
-        saveStorageData(storageData);
-        
-        // Lưu cookies vào file riêng
-        labsProfileManager.saveLabsCookies(labsCookies);
 
         console.log(`🎬 Tạo video với prompt: "${prompt}"`);
         console.log(`🍪 Sử dụng Labs cookies: ${labsCookies.substring(0, 100)}...`);

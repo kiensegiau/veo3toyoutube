@@ -9,13 +9,10 @@ const execAsync = promisify(exec);
 // ChatGPT API configuration
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
 
-// ========================================
-// CẤU HÌNH VIDEO - CHỈ SỬA Ở ĐÂY
-// ========================================
-const VIDEO_DURATION = 120; // Tổng thời lượng video (giây) - SỬA ĐÂY: 32, 60, 120, 300, etc
-const SEGMENT_DURATION = 8; // Mỗi segment (giây) - Veo3 tốt nhất với 8s
-const NUM_SEGMENTS = Math.floor(VIDEO_DURATION / SEGMENT_DURATION); // Tự động tính
-// ========================================
+// Video Configuration
+const VIDEO_DURATION = 120; // Total video duration (seconds)
+const SEGMENT_DURATION = 8; // Each segment duration (seconds)
+const NUM_SEGMENTS = Math.floor(VIDEO_DURATION / SEGMENT_DURATION);
 
 // Cache cookie để tránh lấy liên tục
 let cachedCookie = null;
