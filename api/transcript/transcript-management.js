@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 
 // Initialize Supadata client
 const supadata = new Supadata({
-    apiKey: process.env.SUPADATA_API_KEY || 'sd_82fd27e22d9c5a72b3bda8b9aa61de34', // Your Supadata API key
+    apiKey: process.env.SUPADATA_API_KEY || 'sd_3e5e0a76aacb2f2412d3e2619df85db6', // Your Supadata API key
 });
 
 /**

@@ -8,7 +8,7 @@ const { createVideo } = require('./api/video/create-video');
 const { checkStatus } = require('./api/video/check-status');
 const { uploadYouTube } = require('./api/youtube/upload-youtube');
 const { mergeVideos, listAvailableVideos } = require('./api/video/merge-videos');
-const { createVideoFromYouTube } = require('./api/video/complete-workflow');
+// const { createVideoFromYouTube } = require('./api/video/complete-workflow'); // File không tồn tại
 const profileAPI = require('./api/profile/profile-management');
 const labsAPI = require('./api/labs/labs-management');
 const transcriptAPI = require('./api/transcript/transcript-management');
@@ -19,11 +19,11 @@ const storageUtils = require('./api/utils/storage');
 // Veo3 Unified APIs
 const { splitVideoAPI } = require('./api/video/veo3-video-splitter');
 const { analyzeFramesAPI, generateVeo3JSONAPI } = require('./api/video/veo3-frame-analyzer');
-const { veo3UnifiedWorkflowAPI, veo3SimpleWorkflowAPI } = require('./api/video/veo3-unified-workflow');
-const { veo3CompleteWorkflowAPI } = require('./api/video/veo3-complete-workflow');
-const { veo3Parallel32sWorkflowAPI } = require('./api/video/veo3-parallel-32s-workflow');
-const { veo3Sequential32sWorkflowAPI } = require('./api/video/veo3-sequential-32s-workflow');
-const { veo3Optimized32sWorkflowAPI } = require('./api/video/veo3-optimized-32s-workflow');
+// const { veo3UnifiedWorkflowAPI, veo3SimpleWorkflowAPI } = require('./api/video/veo3-unified-workflow'); // File không tồn tại
+// const { veo3CompleteWorkflowAPI } = require('./api/video/veo3-complete-workflow'); // File không tồn tại
+// const { veo3Parallel32sWorkflowAPI } = require('./api/video/veo3-parallel-32s-workflow'); // File không tồn tại
+// const { veo3Sequential32sWorkflowAPI } = require('./api/video/veo3-sequential-32s-workflow'); // File không tồn tại
+// const { veo3Optimized32sWorkflowAPI } = require('./api/video/veo3-optimized-32s-workflow'); // File không tồn tại
 
 const app = express();
 const PORT = Number(process.env.PORT || 8888);
@@ -120,18 +120,18 @@ app.post('/api/merge-videos', mergeVideos);
 app.get('/api/merge-videos/list', listAvailableVideos);
 
 // Complete Workflow API
-app.post('/api/create-video-from-youtube', createVideoFromYouTube);
+// app.post('/api/create-video-from-youtube', createVideoFromYouTube); // File không tồn tại
 
 // Veo3 Unified APIs
 app.post('/api/split-video', splitVideoAPI);
 app.post('/api/analyze-frames', analyzeFramesAPI);
 app.post('/api/generate-veo3-json', generateVeo3JSONAPI);
-app.post('/api/veo3-unified-workflow', veo3UnifiedWorkflowAPI);
-app.post('/api/veo3-simple-workflow', veo3SimpleWorkflowAPI);
-app.post('/api/veo3-complete-workflow', veo3CompleteWorkflowAPI);
-app.post('/api/veo3-parallel-32s-workflow', veo3Parallel32sWorkflowAPI);
-app.post('/api/veo3-sequential-32s-workflow', veo3Sequential32sWorkflowAPI);
-app.post('/api/veo3-optimized-32s-workflow', veo3Optimized32sWorkflowAPI);
+// app.post('/api/veo3-unified-workflow', veo3UnifiedWorkflowAPI); // File không tồn tại
+// app.post('/api/veo3-simple-workflow', veo3SimpleWorkflowAPI); // File không tồn tại
+// app.post('/api/veo3-complete-workflow', veo3CompleteWorkflowAPI); // File không tồn tại
+// app.post('/api/veo3-parallel-32s-workflow', veo3Parallel32sWorkflowAPI); // File không tồn tại
+// app.post('/api/veo3-sequential-32s-workflow', veo3Sequential32sWorkflowAPI); // File không tồn tại
+// app.post('/api/veo3-optimized-32s-workflow', veo3Optimized32sWorkflowAPI); // File không tồn tại
 
 // YouTube Upload API
 app.post('/api/upload-youtube', uploadYouTube);

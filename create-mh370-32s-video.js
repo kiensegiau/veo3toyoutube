@@ -10,9 +10,7 @@ const execAsync = promisify(exec);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
 
 // Video Configuration
-const VIDEO_DURATION = 120; // Total video duration (seconds)
 const SEGMENT_DURATION = 8; // Each segment duration (seconds)
-const NUM_SEGMENTS = Math.floor(VIDEO_DURATION / SEGMENT_DURATION);
 
 // Cache cookie để tránh lấy liên tục
 let cachedCookie = null;
@@ -20,37 +18,82 @@ let cookieCacheTime = 0;
 const COOKIE_CACHE_DURATION = 30 * 60 * 1000; // 30 phút
 
 /**
- * Lấy cookie từ cache hoặc fetch mới
+ * Đọc cookie từ file labs-cookies.txt
+ */
+function readCookieFromFile() {
+    try {
+        const cookieFilePath = path.join(__dirname, 'labs-cookies.txt');
+
+        if (!fs.existsSync(cookieFilePath)) {
+            console.log('❌ File labs-cookies.txt không tồn tại');
+            return null;
+        }
+
+        const content = fs.readFileSync(cookieFilePath, 'utf8');
+        const lines = content.split('\n');
+
+        // Tìm dòng chứa cookies (bỏ qua dòng comment)
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.trim() && !line.startsWith('#')) {
+                console.log(`✅ Đọc cookie từ file labs-cookies.txt`);
+                return line.trim();
+            }
+        }
+
+        console.log('❌ Không tìm thấy cookies trong file');
+        return null;
+    } catch (error) {
+        console.error('❌ Lỗi đọc cookie từ file:', error.message);
+        return null;
+    }
+}
+
+/**
+ * Lấy cookie từ cache hoặc fetch mới, fallback từ file txt
  */
 async function getCachedOrFreshCookie(serverUrl) {
     const now = Date.now();
-    
+
     // Nếu có cache và chưa hết hạn
     if (cachedCookie && (now - cookieCacheTime) < COOKIE_CACHE_DURATION) {
         console.log(`🍪 Sử dụng cached cookie (còn ${Math.floor((COOKIE_CACHE_DURATION - (now - cookieCacheTime)) / 1000 / 60)} phút)`);
         return cachedCookie;
     }
-    
-    // Lấy cookie mới
+
+    // Lấy cookie mới từ server
     console.log(`🔄 Lấy cookie mới từ server...`);
     try {
         const response = await fetch(`${serverUrl}/api/labs/get-cookies`, {
             method: 'GET'
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success && result.cookies) {
             cachedCookie = result.cookies;
             cookieCacheTime = now;
-            console.log(`✅ Đã cache cookie mới`);
+            console.log(`✅ Đã cache cookie mới từ server`);
             return cachedCookie;
         } else {
             throw new Error('Không lấy được cookie từ server');
         }
     } catch (error) {
-        console.error(`❌ Lỗi lấy cookie:`, error.message);
-        return null;
+        console.error(`❌ Lỗi lấy cookie từ server:`, error.message);
+        console.log(`🔄 Thử lấy cookie từ file labs-cookies.txt...`);
+
+        // Fallback: Đọc cookie từ file txt
+        const cookieFromFile = readCookieFromFile();
+
+        if (cookieFromFile) {
+            cachedCookie = cookieFromFile;
+            cookieCacheTime = now;
+            console.log(`✅ Sử dụng cookie từ file labs-cookies.txt`);
+            return cachedCookie;
+        } else {
+            console.error(`❌ Không thể lấy cookie từ cả server và file txt`);
+            return null;
+        }
     }
 }
 
@@ -59,21 +102,65 @@ async function getCachedOrFreshCookie(serverUrl) {
  */
 async function createMH370Video32s() {
     try {
+        const serverUrl = 'http://localhost:8888';
+        const youtubeUrl = 'https://youtu.be/52ru0qDc0LQ?si=zahSVRyDiQy7Jd6H';
+
+        // Extract video ID từ URL
+        const videoIdMatch = youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+        const videoId = videoIdMatch ? videoIdMatch[1] : null;
+
+        if (!videoId) {
+            throw new Error('Không thể extract video ID từ URL');
+        }
+
+        // Step 0: Lấy metadata video để biết thời gian
+        console.log('📹 [Step 0] Lấy metadata video YouTube...');
+
+        let VIDEO_DURATION = 120; // Default fallback
+        let videoTitle = 'Unknown Video';
+
+        try {
+            const metadataResponse = await fetch(`${serverUrl}/api/get-video-metadata`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    videoId: videoId
+                })
+            });
+
+            const metadataResult = await metadataResponse.json();
+            console.log('📹 [Step 0] Metadata result:', metadataResult.success ? '✅ Success' : '❌ Failed');
+
+            if (metadataResult.success && metadataResult.video) {
+                VIDEO_DURATION = metadataResult.video.duration || 120;
+                videoTitle = metadataResult.video.title || 'Unknown Video';
+                console.log(`📹 [Step 0] Video: "${videoTitle}"`);
+                console.log(`📹 [Step 0] Thời gian video: ${VIDEO_DURATION}s (${Math.floor(VIDEO_DURATION / 60)}:${(VIDEO_DURATION % 60).toString().padStart(2, '0')})`);
+            } else {
+                console.log('📹 [Step 0] Metadata error details:', JSON.stringify(metadataResult, null, 2));
+                console.log(`⚠️ [Step 0] Không lấy được metadata, sử dụng thời gian mặc định: ${VIDEO_DURATION}s`);
+            }
+        } catch (error) {
+            console.error(`❌ [Step 0] Lỗi lấy metadata:`, error.message);
+            console.log(`⚠️ [Step 0] Sử dụng thời gian mặc định: ${VIDEO_DURATION}s`);
+        }
+
+        const NUM_SEGMENTS = Math.floor(VIDEO_DURATION / SEGMENT_DURATION);
+        console.log(`📹 [Step 0] Số segments: ${NUM_SEGMENTS} (${SEGMENT_DURATION}s/segment)`);
+
         const videoMinutes = Math.floor(VIDEO_DURATION / 60);
         const videoSeconds = VIDEO_DURATION % 60;
         const durationText = videoMinutes > 0 ? `${videoMinutes}:${videoSeconds.toString().padStart(2, '0')}` : `${videoSeconds}s`;
-        
+
         console.log(`🚀 Tạo video ${durationText} (${VIDEO_DURATION}s) từ YouTube với ${NUM_SEGMENTS} segments...`);
-        
-        const serverUrl = 'http://localhost:8888';
-        const youtubeUrl = 'https://youtu.be/52ru0qDc0LQ?si=zahSVRyDiQy7Jd6H';
+
         const outputDir = `./temp/youtube-${VIDEO_DURATION}s-video`;
-        
+
         // Tạo thư mục output
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
-        
+
         // Step 1: Lấy transcript từ YouTube
         console.log('📝 [Step 1] Lấy transcript từ YouTube...');
         const transcriptResponse = await fetch(`${serverUrl}/api/get-transcript`, {
@@ -691,7 +778,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
     }
 }
 
-console.log(`🚀 [START] Tạo video ${VIDEO_DURATION}s với ${NUM_SEGMENTS} segments từ YouTube...`);
+console.log(`🚀 [START] Tạo video từ YouTube (thời gian sẽ lấy từ metadata)...`);
 createMH370Video32s().then(result => {
     if (result.success) {
         console.log('🎉 Hoàn thành thành công!');
