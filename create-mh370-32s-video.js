@@ -294,15 +294,30 @@ YÊU CẦU CHI TIẾT:
 - CHỈ có hình ảnh thuần túy: objects, scenes, actions, movements
 - Veo3 không hỗ trợ render chữ, nên TRÁNH HOÀN TOÀN
 
-QUAN TRỌNG VỀ TRANSITION:
-- Scene 1 (0-2s): transition TỪ ${prevSegment ? 'segment trước' : 'màn hình đen'}
-- Scenes 2-3: transition mượt giữa các scenes
-- Scene 4 (6-8s): transition SANG ${nextSegment ? 'segment sau' : 'màn hình đen'}
+QUAN TRỌNG VỀ TRANSITION GIỮA SEGMENTS:
+- Scene 1 (0-2s): PHẢI transition mượt mà TỪ ${prevSegment ? `"${prevSegment.focus}" của segment trước` : 'màn hình đen với fade in'}
+  ${prevSegment ? `→ Visual phải liên kết với scene cuối segment trước, dùng cross dissolve, match cut hoặc smooth pan` : '→ Fade in từ đen, hoặc slow zoom in'}
+- Scenes 2-3 (2-6s): transition mượt giữa các scenes TRONG segment này
+  → Dùng dissolve, smooth camera movement để kết nối
+- Scene 4 (6-8s): PHẢI chuẩn bị transition SANG ${nextSegment ? `"${nextSegment.focus}" của segment sau` : 'kết thúc với fade out'}
+  ${nextSegment ? `→ Visual và camera phải setup cho scene đầu segment sau, tạo continuity` : '→ Fade out hoặc slow zoom out để kết thúc'}
+
+🎬 MỤC TIÊU: 4 segments ghép lại phải liền mạch như 1 video duy nhất!
+
+📋 VÍ DỤ TRANSITION TỐT (dựa theo nội dung):
+- Segment kết thúc với "object xa dần" 
+  → Segment sau bắt đầu "zoom vào object mới" (liên kết: movement continuity)
+- Segment kết thúc với "scene rộng" 
+  → Segment sau bắt đầu "close-up detail" (liên kết: scale transition)
+- Segment kết thúc với "màu sáng"
+  → Segment sau bắt đầu "màu tương tự" (liên kết: color continuity)
+- Segment kết thúc với "camera pan right"
+  → Segment sau bắt đầu "camera continues panning" (liên kết: motion continuity)
 
 CHỈ trả về JSON array, KHÔNG thêm text nào khác.` 
                             }
                         ],
-                        max_tokens: 1200,
+                        max_tokens: 1500,
                         temperature: 0.7
                     })
                 });
@@ -362,19 +377,19 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                 const maxRetries = 3;
                 
                 while (retryCount < maxRetries) {
-                    try {
-                        const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
+            try {
+                const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
                                 input: optimizedPrompt,
                                 prompt: optimizedPrompt
-                            })
-                        });
-                        
+                    })
+                });
+                
                         veo3Result = await veo3Response.json();
-                        
-                        if (veo3Result.success) {
+                
+                if (veo3Result.success) {
                             break; // Thành công, thoát vòng lặp
                         } else {
                             throw new Error(veo3Result.message || 'Create video failed');
