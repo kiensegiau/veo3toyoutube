@@ -167,13 +167,18 @@ async function createMH370Video32s() {
             console.log('📝 [Step 1] Transcript preview:', preview + '...');
         }
 
-        // Parse transcript - có thể là array, string, hoặc object
-        let transcriptArray = [];
+        // BƯỚC 1: Chuẩn hóa transcript thành văn bản dài
         let fullText = '';
 
         if (Array.isArray(transcriptResult.transcript)) {
-            // Transcript đã là array với timestamp
-            transcriptArray = transcriptResult.transcript;
+            // Nếu là array, ghép tất cả text lại
+            fullText = transcriptResult.transcript
+                .map(item => {
+                    if (typeof item === 'string') return item;
+                    if (item && item.text) return item.text;
+                    return '';
+                })
+                .join(' ');
         } else if (typeof transcriptResult.transcript === 'object' && transcriptResult.transcript.content) {
             // Transcript là object với content field
             fullText = transcriptResult.transcript.content;
@@ -184,53 +189,30 @@ async function createMH370Video32s() {
             throw new Error('Transcript format không hợp lệ');
         }
 
-        // Nếu có fullText, chia nhỏ thành các đoạn
-        if (fullText && transcriptArray.length === 0) {
-            // Ước tính số từ có thể đọc trong 8 giây (khoảng 20-25 từ tiếng Việt)
-            const wordsPerSegment = 25;
-            const words = fullText.split(' ');
+        // Chuẩn hóa: loại bỏ khoảng trắng thừa, xuống dòng
+        fullText = fullText.replace(/\s+/g, ' ').trim();
 
-            for (let i = 0; i < words.length; i += wordsPerSegment) {
-                const segmentWords = words.slice(i, i + wordsPerSegment);
-                const segmentText = segmentWords.join(' ');
-                transcriptArray.push({
-                    text: segmentText,
-                    start: (i / wordsPerSegment) * SEGMENT_DURATION,
-                    duration: SEGMENT_DURATION
-                });
-            }
-        }
+        console.log(`📝 [Step 1] Transcript văn bản dài: ${fullText.length} ký tự`);
+        console.log(`📝 [Step 1] Preview: "${fullText.substring(0, 200)}..."`);
 
-        console.log(`📝 [Step 1] Transcript có ${transcriptArray.length} đoạn`);
-
-        // Chia transcript thành segments 8 giây
+        // BƯỚC 2: Chia văn bản dài thành segments 8 giây
+        // Ước tính số từ có thể đọc trong 8 giây (khoảng 20-25 từ tiếng Việt)
+        const wordsPerSegment = 25;
+        const words = fullText.split(' ');
         const transcriptSegments = [];
-        let currentTime = 0;
 
-        for (let i = 0; i < transcriptArray.length; i++) {
-            const item = transcriptArray[i];
-            // Đảm bảo text luôn là string
-            let text = '';
-            if (typeof item === 'string') {
-                text = item;
-            } else if (item && typeof item.text === 'string') {
-                text = item.text;
-            } else if (item && item.text) {
-                text = String(item.text);
-            }
-
-            const startTime = item.start !== undefined ? item.start : currentTime;
-            const duration = item.duration || SEGMENT_DURATION;
+        for (let i = 0; i < words.length; i += wordsPerSegment) {
+            const segmentWords = words.slice(i, i + wordsPerSegment);
+            const segmentText = segmentWords.join(' ');
+            const segmentIndex = Math.floor(i / wordsPerSegment);
 
             transcriptSegments.push({
-                index: i,
-                text: text,
-                startTime: startTime,
-                endTime: startTime + duration,
-                duration: duration
+                index: segmentIndex,
+                text: segmentText,
+                startTime: segmentIndex * SEGMENT_DURATION,
+                endTime: (segmentIndex + 1) * SEGMENT_DURATION,
+                duration: SEGMENT_DURATION
             });
-
-            currentTime = startTime + duration;
         }
 
         console.log(`📝 [Step 1] Đã chia thành ${transcriptSegments.length} segments`);
@@ -457,11 +439,18 @@ ${batchIndex > 0 ? `5. Batch này có LIÊN KẾT mượt mà với batch trư�
         
         // Step 3: Tối ưu hóa từng prompt với ChatGPT trước khi tạo video
         console.log('🤖 [Step 3] ChatGPT tối ưu hóa từng prompt cho Veo3...');
-        
-        // Thêm delay giữa các requests để tránh overload
-        const veo3Promises = analysis.segments.map(async (segment, index) => {
-            // Delay 2 giây cho mỗi segment để tránh gọi đồng thời quá nhiều
-            await new Promise(resolve => setTimeout(resolve, index * 2000));
+        console.log(`⏱️ [Step 3] Xử lý TUẦN TỰ ${analysis.segments.length} segments với delay 1s giữa mỗi request để tránh rate limit...`);
+
+        // XỬ LÝ TUẦN TỰ thay vì song song để tránh 429 Too Many Requests
+        const veo3Results = [];
+
+        for (let index = 0; index < analysis.segments.length; index++) {
+            const segment = analysis.segments[index];
+
+            // Delay 1 giây giữa mỗi request (trừ request đầu tiên)
+            if (index > 0) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
 
             // Lấy voice-over text từ transcript
             const voiceOverText = String(transcriptSegments[index]?.text || '');
@@ -730,7 +719,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                 
                 if (veo3Result && veo3Result.success) {
                     console.log(`✅ [Step 3] Segment ${index + 1} Veo3: ${veo3Result.operationName}`);
-                    return {
+                    veo3Results.push({
                         segmentIndex: index,
                         timeRange: segment.timeRange,
                         focus: segment.focus,
@@ -740,31 +729,30 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         operationId: veo3Result.operationName,
                         voiceOverText: voiceOverText,
                         success: true
-                    };
+                    });
                 } else {
                     console.log(`❌ [Step 3] Segment ${index + 1} thất bại sau ${maxRetries} lần thử`);
-                    return {
+                    veo3Results.push({
                         segmentIndex: index,
                         timeRange: segment.timeRange,
                         voiceOverText: voiceOverText,
                         error: veo3Result?.message || 'Failed after retries',
                         success: false
-                    };
+                    });
                 }
             } catch (error) {
                 console.log(`❌ [Step 3] Segment ${index + 1} lỗi: ${error.message}`);
-                return {
+                veo3Results.push({
                     segmentIndex: index,
                     timeRange: segment.timeRange,
                     voiceOverText: voiceOverText,
                     error: error.message,
                     success: false
-                };
+                });
             }
-        });
-        
-        // Chờ tất cả Veo3 requests hoàn thành
-        const veo3Results = await Promise.all(veo3Promises);
+        }
+
+        // Tất cả requests đã hoàn thành (xử lý tuần tự)
         const successfulOperations = veo3Results.filter(r => r.success);
         
         console.log(`✅ [Step 3] Đã tối ưu và gửi ${successfulOperations.length}/${analysis.segments.length} Veo3 requests`);

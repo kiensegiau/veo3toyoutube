@@ -103,7 +103,7 @@ async function createVideo(req, res, storageData) {
 
         const requestBody = {
             clientContext: {
-                projectId: "ccd41cba-0a8f-4777-8ddb-56feee829abd", // Project ID mới cho khổ ngang
+                projectId: "69a71e65-d70b-41dc-a540-fc8964582233", // Project ID
                 tool: "PINHOLE",
                 userPaygateTier: "PAYGATE_TIER_TWO"
             },
