@@ -114,10 +114,9 @@ async function createMH370Video32s() {
             throw new Error('Không thể extract video ID từ URL');
         }
 
-        // Step 0: Lấy metadata video để biết thời gian
+        // Step 0: Lấy metadata video (chỉ để lấy title)
         console.log('📹 [Step 0] Lấy metadata video YouTube...');
 
-        let VIDEO_DURATION = 120; // Default fallback
         let videoTitle = 'Unknown Video';
 
         try {
@@ -133,36 +132,11 @@ async function createMH370Video32s() {
             console.log('📹 [Step 0] Metadata result:', metadataResult.success ? '✅ Success' : '❌ Failed');
 
             if (metadataResult.success && metadataResult.video) {
-                VIDEO_DURATION = metadataResult.video.duration || 120;
                 videoTitle = metadataResult.video.title || 'Unknown Video';
                 console.log(`📹 [Step 0] Video: "${videoTitle}"`);
-                console.log(`📹 [Step 0] Thời gian video: ${VIDEO_DURATION}s (${Math.floor(VIDEO_DURATION / 60)}:${(VIDEO_DURATION % 60).toString().padStart(2, '0')})`);
-            } else {
-                console.log('📹 [Step 0] Metadata error details:', JSON.stringify(metadataResult, null, 2));
-                console.log(`⚠️ [Step 0] Không lấy được metadata, sử dụng thời gian mặc định: ${VIDEO_DURATION}s`);
             }
         } catch (error) {
             console.error(`❌ [Step 0] Lỗi lấy metadata:`, error.message);
-            console.log(`⚠️ [Step 0] Sử dụng thời gian mặc định: ${VIDEO_DURATION}s`);
-        }
-
-        const TOTAL_SEGMENTS = Math.floor(VIDEO_DURATION / SEGMENT_DURATION);
-        const NUM_BATCHES = Math.ceil(TOTAL_SEGMENTS / BATCH_SIZE);
-
-        console.log(`📹 [Step 0] Tổng số segments: ${TOTAL_SEGMENTS} (${SEGMENT_DURATION}s/segment)`);
-        console.log(`📹 [Step 0] Chia thành ${NUM_BATCHES} batches (${BATCH_SIZE} segments/batch)`);
-
-        const videoMinutes = Math.floor(VIDEO_DURATION / 60);
-        const videoSeconds = VIDEO_DURATION % 60;
-        const durationText = videoMinutes > 0 ? `${videoMinutes}:${videoSeconds.toString().padStart(2, '0')}` : `${videoSeconds}s`;
-
-        console.log(`🚀 Tạo video ${durationText} (${VIDEO_DURATION}s) từ YouTube với ${TOTAL_SEGMENTS} segments (${NUM_BATCHES} batches)...`);
-
-        const outputDir = `./temp/youtube-${VIDEO_DURATION}s-video`;
-
-        // Tạo thư mục output
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
         }
 
         // Step 1: Lấy transcript từ YouTube
@@ -178,16 +152,107 @@ async function createMH370Video32s() {
         
         const transcriptResult = await transcriptResponse.json();
         console.log('📝 [Step 1] Transcript result:', transcriptResult.success ? '✅ Success' : '❌ Failed');
-        
+
         if (!transcriptResult.success) {
             throw new Error(`Không thể lấy transcript: ${transcriptResult.message}`);
         }
-        
-        const transcriptText = typeof transcriptResult.transcript === 'string' ? 
-            transcriptResult.transcript : 
-            JSON.stringify(transcriptResult.transcript);
-        
-        console.log(`📝 [Step 1] Transcript: ${transcriptText.substring(0, 300)}...`);
+
+        // Debug: Xem transcript format
+        console.log('📝 [Step 1] Transcript type:', typeof transcriptResult.transcript);
+        console.log('📝 [Step 1] Is array:', Array.isArray(transcriptResult.transcript));
+        if (transcriptResult.transcript) {
+            const preview = typeof transcriptResult.transcript === 'string'
+                ? transcriptResult.transcript.substring(0, 200)
+                : JSON.stringify(transcriptResult.transcript).substring(0, 200);
+            console.log('📝 [Step 1] Transcript preview:', preview + '...');
+        }
+
+        // Parse transcript - có thể là array, string, hoặc object
+        let transcriptArray = [];
+        let fullText = '';
+
+        if (Array.isArray(transcriptResult.transcript)) {
+            // Transcript đã là array với timestamp
+            transcriptArray = transcriptResult.transcript;
+        } else if (typeof transcriptResult.transcript === 'object' && transcriptResult.transcript.content) {
+            // Transcript là object với content field
+            fullText = transcriptResult.transcript.content;
+        } else if (typeof transcriptResult.transcript === 'string') {
+            // Transcript là string thuần
+            fullText = transcriptResult.transcript;
+        } else {
+            throw new Error('Transcript format không hợp lệ');
+        }
+
+        // Nếu có fullText, chia nhỏ thành các đoạn
+        if (fullText && transcriptArray.length === 0) {
+            // Ước tính số từ có thể đọc trong 8 giây (khoảng 20-25 từ tiếng Việt)
+            const wordsPerSegment = 25;
+            const words = fullText.split(' ');
+
+            for (let i = 0; i < words.length; i += wordsPerSegment) {
+                const segmentWords = words.slice(i, i + wordsPerSegment);
+                const segmentText = segmentWords.join(' ');
+                transcriptArray.push({
+                    text: segmentText,
+                    start: (i / wordsPerSegment) * SEGMENT_DURATION,
+                    duration: SEGMENT_DURATION
+                });
+            }
+        }
+
+        console.log(`📝 [Step 1] Transcript có ${transcriptArray.length} đoạn`);
+
+        // Chia transcript thành segments 8 giây
+        const transcriptSegments = [];
+        let currentTime = 0;
+
+        for (let i = 0; i < transcriptArray.length; i++) {
+            const item = transcriptArray[i];
+            // Đảm bảo text luôn là string
+            let text = '';
+            if (typeof item === 'string') {
+                text = item;
+            } else if (item && typeof item.text === 'string') {
+                text = item.text;
+            } else if (item && item.text) {
+                text = String(item.text);
+            }
+
+            const startTime = item.start !== undefined ? item.start : currentTime;
+            const duration = item.duration || SEGMENT_DURATION;
+
+            transcriptSegments.push({
+                index: i,
+                text: text,
+                startTime: startTime,
+                endTime: startTime + duration,
+                duration: duration
+            });
+
+            currentTime = startTime + duration;
+        }
+
+        console.log(`📝 [Step 1] Đã chia thành ${transcriptSegments.length} segments`);
+
+        // Tạo transcriptText để dùng cho ChatGPT
+        const transcriptText = transcriptSegments.map(s => s.text).join(' ');
+
+        // Tính toán số segments và batches dựa trên transcript
+        const TOTAL_SEGMENTS = transcriptSegments.length;
+        const NUM_BATCHES = Math.ceil(TOTAL_SEGMENTS / BATCH_SIZE);
+        const VIDEO_DURATION = TOTAL_SEGMENTS * SEGMENT_DURATION;
+
+        console.log(`📝 [Step 1] Tổng số segments: ${TOTAL_SEGMENTS} (${SEGMENT_DURATION}s/segment)`);
+        console.log(`📝 [Step 1] Chia thành ${NUM_BATCHES} batches (${BATCH_SIZE} segments/batch)`);
+        console.log(`📝 [Step 1] Tổng thời gian video: ${VIDEO_DURATION}s (${Math.floor(VIDEO_DURATION / 60)}:${(VIDEO_DURATION % 60).toString().padStart(2, '0')})`);
+
+        const outputDir = `./temp/youtube-${TOTAL_SEGMENTS}segments-video`;
+
+        // Tạo thư mục output
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
+        }
 
         // Step 2: Xử lý từng batch
         console.log(`🤖 [Step 2] Xử lý ${NUM_BATCHES} batches...`);
@@ -204,6 +269,9 @@ async function createMH370Video32s() {
             const batchSegmentCount = endSegment - startSegment;
             const batchStartTime = startSegment * SEGMENT_DURATION;
             const batchEndTime = endSegment * SEGMENT_DURATION;
+
+            // Lấy transcript cho batch này
+            const batchTranscriptSegments = transcriptSegments.slice(startSegment, endSegment);
 
             console.log(`\n🔄 [Batch ${batchIndex + 1}/${NUM_BATCHES}] Xử lý segments ${startSegment + 1}-${endSegment} (${batchStartTime}s-${batchEndTime}s, ${batchSegmentCount} segments)...`);
 
@@ -269,7 +337,10 @@ Trả về JSON format với ${batchSegmentCount} segments LIÊN TỤC (từ ${b
                         role: "user",
                         content: `🎯 ĐỌC KỸ transcript và tạo ${batchSegmentCount} prompts ĐÚNG NỘI DUNG cho batch ${batchIndex + 1}/${NUM_BATCHES} (${batchStartTime}s-${batchEndTime}s):
 
-📄 TRANSCRIPT:
+📄 TRANSCRIPT CHO BATCH NÀY (${batchSegmentCount} segments):
+${batchTranscriptSegments.map((seg, idx) => `Segment ${startSegment + idx + 1} (${seg.startTime}s-${seg.endTime}s): "${seg.text}"`).join('\n')}
+
+📄 TOÀN BỘ TRANSCRIPT (để hiểu context):
 ${transcriptText}
 
 🔍 BƯỚC 1 - ĐỌC VÀ PHÂN TÍCH:
@@ -391,8 +462,15 @@ ${batchIndex > 0 ? `5. Batch này có LIÊN KẾT mượt mà với batch trư�
         const veo3Promises = analysis.segments.map(async (segment, index) => {
             // Delay 2 giây cho mỗi segment để tránh gọi đồng thời quá nhiều
             await new Promise(resolve => setTimeout(resolve, index * 2000));
+
+            // Lấy voice-over text từ transcript
+            const voiceOverText = String(transcriptSegments[index]?.text || '');
+
             console.log(`🤖 [Step 3] Tối ưu segment ${index + 1}: ${segment.timeRange}`);
             console.log(`🤖 [Step 3] Focus: ${segment.focus}`);
+            if (voiceOverText) {
+                console.log(`🎙️ [Step 3] Voice-over: "${voiceOverText.substring(0, 100)}${voiceOverText.length > 100 ? '...' : ''}"`);
+            }
             
             try {
                 // Tạo context về segments trước/sau để đảm bảo liên kết
@@ -409,38 +487,48 @@ ${batchIndex > 0 ? `5. Batch này có LIÊN KẾT mượt mà với batch trư�
                     body: JSON.stringify({
                         model: 'gpt-4o-mini',
                         messages: [
-                            { 
-                                role: "system", 
-                                content: `Bạn là chuyên gia tối ưu prompt cho Veo3 (Google Video AI).
+                            {
+                                role: "system",
+                                content: `Bạn là chuyên gia tối ưu prompt cho Veo 3.1 (Google Video AI mới nhất).
 
-Nhiệm vụ: Tối ưu hóa prompt thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà.
+Nhiệm vụ: Tối ưu hóa prompt thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà và VOICE-OVER tiếng Việt.
 
 🎯 QUY TẮC VÀNG:
 1. CHỈ tối ưu visual của prompt GỐC - KHÔNG đổi nội dung chính
 2. KHÔNG thêm cảnh/yếu tố mới không có trong prompt gốc
-3. CHỈ thêm chi tiết về: camera, transition, visual details, sound
+3. CHỈ thêm chi tiết về: camera, transition, visual details, sound, voice-over
 4. GIỮ NGUYÊN ý nghĩa và nội dung của prompt gốc
 
+✅ VEO 3.1 HỖ TRỢ VOICE-OVER:
+✅ CÓ thể tạo voice-over (lời thoại nền) tiếng Việt
+✅ Voice-over sẽ được tạo tự động bởi Veo 3.1
+✅ Chỉ cần cung cấp text tiếng Việt trong prompt
+
 ⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC:
-❌ KHÔNG có text/chữ/subtitle xuất hiện trong video
-❌ KHÔNG có dòng chữ bất kỳ
-❌ KHÔNG có caption, title, watermark
-❌ KHÔNG có biểu tượng chữ viết
-✅ CHỈ có hình ảnh thuần, không text overlay
+❌ KHÔNG có text/chữ/subtitle HIỂN THỊ trong video
+❌ KHÔNG có dòng chữ bất kỳ xuất hiện trên màn hình
+❌ KHÔNG có caption, title, watermark hiển thị
+✅ CHỈ có hình ảnh thuần + voice-over audio (không text overlay)
 
 Trả về ĐÚNG format JSON array này (4 phần tử cho 8 giây):
 [
   {
     "timeStart": 0,
     "timeEnd": 2,
-    "action": "Mô tả hành động KHÔNG CÓ CHỮ, chỉ visual thuần",
+    "action": "Mô tả hành động KHÔNG CÓ CHỮ HIỂN THỊ, chỉ visual thuần",
     "cameraStyle": "Phong cách camera (zoom in, pan left, tilt up, steady shot, etc)",
     "transition": "Chuyển cảnh từ scene trước (fade in, dissolve, cut, pan transition, zoom transition, etc)",
     "soundFocus": "Âm thanh tập trung",
-    "visualDetails": "Chi tiết visual (màu sắc, ánh sáng, texture, shadows, etc) - KHÔNG CHỮ"
+    "visualDetails": "Chi tiết visual (màu sắc, ánh sáng, texture, shadows, etc) - KHÔNG CHỮ HIỂN THỊ",
+    "voiceOver": "Phần voice-over tiếng Việt cho scene này (từ text gốc)"
   },
   ...
 ]
+
+⚠️ LƯU Ý VỀ VOICE-OVER:
+- Chia đều text voice-over cho 4 scenes (mỗi scene ~2 giây)
+- Voice-over phải tự nhiên, không bị cắt ngang giữa câu
+- Mỗi scene có một phần hoàn chỉnh của câu chuyện
 
 YÊU CẦU CHUYỂN CẢNH:
 - Scene đầu tiên: transition liên kết với segment trước (hoặc fade in nếu là segment đầu)
@@ -449,8 +537,8 @@ YÊU CẦU CHUYỂN CẢNH:
 
 CHỈ trả về JSON array, KHÔNG có giải thích hay text khác.` 
                             },
-                            { 
-                                role: "user", 
+                            {
+                                role: "user",
                                 content: `Tối ưu prompt này thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà:
 
 🎬 CHỦ ĐỀ CHÍNH CỦA TOÀN BỘ VIDEO: ${analysis.overallTheme}
@@ -459,7 +547,16 @@ CHỈ trả về JSON array, KHÔNG có giải thích hay text khác.`
 
 📍 SEGMENT HIỆN TẠI ${index + 1}/${analysis.segments.length}: ${segment.timeRange}
 📌 FOCUS CỦA SEGMENT NÀY: ${segment.focus}
+🎙️ VOICE-OVER (Lời thoại nền tiếng Việt): "${voiceOverText}"
 📝 ORIGINAL PROMPT: ${segment.prompt}
+
+⚠️ QUAN TRỌNG VỀ VOICE-OVER:
+- Video này sẽ có lời thoại nền tiếng Việt: "${voiceOverText}"
+- Visual phải KHỚP với nội dung lời thoại này
+- Tạo visual minh họa cho những gì được nói trong voice-over
+- KHÔNG hiển thị text/chữ trong video (chỉ có voice-over audio)
+- CHIA ĐỀU voice-over text cho 4 scenes (mỗi scene 2 giây)
+- Mỗi scene có một phần tự nhiên của câu chuyện, không cắt ngang giữa câu
 
 ⚠️ QUAN TRỌNG: Mỗi scene PHẢI NÊU RÕ chủ đề "${analysis.overallTheme}" trong action description.
    - Ví dụ: Thay vì "Hình ảnh máy bay bay" → "Hình ảnh máy bay MH370 bay qua vùng trời (chủ đề: ${analysis.overallTheme})"
@@ -545,22 +642,27 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                     detailedTimeline = null;
                 }
                 
-                // Convert JSON array thành string prompt cho Veo3
+                // Convert JSON array thành string prompt cho Veo 3.1
                 let optimizedPrompt;
                 if (detailedTimeline && Array.isArray(detailedTimeline)) {
                     // Thêm context chủ đề vào đầu prompt
                     const themeContext = `[CONTEXT: ${analysis.overallTheme}. Style: ${analysis.visualStyle}. Colors: ${analysis.colorScheme}] `;
 
+                    // Thêm voice-over instruction cho Veo 3.1
+                    const voiceOverInstruction = `[VOICE-OVER TIẾNG VIỆT: "${voiceOverText}"] `;
+
                     // Convert chi tiết timeline thành string description
                     const scenesDescription = detailedTimeline.map(scene => {
                         const transitionText = scene.transition ? `Transition: ${scene.transition}.` : '';
-                        return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${scene.soundFocus}`;
+                        const voiceOverPart = scene.voiceOver ? `Voice-over: "${scene.voiceOver}".` : '';
+                        return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${scene.soundFocus}. ${voiceOverPart}`;
                     }).join(' ');
 
-                    // Kết hợp context + scenes
-                    optimizedPrompt = themeContext + scenesDescription;
-                    
+                    // Kết hợp context + voice-over + scenes
+                    optimizedPrompt = themeContext + voiceOverInstruction + scenesDescription;
+
                     console.log(`✅ [Step 3] Segment ${index + 1} optimized với ${detailedTimeline.length} scenes chi tiết:`);
+                    console.log(`   🎙️ Voice-over: "${voiceOverText.substring(0, 100)}..."`);
                     detailedTimeline.forEach(scene => {
                         console.log(`   [${scene.timeStart}-${scene.timeEnd}s] ${scene.action}`);
                         if (scene.transition) {
@@ -569,11 +671,15 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         console.log(`      📹 Camera: ${scene.cameraStyle}`);
                         console.log(`      🎨 Visual: ${scene.visualDetails}`);
                         console.log(`      🔊 Sound: ${scene.soundFocus}`);
+                        if (scene.voiceOver) {
+                            console.log(`      🎙️ Voice-over: "${scene.voiceOver}"`);
+                        }
                     });
                 } else {
-                    // Fallback: dùng prompt gốc
-                    optimizedPrompt = segment.prompt;
-                    console.log(`⚠️ [Step 3] Segment ${index + 1} dùng prompt gốc`);
+                    // Fallback: dùng prompt gốc + voice-over
+                    const voiceOverInstruction = `[VOICE-OVER TIẾNG VIỆT: "${voiceOverText}"] `;
+                    optimizedPrompt = voiceOverInstruction + segment.prompt;
+                    console.log(`⚠️ [Step 3] Segment ${index + 1} dùng prompt gốc + voice-over`);
                 }
                 
                 // Tạo video với retry mechanism (exponential backoff)
@@ -581,7 +687,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
 
                 let veo3Result = null;
                 let retryCount = 0;
-                const maxRetries = 7; // Tăng lên 7 lần retry
+                const maxRetries = 10; // Tăng lên 10 lần retry
                 
                 while (retryCount < maxRetries) {
             try {
@@ -632,6 +738,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         detailedTimeline: detailedTimeline,
                         optimizedPrompt: optimizedPrompt,
                         operationId: veo3Result.operationName,
+                        voiceOverText: voiceOverText,
                         success: true
                     };
                 } else {
@@ -639,6 +746,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                     return {
                         segmentIndex: index,
                         timeRange: segment.timeRange,
+                        voiceOverText: voiceOverText,
                         error: veo3Result?.message || 'Failed after retries',
                         success: false
                     };
@@ -648,6 +756,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                 return {
                     segmentIndex: index,
                     timeRange: segment.timeRange,
+                    voiceOverText: voiceOverText,
                     error: error.message,
                     success: false
                 };
@@ -844,7 +953,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
     }
 }
 
-console.log(`🚀 [START] Tạo video từ YouTube (thời gian sẽ lấy từ metadata)...`);
+console.log(`🚀 [START] Tạo video từ YouTube với voice-over tiếng Việt (chia theo transcript)...`);
 createMH370Video32s().then(result => {
     if (result.success) {
         console.log('🎉 Hoàn thành thành công!');
