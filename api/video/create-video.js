@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const LabsProfileManager = require('../../labs-profile-manager');
+// Load environment variables from .env if present
+try { require('dotenv').config(); } catch (_) {}
 
 // Google Labs Configuration
 const GOOGLE_LABS_CONFIG = {
@@ -101,9 +103,10 @@ async function createVideo(req, res, storageData) {
         console.log(`🎬 Tạo video với prompt: "${prompt}"`);
         console.log(`🍪 Sử dụng Labs cookies: ${labsCookies.substring(0, 100)}...`);
 
+        const VEO_PROJECT_ID = process.env.VEO_PROJECT_ID || '69a71e65-d70b-41dc-a540-fc8964582233';
         const requestBody = {
             clientContext: {
-                projectId: "69a71e65-d70b-41dc-a540-fc8964582233", // Project ID
+                projectId: VEO_PROJECT_ID, // from env VEO_PROJECT_ID
                 tool: "PINHOLE",
                 userPaygateTier: "PAYGATE_TIER_TWO"
             },

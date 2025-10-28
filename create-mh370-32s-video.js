@@ -104,7 +104,11 @@ async function getCachedOrFreshCookie(serverUrl) {
 async function createMH370Video32s() {
     try {
         const serverUrl = 'http://localhost:8888';
-        const youtubeUrl = 'https://youtu.be/52ru0qDc0LQ?si=zahSVRyDiQy7Jd6H';
+        // Allow override via env or CLI arg --url="..." or first positional
+        const argv = process.argv.slice(2).join(' ');
+        const urlFromFlag = (argv.match(/--url\s*=\s*"([^"]+)"/) || argv.match(/--url\s*=\s*'([^']+)'/) || argv.match(/--url\s*=\s*([^\s]+)/) || [])[1];
+        const positionalUrl = argv && !argv.includes('--url') ? argv.trim().split(/\s+/)[0] : '';
+        const youtubeUrl = process.env.YOUTUBE_URL || urlFromFlag || positionalUrl || 'https://youtu.be/52ru0qDc0LQ?si=zahSVRyDiQy7Jd6H';
 
         // Extract video ID từ URL
         const videoIdMatch = youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
@@ -439,33 +443,22 @@ ${batchIndex > 0 ? `5. Batch này có LIÊN KẾT mượt mà với batch trư�
         
         // Step 3: Tối ưu hóa từng prompt với ChatGPT trước khi tạo video
         console.log('🤖 [Step 3] ChatGPT tối ưu hóa từng prompt cho Veo3...');
-        console.log(`⏱️ [Step 3] Xử lý TUẦN TỰ ${analysis.segments.length} segments với delay 1s giữa mỗi request để tránh rate limit...`);
-
-        // XỬ LÝ TUẦN TỰ thay vì song song để tránh 429 Too Many Requests
+        
+        // XỬ LÝ THEO LÔ để nhanh nhưng vẫn an toàn
         const veo3Results = [];
+        const CONCURRENCY = 5; // số segment xử lý đồng thời
+        console.log(`⏱️ [Step 3] Xử lý THEO LÔ ${analysis.segments.length} segments (concurrency=${CONCURRENCY})`);
 
-        for (let index = 0; index < analysis.segments.length; index++) {
+        async function processOneSegment(index) {
             const segment = analysis.segments[index];
-
-            // Delay 1 giây giữa mỗi request (trừ request đầu tiên)
-            if (index > 0) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            // Lấy voice-over text từ transcript
-            const voiceOverText = String(transcriptSegments[index]?.text || '');
-
             console.log(`🤖 [Step 3] Tối ưu segment ${index + 1}: ${segment.timeRange}`);
             console.log(`🤖 [Step 3] Focus: ${segment.focus}`);
-            if (voiceOverText) {
-                console.log(`🎙️ [Step 3] Voice-over: "${voiceOverText.substring(0, 100)}${voiceOverText.length > 100 ? '...' : ''}"`);
-            }
-            
+
             try {
                 // Tạo context về segments trước/sau để đảm bảo liên kết
                 const prevSegment = index > 0 ? analysis.segments[index - 1] : null;
                 const nextSegment = index < analysis.segments.length - 1 ? analysis.segments[index + 1] : null;
-                
+
                 // Gọi ChatGPT để tối ưu prompt với format chi tiết
                 const optimizeResponse = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
@@ -488,16 +481,12 @@ Nhiệm vụ: Tối ưu hóa prompt thành JSON array chi tiết cho video 8 gi�
 3. CHỈ thêm chi tiết về: camera, transition, visual details, sound, voice-over
 4. GIỮ NGUYÊN ý nghĩa và nội dung của prompt gốc
 
-✅ VEO 3.1 HỖ TRỢ VOICE-OVER:
-✅ CÓ thể tạo voice-over (lời thoại nền) tiếng Việt
-✅ Voice-over sẽ được tạo tự động bởi Veo 3.1
-✅ Chỉ cần cung cấp text tiếng Việt trong prompt
-
 ⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC:
 ❌ KHÔNG có text/chữ/subtitle HIỂN THỊ trong video
 ❌ KHÔNG có dòng chữ bất kỳ xuất hiện trên màn hình
 ❌ KHÔNG có caption, title, watermark hiển thị
-✅ CHỈ có hình ảnh thuần + voice-over audio (không text overlay)
+❌ KHÔNG có voice-over, lời thoại, narration
+✅ CHỈ có hình ảnh thuần + âm thanh nền (không text, không voice-over)
 
 Trả về ĐÚNG format JSON array này (4 phần tử cho 8 giây):
 [
@@ -507,17 +496,11 @@ Trả về ĐÚNG format JSON array này (4 phần tử cho 8 giây):
     "action": "Mô tả hành động KHÔNG CÓ CHỮ HIỂN THỊ, chỉ visual thuần",
     "cameraStyle": "Phong cách camera (zoom in, pan left, tilt up, steady shot, etc)",
     "transition": "Chuyển cảnh từ scene trước (fade in, dissolve, cut, pan transition, zoom transition, etc)",
-    "soundFocus": "Âm thanh tập trung",
-    "visualDetails": "Chi tiết visual (màu sắc, ánh sáng, texture, shadows, etc) - KHÔNG CHỮ HIỂN THỊ",
-    "voiceOver": "Phần voice-over tiếng Việt cho scene này (từ text gốc)"
+    "soundFocus": "Âm thanh nền phù hợp (ambient, music, sound effects - KHÔNG voice-over)",
+    "visualDetails": "Chi tiết visual (màu sắc, ánh sáng, texture, shadows, etc) - KHÔNG CHỮ HIỂN THỊ"
   },
   ...
 ]
-
-⚠️ LƯU Ý VỀ VOICE-OVER:
-- Chia đều text voice-over cho 4 scenes (mỗi scene ~2 giây)
-- Voice-over phải tự nhiên, không bị cắt ngang giữa câu
-- Mỗi scene có một phần hoàn chỉnh của câu chuyện
 
 YÊU CẦU CHUYỂN CẢNH:
 - Scene đầu tiên: transition liên kết với segment trước (hoặc fade in nếu là segment đầu)
@@ -536,16 +519,13 @@ CHỈ trả về JSON array, KHÔNG có giải thích hay text khác.`
 
 📍 SEGMENT HIỆN TẠI ${index + 1}/${analysis.segments.length}: ${segment.timeRange}
 📌 FOCUS CỦA SEGMENT NÀY: ${segment.focus}
-🎙️ VOICE-OVER (Lời thoại nền tiếng Việt): "${voiceOverText}"
 📝 ORIGINAL PROMPT: ${segment.prompt}
 
-⚠️ QUAN TRỌNG VỀ VOICE-OVER:
-- Video này sẽ có lời thoại nền tiếng Việt: "${voiceOverText}"
-- Visual phải KHỚP với nội dung lời thoại này
-- Tạo visual minh họa cho những gì được nói trong voice-over
-- KHÔNG hiển thị text/chữ trong video (chỉ có voice-over audio)
-- CHIA ĐỀU voice-over text cho 4 scenes (mỗi scene 2 giây)
-- Mỗi scene có một phần tự nhiên của câu chuyện, không cắt ngang giữa câu
+⚠️ QUAN TRỌNG:
+- Video này CHỈ có visual thuần túy + âm thanh nền
+- KHÔNG có voice-over, lời thoại, narration
+- KHÔNG hiển thị text/chữ trong video
+- CHỈ có hình ảnh động + âm thanh nền phù hợp
 
 ⚠️ QUAN TRỌNG: Mỗi scene PHẢI NÊU RÕ chủ đề "${analysis.overallTheme}" trong action description.
    - Ví dụ: Thay vì "Hình ảnh máy bay bay" → "Hình ảnh máy bay MH370 bay qua vùng trời (chủ đề: ${analysis.overallTheme})"
@@ -567,17 +547,18 @@ ${nextSegment ? `- SEGMENT SAU (${nextSegment.timeRange}): ${nextSegment.focus}
    - CHỈ chia nhỏ thành 4 scenes (0-2s, 2-4s, 4-6s, 6-8s) và thêm chi tiết kỹ thuật
 
 2. CHI TIẾT CẦN THÊM (không đổi nội dung):
-   - action: Mô tả visual ĐÚNG với prompt gốc - PHẢI NÊU RÕ CHỦ ĐỀ "${analysis.overallTheme}" - KHÔNG TEXT/CHỮ
+   - action: Mô tả visual ĐÚNG với prompt gốc - PHẢI NÊU RÕ CHỦ ĐỀ "${analysis.overallTheme}" - KHÔNG TEXT/CHỮ/VOICE-OVER
      VÍ DỤ: "Hình ảnh máy bay MH370 cất cánh (chủ đề: cuộc tìm kiếm MH370), với ánh sáng mờ ảo"
      KHÔNG ĐƯỢC: "Hình ảnh máy bay cất cánh" (thiếu context chủ đề)
    - cameraStyle: camera movement (zoom in/out, pan left/right/up/down, tilt, steady, tracking shot)
    - transition: chuyển cảnh (fade, dissolve, cut, smooth pan, cross dissolve, match cut)
-   - soundFocus: âm thanh phù hợp (ambient, dramatic music, nature sounds, effects)
+   - soundFocus: âm thanh nền phù hợp (ambient, dramatic music, nature sounds, effects - KHÔNG voice-over)
    - visualDetails: màu ${analysis.colorScheme}, phong cách ${analysis.visualStyle}, lighting, texture, atmosphere
 
 ⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC:
 - KHÔNG thêm cảnh/đối tượng/hành động mới không có trong ORIGINAL PROMPT
 - KHÔNG có text overlay, subtitle, caption, chữ viết bất kỳ
+- KHÔNG có voice-over, lời thoại, narration
 - CHỈ visual thuần: objects, scenes, actions, movements từ ORIGINAL PROMPT
 - NHƯNG PHẢI NÊU RÕ CHỦ ĐỀ "${analysis.overallTheme}" trong mỗi action để Veo3 hiểu context câu chuyện
 
@@ -608,15 +589,15 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         temperature: 0.3 // Thấp để giữ đúng nội dung, không sáng tạo thêm
                     })
                 });
-                
+
                 const optimizeResult = await optimizeResponse.json();
-                
+
                 if (!optimizeResult.choices) {
                     throw new Error('ChatGPT optimization failed');
                 }
-                
+
                 const optimizedContent = optimizeResult.choices[0].message.content.trim();
-                
+
                 // Parse JSON array từ response
                 let detailedTimeline;
                 try {
@@ -630,28 +611,23 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                     console.warn(`⚠️ [Step 3] Không parse được JSON, dùng prompt gốc`);
                     detailedTimeline = null;
                 }
-                
+
                 // Convert JSON array thành string prompt cho Veo 3.1
                 let optimizedPrompt;
                 if (detailedTimeline && Array.isArray(detailedTimeline)) {
                     // Thêm context chủ đề vào đầu prompt
                     const themeContext = `[CONTEXT: ${analysis.overallTheme}. Style: ${analysis.visualStyle}. Colors: ${analysis.colorScheme}] `;
 
-                    // Thêm voice-over instruction cho Veo 3.1
-                    const voiceOverInstruction = `[VOICE-OVER TIẾNG VIỆT: "${voiceOverText}"] `;
-
-                    // Convert chi tiết timeline thành string description
+                    // Convert chi tiết timeline thành string description (KHÔNG có voice-over)
                     const scenesDescription = detailedTimeline.map(scene => {
                         const transitionText = scene.transition ? `Transition: ${scene.transition}.` : '';
-                        const voiceOverPart = scene.voiceOver ? `Voice-over: "${scene.voiceOver}".` : '';
-                        return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${scene.soundFocus}. ${voiceOverPart}`;
+                        return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${scene.soundFocus}.`;
                     }).join(' ');
 
-                    // Kết hợp context + voice-over + scenes
-                    optimizedPrompt = themeContext + voiceOverInstruction + scenesDescription;
+                    // Kết hợp context + scenes (KHÔNG có voice-over)
+                    optimizedPrompt = themeContext + scenesDescription;
 
                     console.log(`✅ [Step 3] Segment ${index + 1} optimized với ${detailedTimeline.length} scenes chi tiết:`);
-                    console.log(`   🎙️ Voice-over: "${voiceOverText.substring(0, 100)}..."`);
                     detailedTimeline.forEach(scene => {
                         console.log(`   [${scene.timeStart}-${scene.timeEnd}s] ${scene.action}`);
                         if (scene.transition) {
@@ -660,38 +636,34 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         console.log(`      📹 Camera: ${scene.cameraStyle}`);
                         console.log(`      🎨 Visual: ${scene.visualDetails}`);
                         console.log(`      🔊 Sound: ${scene.soundFocus}`);
-                        if (scene.voiceOver) {
-                            console.log(`      🎙️ Voice-over: "${scene.voiceOver}"`);
-                        }
                     });
                 } else {
-                    // Fallback: dùng prompt gốc + voice-over
-                    const voiceOverInstruction = `[VOICE-OVER TIẾNG VIỆT: "${voiceOverText}"] `;
-                    optimizedPrompt = voiceOverInstruction + segment.prompt;
-                    console.log(`⚠️ [Step 3] Segment ${index + 1} dùng prompt gốc + voice-over`);
+                    // Fallback: dùng prompt gốc (không có voice-over)
+                    optimizedPrompt = segment.prompt;
+                    console.log(`⚠️ [Step 3] Segment ${index + 1} dùng prompt gốc`);
                 }
-                
+
                 // Tạo video với retry mechanism (exponential backoff)
                 console.log(`🎬 [Step 3] Tạo video segment ${index + 1} với prompt string tối ưu...`);
 
                 let veo3Result = null;
                 let retryCount = 0;
                 const maxRetries = 10; // Tăng lên 10 lần retry
-                
+
                 while (retryCount < maxRetries) {
-            try {
-                const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                    try {
+                        const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
                                 input: optimizedPrompt,
                                 prompt: optimizedPrompt
-                    })
-                });
-                
+                            })
+                        });
+
                         veo3Result = await veo3Response.json();
-                
-                if (veo3Result.success) {
+
+                        if (veo3Result.success) {
                             break; // Thành công, thoát vòng lặp
                         } else {
                             throw new Error(veo3Result.message || 'Create video failed');
@@ -716,10 +688,10 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         }
                     }
                 }
-                
+
                 if (veo3Result && veo3Result.success) {
                     console.log(`✅ [Step 3] Segment ${index + 1} Veo3: ${veo3Result.operationName}`);
-                    veo3Results.push({
+                    return {
                         segmentIndex: index,
                         timeRange: segment.timeRange,
                         focus: segment.focus,
@@ -727,29 +699,40 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         detailedTimeline: detailedTimeline,
                         optimizedPrompt: optimizedPrompt,
                         operationId: veo3Result.operationName,
-                        voiceOverText: voiceOverText,
                         success: true
-                    });
+                    };
                 } else {
                     console.log(`❌ [Step 3] Segment ${index + 1} thất bại sau ${maxRetries} lần thử`);
-                    veo3Results.push({
+                    return {
                         segmentIndex: index,
                         timeRange: segment.timeRange,
-                        voiceOverText: voiceOverText,
                         error: veo3Result?.message || 'Failed after retries',
                         success: false
-                    });
+                    };
                 }
             } catch (error) {
                 console.log(`❌ [Step 3] Segment ${index + 1} lỗi: ${error.message}`);
-                veo3Results.push({
+                return {
                     segmentIndex: index,
                     timeRange: segment.timeRange,
-                    voiceOverText: voiceOverText,
                     error: error.message,
                     success: false
-                });
+                };
             }
+        }
+
+        for (let start = 0; start < analysis.segments.length; start += CONCURRENCY) {
+            const end = Math.min(start + CONCURRENCY, analysis.segments.length);
+            const indexes = Array.from({ length: end - start }, (_, i) => start + i);
+            // giãn cách nhẹ giữa các request trong cùng lô để giảm burst
+            const tasks = indexes.map((idx, offset) => (async () => {
+                if (offset > 0) await new Promise(r => setTimeout(r, 200 * offset));
+                return await processOneSegment(idx);
+            })());
+            const batchResults = await Promise.all(tasks);
+            veo3Results.push(...batchResults);
+            // nghỉ 1s giữa các lô
+            if (end < analysis.segments.length) await new Promise(r => setTimeout(r, 1000));
         }
 
         // Tất cả requests đã hoàn thành (xử lý tuần tự)

@@ -75,15 +75,14 @@
         .content { 
             padding: 32px; 
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr; /* full-width single column for tab content */
             gap: 32px;
             overflow-y: auto;
         }
         
         .left-column, .right-column {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
+            /* Let child sections occupy full grid width */
+            display: contents;
         }
         
         .form-group { 
@@ -348,6 +347,46 @@
             display: flex; 
             gap: 12px; 
             flex-wrap: wrap; 
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 6px 16px 6px 16px; /* giảm chiều cao tổng */
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-bottom: 1px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        .tab-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 36px; /* cố định chiều cao */
+            width: 132px; /* cố định chiều rộng để không co giãn theo chữ */
+            padding: 0 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+            line-height: 1; 
+            white-space: nowrap; /* tránh xuống dòng làm cao hơn */
+            box-sizing: border-box; /* tránh thay đổi kích thước khi active */
+            outline: none;
+        }
+        .tab-button:hover { background: #e2e8f0; }
+        .tab-button.active {
+            color: #fff;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border-color: transparent;
+            box-shadow: 0 6px 14px rgba(59,130,246,0.25);
         }
         
         table { 
@@ -630,11 +669,24 @@
             <p>Tạo video từ văn bản – đơn giản, nhanh, chuyên nghiệp</p>
         </div>
 
+        <div class="tabs">
+            <button class="tab-button active" data-tab="tab-workflow">Workflow</button>
+            <button class="tab-button" data-tab="tab-tts">TTS</button>
+            <button class="tab-button" data-tab="tab-profile">Chrome Profile</button>
+            <button class="tab-button" data-tab="tab-labs">Google Labs</button>
+            <button class="tab-button" data-tab="tab-youtube">Upload YouTube</button>
+            <button class="tab-button" data-tab="tab-ai">AI Video</button>
+            <button class="tab-button" data-tab="tab-transcript">Transcript</button>
+            <button class="tab-button" data-tab="tab-merge">Merge Video</button>
+            <button class="tab-button" data-tab="tab-veo3">Veo3</button>
+            <button class="tab-button" data-tab="tab-status">Trạng thái</button>
+        </div>
+
         <div class="content">
             <!-- Left Column -->
             <div class="left-column">
             <!-- Complete Workflow -->
-                <div class="section workflow-section">
+                <div class="section workflow-section" data-section="tab-workflow">
                     <h3>🎬 Workflow Hoàn Chỉnh</h3>
                     <p class="section-description">
                         YouTube → Transcript → ChatGPT → TTS → Video
@@ -653,6 +705,7 @@
                 <div class="btn-group">
                         <button type="button" id="btnWorkflow" class="btn btn-success" onclick="runCompleteWorkflow()">🚀 Tạo Video</button>
                         <button type="button" class="btn btn-secondary" onclick="listFinalVideos()">📁 Danh sách</button>
+                        <button type="button" class="btn" onclick="runMH370FromYouTube()">🛫 Tạo video 32s (MH370)</button>
                 </div>
                     <div id="workflowProgress" class="polling-status" style="display:none; margin-top:8px;">
                         <strong id="workflowProgressTitle">🔄 Đang xử lý...</strong>
@@ -665,7 +718,7 @@
             </div>
 
                 <!-- TTS Section -->
-                <div class="section tts-section">
+                <div class="section tts-section" data-section="tab-tts" style="display:none;">
                     <h3>🔊 Text-to-Speech</h3>
                 <div class="form-group">
                         <label for="ttsText">📝 Văn bản cần đọc:</label>
@@ -694,7 +747,7 @@
             </div>
 
             <!-- Chrome Profile Management -->
-                <div class="section profile-section">
+                <div class="section profile-section" data-section="tab-profile" style="display:none;">
                     <h3>🔧 Chrome Profile</h3>
                 <div class="form-group">
                     <label for="profileName">📁 Tên Profile:</label>
@@ -713,8 +766,98 @@
 
             <!-- Right Column -->
             <div class="right-column">
+            <!-- Transcript Tools -->
+                <div class="section profile-section" data-section="tab-transcript" style="display:none;">
+                    <h3>📝 Transcript YouTube</h3>
+                    <div class="form-group">
+                        <label for="transcriptUrl">🔗 URL YouTube:</label>
+                        <input type="url" id="transcriptUrl" placeholder="https://www.youtube.com/watch?v=..." />
+                    </div>
+                    <div class="form-group">
+                        <label for="transcriptLang">🌐 Ngôn ngữ:</label>
+                        <select id="transcriptLang">
+                            <option value="vi">Tiếng Việt</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-success" onclick="getTranscript()">📜 Lấy transcript</button>
+                        <button type="button" class="btn" onclick="listTranscripts()">📁 Danh sách</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="transcriptFilename">📄 Tên file transcript (.txt):</label>
+                        <input type="text" id="transcriptFilename" placeholder="transcript_xxx.txt" />
+                    </div>
+                    <div class="form-group">
+                        <label for="openaiKey">🔑 OpenAI API Key (để viết lại):</label>
+                        <input type="password" id="openaiKey" placeholder="sk-..." />
+                    </div>
+                    <div class="form-group">
+                        <label for="rewriteIntensity">✍️ Mức độ viết lại:</label>
+                        <select id="rewriteIntensity">
+                            <option value="light">Nhẹ</option>
+                            <option value="medium">Vừa</option>
+                            <option value="heavy">Mạnh</option>
+                        </select>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn" onclick="viewTranscriptFile()">👁️ Xem file</button>
+                        <button type="button" class="btn" onclick="rewriteTranscriptLight()">✍️ Viết lại (mức chọn)</button>
+                        <button type="button" class="btn" onclick="rewriteWithChatGPTUI()">🤖 Viết lại 15%</button>
+                        <button type="button" class="btn" onclick="replaceChannelNamesUI()">🔁 Thay tên kênh</button>
+                    </div>
+                    <div id="transcriptResult" style="margin-top:12px;"></div>
+                </div>
+
+            <!-- Merge Videos -->
+                <div class="section youtube-section" data-section="tab-merge" style="display:none;">
+                    <h3>🎞️ Ghép Video Ngẫu Nhiên</h3>
+                    <div class="form-group">
+                        <label for="mergeDuration">⏱️ Thời lượng (giây):</label>
+                        <input type="number" id="mergeDuration" value="60" />
+                    </div>
+                    <div class="form-group">
+                        <label for="mergeFilename">📄 Tên file output:</label>
+                        <input type="text" id="mergeFilename" value="merged_auto.mp4" />
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-success" onclick="mergeVideosUI()">🎬 Ghép</button>
+                        <button type="button" class="btn" onclick="listAvailableVideosUI()">📁 Video nguồn</button>
+                    </div>
+                    <div id="mergeResult" style="margin-top:12px;"></div>
+                </div>
+
+            <!-- Veo3 Utilities -->
+                <div class="section ai-section" data-section="tab-veo3" style="display:none;">
+                    <h3>🧩 Veo3 Utilities</h3>
+                    <div class="form-group">
+                        <label for="veoVideoPath">📁 Đường dẫn video segment (mp4):</label>
+                        <input type="text" id="veoVideoPath" placeholder="public/videos/segment.mp4" />
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-success" onclick="analyzeFramesUI()">🔍 Phân tích frames</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoInfoJson">🧾 Video info (JSON):</label>
+                        <textarea id="videoInfoJson" rows="3" placeholder='{"duration":8,"width":1280,"height":720,"fps":24}'></textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn" onclick="generateVeo3JSONUI()">🛠️ Tạo JSON cho Veo3</button>
+                    </div>
+                    <div id="veo3Result" style="margin-top:12px;"></div>
+                </div>
+
+            <!-- Token Status -->
+                <div class="section labs-section" data-section="tab-labs" style="display:none;">
+                    <h3>🔐 Token / Trạng thái</h3>
+                    <div class="btn-group">
+                        <button type="button" class="btn" onclick="getTokenStatus()">ℹ️ Xem trạng thái</button>
+                    </div>
+                    <div id="tokenStatusResult" style="margin-top:12px;"></div>
+                </div>
+
             <!-- Labs Profile Management -->
-                <div class="section labs-section">
+                <div class="section labs-section" data-section="tab-status" style="display:none;">
                     <h3>🧪 Google Labs</h3>
                     <p class="section-description">
                         Tự động lấy cookies từ Google Labs
@@ -730,7 +873,7 @@
             </div>
 
             <!-- YouTube Upload -->
-                <div class="section youtube-section">
+                <div class="section youtube-section" data-section="tab-youtube" style="display:none;">
                     <h3>📺 Upload YouTube</h3>
                 <div class="form-group">
                     <label for="uploadVideoPath">📁 Đường dẫn video:</label>
@@ -759,7 +902,7 @@
             </div>
 
             <!-- AI Video Generation -->
-                <div class="section ai-section">
+                <div class="section ai-section" data-section="tab-ai" style="display:none;">
                 <h3>🎬 Tạo Video AI</h3>
                 <form id="videoForm">
                     <div class="form-group">
@@ -767,9 +910,7 @@
                             <textarea id="prompts" name="prompts" rows="4" placeholder="Ví dụ:\na cat playing piano in space\na dog surfing a wave\na robot dancing in the rain">cat</textarea>
                     </div>
                     <div class="btn-group">
-                        <button type="submit" class="btn btn-success">🎬 Tạo Video</button>
-                        <button type="button" class="btn btn-secondary" onclick="loadHistory()">📋 Lịch sử</button>
-                            <button type="button" class="btn btn-danger" onclick="clearHistory()">🗑️ Xóa</button>
+					<button type="submit" class="btn btn-success">🎬 Tạo Video</button>
                     </div>
                 </form>
                 </div>
@@ -790,7 +931,7 @@
             <div id="response"></div>
             <div id="batchTable" style="margin-top: 20px;"></div>
             <div id="videoResult"></div>
-            <div id="history"></div>
+			
             </div>
         </div>
     </div>
@@ -1173,48 +1314,7 @@
             document.getElementById('pollingMessage').textContent = message;
         }
 
-        // History functions
-        async function loadHistory() {
-            showLoading(true);
-            try {
-                const result = await apiCall('/history');
-                if (result.success) displayHistory(result.requests);
-                else showError('Lỗi tải lịch sử');
-            } catch (error) {
-                showError('Lỗi tải lịch sử: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        async function clearHistory() {
-            if (confirm('Bạn có chắc muốn xóa toàn bộ lịch sử?')) {
-                try {
-                    const result = await apiCall('/history', 'DELETE');
-                    if (result.success) {
-                        showSuccess('Đã xóa lịch sử');
-                        document.getElementById('history').innerHTML = '';
-                    } else showError('Lỗi xóa lịch sử');
-                } catch (error) {
-                    showError('Lỗi xóa lịch sử: ' + error.message);
-                }
-            }
-        }
-
-        function displayHistory(requests) {
-            const historyDiv = document.getElementById('history');
-            if (requests.length === 0) {
-                historyDiv.innerHTML = '<div class="history-item"><p>Chưa có lịch sử nào</p></div>';
-                return;
-            }
-            let html = '<div class="history"><h3>📋 Lịch sử requests</h3>';
-            requests.forEach(req => {
-                html += `<div class="history-item"><h4>🎬 ${req.prompt}</h4><p><strong>Thời gian:</strong> ${new Date(req.timestamp).toLocaleString('vi-VN')}</p><p><strong>Model:</strong> ${req.videoModel}</p><p><strong>Tỷ lệ:</strong> ${req.aspectRatio}</p><p><strong>Status:</strong> ${req.status}</p></div>`;
-            });
-            historyDiv.innerHTML = html + '</div>';
-        }
-
-        // Video result display
+		// Video result display
         function showVideoResult(videoUrl, downloadInfo = null) {
             const videoResultDiv = document.getElementById('videoResult');
             let downloadSection = '';
@@ -1224,8 +1324,7 @@
             videoResultDiv.innerHTML = `<div class="video-result"><h3>🎉 Video đã sẵn sàng!</h3>${downloadSection}<div class="original-video" style="margin-top: 20px;"><h4>🌐 Video gốc từ Google:</h4><p><strong>Video URL:</strong> <a href="${videoUrl}" target="_blank">${videoUrl}</a></p><video controls style="width: 100%; max-width: 500px;"><source src="${videoUrl}" type="video/mp4">Trình duyệt của bạn không hỗ trợ video tag.</video><p><em>Nhấn vào link để mở video trong tab mới</em></p></div></div>`;
         }
 
-        // Load history on page load
-        window.addEventListener('load', () => loadHistory());
+		
 
 
 
@@ -1641,8 +1740,198 @@
             }
         }
 
+        // ===== Transcript Tools =====
+        async function getTranscript() {
+            const url = (document.getElementById('transcriptUrl').value || '').trim();
+            const lang = document.getElementById('transcriptLang').value || 'vi';
+            if (!url) { showError('Vui lòng nhập URL YouTube để lấy transcript'); return; }
+            showLoading(true);
+            try {
+                const result = await apiCall('/get-transcript', 'POST', { url, lang, text: true, mode: 'auto' });
+                if (result.success) {
+                    const info = [];
+                    if (result.status === 'processing' && result.jobId) info.push(`<p><strong>Job:</strong> ${result.jobId}</p>`);
+                    if (result.filename) info.push(`<p><strong>File:</strong> ${result.filename}</p>`);
+                    document.getElementById('transcriptResult').innerHTML = `<div class="success"><h4>📜 Transcript</h4>${info.join('')}</div>`;
+                } else {
+                    showError(result.message || 'Lỗi lấy transcript');
+                }
+            } catch (e) {
+                showError('Lỗi transcript: ' + e.message);
+            } finally { showLoading(false); }
+        }
+
+        async function listTranscripts() {
+            showLoading(true);
+            try {
+                const result = await apiCall('/list-transcripts');
+                if (result.success) {
+                    const items = (result.files || []).map(f => `<li><a href="#" onclick="document.getElementById('transcriptFilename').value='${f.filename}'; viewTranscriptFile(); return false;">${f.filename}</a> <span style=\"color:#64748b\">(${f.size} bytes)</span></li>`).join('');
+                    document.getElementById('transcriptResult').innerHTML = `<div class=\"success\"><h4>📁 Transcripts (${result.count})</h4><ul>${items}</ul></div>`;
+                } else { showError(result.message || 'Lỗi danh sách transcripts'); }
+            } catch (e) { showError('Lỗi: ' + e.message); }
+            finally { showLoading(false); }
+        }
+
+        async function viewTranscriptFile() {
+            const filename = (document.getElementById('transcriptFilename').value || '').trim();
+            if (!filename) { showError('Vui lòng nhập tên file transcript'); return; }
+            showLoading(true);
+            try {
+                const res = await fetch(`${API_BASE}/get-transcript-file/${encodeURIComponent(filename)}`);
+                const result = await res.json();
+                if (result.success) {
+                    document.getElementById('transcriptResult').innerHTML = `<div class=\"success\"><h4>👁️ ${result.filename}</h4><pre style=\"white-space:pre-wrap;\">${escapeHtml(result.content)}</pre></div>`;
+                } else { showError(result.message || 'Không đọc được file'); }
+            } catch (e) { showError('Lỗi đọc file: ' + e.message); }
+            finally { showLoading(false); }
+        }
+
+        async function rewriteTranscriptLight() {
+            const filename = (document.getElementById('transcriptFilename').value || '').trim();
+            const openaiApiKey = (document.getElementById('openaiKey').value || '').trim();
+            const intensity = document.getElementById('rewriteIntensity').value || 'light';
+            if (!filename || !openaiApiKey) { showError('Cần tên file và OpenAI API Key'); return; }
+            showLoading(true);
+            try {
+                const result = await apiCall('/rewrite-transcript', 'POST', { filename, openaiApiKey, intensity });
+                if (result.success) {
+                    document.getElementById('transcriptResult').innerHTML = `<div class=\"success\"><h4>✍️ Đã viết lại</h4><p><strong>File:</strong> ${result.rewrittenFilename}</p></div>`;
+                } else { showError(result.message || 'Lỗi viết lại'); }
+            } catch (e) { showError('Lỗi viết lại: ' + e.message); }
+            finally { showLoading(false); }
+        }
+
+        async function rewriteWithChatGPTUI() {
+            const filename = (document.getElementById('transcriptFilename').value || '').trim();
+            const openaiApiKey = (document.getElementById('openaiKey').value || '').trim();
+            if (!filename || !openaiApiKey) { showError('Cần tên file và OpenAI API Key'); return; }
+            showLoading(true);
+            try {
+                const result = await apiCall('/rewrite-with-chatgpt', 'POST', { filename, openaiApiKey });
+                if (result.success) {
+                    document.getElementById('transcriptResult').innerHTML = `<div class=\"success\"><h4>🤖 Đã viết lại 15%</h4><p><strong>File:</strong> ${result.rewrittenFilename}</p></div>`;
+                } else { showError(result.message || 'Lỗi viết lại'); }
+            } catch (e) { showError('Lỗi: ' + e.message); }
+            finally { showLoading(false); }
+        }
+
+        async function replaceChannelNamesUI() {
+            const filename = (document.getElementById('transcriptFilename').value || '').trim();
+            if (!filename) { showError('Cần tên file transcript'); return; }
+            showLoading(true);
+            try {
+                const result = await apiCall('/replace-channel-names', 'POST', { filename });
+                if (result.success) {
+                    document.getElementById('transcriptResult').innerHTML = `<div class=\"success\"><h4>🔁 Đã thay tên kênh</h4><p><strong>File:</strong> ${result.modifiedFilename}</p><p><strong>Số lần thay:</strong> ${result.totalReplacements}</p></div>`;
+                } else { showError(result.message || 'Lỗi thay tên kênh'); }
+            } catch (e) { showError('Lỗi: ' + e.message); }
+            finally { showLoading(false); }
+        }
+
+        // ===== Merge Videos =====
+        async function mergeVideosUI() {
+            const duration = parseInt(document.getElementById('mergeDuration').value || '60', 10);
+            const filename = (document.getElementById('mergeFilename').value || '').trim() || `merged_${Date.now()}.mp4`;
+            showLoading(true);
+            try {
+                const result = await apiCall('/merge-videos', 'POST', { duration, filename });
+                if (result.success) {
+                    document.getElementById('mergeResult').innerHTML = `<div class=\"success\"><h4>🎉 Hoàn tất</h4><p><a href=\"${result.output.publicPath}\" target=\"_blank\">${result.output.filename}</a> (${result.output.sizeMB} MB)</p></div>`;
+                } else { showError(result.message || 'Lỗi ghép video'); }
+            } catch (e) { showError('Lỗi ghép video: ' + e.message); }
+            finally { showLoading(false); }
+        }
+
+        async function listAvailableVideosUI() {
+            showLoading(true);
+            try {
+                const result = await apiCall('/merge-videos/list');
+                if (result.success) {
+                    const items = (result.videos || []).map(v => `<li><a href=\"/videos/${v.filename}\" target=\"_blank\">${v.filename}</a> <span style=\"color:#64748b\">(${v.sizeMB} MB)</span></li>`).join('');
+                    document.getElementById('mergeResult').innerHTML = `<div class=\"success\"><h4>📁 Video nguồn (${result.count})</h4><ul>${items}</ul></div>`;
+                } else { showError(result.message || 'Lỗi liệt kê video'); }
+            } catch (e) { showError('Lỗi: ' + e.message); }
+            finally { showLoading(false); }
+        }
+
+        // ===== Veo3 Utilities =====
+        async function analyzeFramesUI() {
+            const videoPath = (document.getElementById('veoVideoPath').value || '').trim();
+            if (!videoPath) { showError('Nhập đường dẫn video segment để phân tích frames'); return; }
+            showLoading(true);
+            try {
+                const result = await apiCall('/analyze-frames', 'POST', { videoPath });
+                if (result.success) {
+                    document.getElementById('veo3Result').innerHTML = `<div class=\"success\"><h4>🔍 Đã phân tích frames</h4><p><strong>Số frames:</strong> ${result.result.frames.length}</p><pre>${escapeHtml(JSON.stringify(result.result.detailedAnalysis.slice(0,2), null, 2))}\\n...</pre></div>`;
+                } else { showError(result.message || 'Lỗi phân tích frames'); }
+            } catch (e) { showError('Lỗi: ' + e.message); }
+            finally { showLoading(false); }
+        }
+
+        async function generateVeo3JSONUI() {
+            let videoInfo;
+            try { videoInfo = JSON.parse(document.getElementById('videoInfoJson').value || '{}'); }
+            catch { showError('Video info phải là JSON hợp lệ'); return; }
+            const sampleAnalysis = [{ second: 1, analysis: { description: 'sample', veo3_prompt: 'sample' } }];
+            showLoading(true);
+            try {
+                const result = await apiCall('/generate-veo3-json', 'POST', { detailedAnalysis: sampleAnalysis, videoInfo });
+                if (result.success) {
+                    document.getElementById('veo3Result').innerHTML = `<div class=\"success\"><h4>🛠️ JSON Veo3</h4><pre>${escapeHtml(JSON.stringify(result.result.timeline, null, 2))}</pre></div>`;
+                } else { showError(result.message || 'Lỗi tạo JSON'); }
+            } catch (e) { showError('Lỗi: ' + e.message); }
+            finally { showLoading(false); }
+        }
+
+        // ===== Token Status =====
+        async function getTokenStatus() {
+            showLoading(true);
+            try {
+                const result = await apiCall('/token-status');
+                if (result.success) {
+                    document.getElementById('tokenStatusResult').innerHTML = `<div class=\"success\"><h4>🔐 Trạng thái</h4><pre>${escapeHtml(JSON.stringify(result, null, 2))}</pre></div>`;
+                } else { showError(result.message || 'Lỗi lấy trạng thái'); }
+            } catch (e) { showError('Lỗi: ' + e.message); }
+            finally { showLoading(false); }
+        }
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => stopPolling());
+
+		// ===== Tabs logic =====
+		(function initTabs(){
+			const buttons = Array.from(document.querySelectorAll('.tab-button'));
+			const sections = Array.from(document.querySelectorAll('[data-section]'));
+			function showTab(tab){
+				buttons.forEach(b=>b.classList.toggle('active', b.getAttribute('data-tab')===tab));
+				sections.forEach(s=>{
+					const match = s.getAttribute('data-section')===tab;
+					s.style.display = match ? '' : 'none';
+				});
+			}
+			buttons.forEach(b=>{
+				b.addEventListener('click', ()=> showTab(b.getAttribute('data-tab')));
+			});
+			// default tab
+			showTab('tab-workflow');
+		})();
+
+		// ===== MH370 quick workflow (32s) =====
+		async function runMH370FromYouTube(){
+			const youtubeUrl = (document.getElementById('youtubeUrl').value || '').trim();
+			if (!youtubeUrl){ showError('Vui lòng nhập URL YouTube'); return; }
+			showLoading(true);
+			try{
+				const result = await apiCall('/create-mh370-video', 'POST', { youtubeUrl });
+				if(result.success){
+					showSuccess(`Đã bắt đầu job tạo video 32s (pid=${result.pid || 'n/a'}). Theo dõi trong console server.`);
+				}else{
+					showError(result.message || 'Không khởi động được job.');
+				}
+			}catch(e){
+				showError('Lỗi khởi động job: ' + e.message);
+			}finally{ showLoading(false); }
+		}
     </script>
 </body>
 </html>

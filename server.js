@@ -186,6 +186,24 @@ app.post('/api/tts/download', vibeeTTS.downloadTTS);
 app.post('/api/tts/wait', vibeeTTS.waitUntilReady);
 
 // Utility APIs
+app.post('/api/create-mh370-video', async (req, res) => {
+    try {
+        const { youtubeUrl } = req.body || {};
+        if (!youtubeUrl) return res.status(400).json({ success: false, message: 'youtubeUrl is required' });
+        const { spawn } = require('child_process');
+        const path = require('path');
+        const scriptPath = path.join(__dirname, 'create-mh370-32s-video.js');
+        const child = spawn(process.execPath, [scriptPath, `--url=${youtubeUrl}`], {
+            cwd: __dirname,
+            stdio: 'inherit',
+            shell: process.platform === 'win32'
+        });
+        res.json({ success: true, message: 'Job started', pid: child.pid });
+    } catch (error) {
+        console.error('❌ start MH370 job error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 app.get('/api/token-status', (req, res) => {
     try {
         const tokenStatus = storageUtils.getTokenStatus(storageData);
