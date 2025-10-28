@@ -473,31 +473,32 @@ ${batchIndex > 0 ? `5. Batch này có LIÊN KẾT mượt mà với batch trư�
                                 role: "system",
                                 content: `Bạn là chuyên gia tối ưu prompt cho Veo 3.1 (Google Video AI mới nhất).
 
-Nhiệm vụ: Tối ưu hóa prompt thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà và VOICE-OVER tiếng Việt.
+Nhiệm vụ: Tối ưu hóa prompt thành JSON array chi tiết cho video 8 giây với CHUYỂN CẢNH mượt mà.
 
 🎯 QUY TẮC VÀNG:
 1. CHỈ tối ưu visual của prompt GỐC - KHÔNG đổi nội dung chính
 2. KHÔNG thêm cảnh/yếu tố mới không có trong prompt gốc
-3. CHỈ thêm chi tiết về: camera, transition, visual details, sound, voice-over
+3. CHỈ thêm chi tiết về: camera, transition, visual details, ambient sound
 4. GIỮ NGUYÊN ý nghĩa và nội dung của prompt gốc
 
 ⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC:
 ❌ KHÔNG có text/chữ/subtitle HIỂN THỊ trong video
 ❌ KHÔNG có dòng chữ bất kỳ xuất hiện trên màn hình
 ❌ KHÔNG có caption, title, watermark hiển thị
-❌ KHÔNG có voice-over, lời thoại, narration
-✅ CHỈ có hình ảnh thuần + âm thanh nền (không text, không voice-over)
+❌ KHÔNG có voice-over, lời thoại, narration, dialogue, speech
+❌ KHÔNG có human voice, talking, speaking
+✅ CHỈ có hình ảnh thuần + âm thanh nền tự nhiên/nhạc nền (KHÔNG có giọng nói)
 
 Trả về ĐÚNG format JSON array này (4 phần tử cho 8 giây):
 [
   {
     "timeStart": 0,
     "timeEnd": 2,
-    "action": "Mô tả hành động KHÔNG CÓ CHỮ HIỂN THỊ, chỉ visual thuần",
+    "action": "Mô tả hành động KHÔNG CÓ CHỮ HIỂN THỊ, KHÔNG CÓ GIỌNG NÓI, chỉ visual thuần",
     "cameraStyle": "Phong cách camera (zoom in, pan left, tilt up, steady shot, etc)",
     "transition": "Chuyển cảnh từ scene trước (fade in, dissolve, cut, pan transition, zoom transition, etc)",
-    "soundFocus": "Âm thanh nền phù hợp (ambient, music, sound effects - KHÔNG voice-over)",
-    "visualDetails": "Chi tiết visual (màu sắc, ánh sáng, texture, shadows, etc) - KHÔNG CHỮ HIỂN THỊ"
+    "soundFocus": "Âm thanh nền tự nhiên/nhạc nền (ambient sounds, background music, nature sounds, sound effects - TUYỆT ĐỐI KHÔNG voice-over/speech/dialogue/narration)",
+    "visualDetails": "Chi tiết visual (màu sắc, ánh sáng, texture, shadows, etc) - KHÔNG CHỮ HIỂN THỊ, KHÔNG GIỌNG NÓI"
   },
   ...
 ]
@@ -521,11 +522,12 @@ CHỈ trả về JSON array, KHÔNG có giải thích hay text khác.`
 📌 FOCUS CỦA SEGMENT NÀY: ${segment.focus}
 📝 ORIGINAL PROMPT: ${segment.prompt}
 
-⚠️ QUAN TRỌNG:
-- Video này CHỈ có visual thuần túy + âm thanh nền
-- KHÔNG có voice-over, lời thoại, narration
+⚠️ QUAN TRỌNG - VIDEO KHÔNG CÓ THOẠI:
+- Video này CHỈ có visual thuần túy + âm thanh nền tự nhiên/nhạc nền
+- TUYỆT ĐỐI KHÔNG có voice-over, lời thoại, narration, dialogue, speech
+- TUYỆT ĐỐI KHÔNG có human voice, talking, speaking, narrator
 - KHÔNG hiển thị text/chữ trong video
-- CHỈ có hình ảnh động + âm thanh nền phù hợp
+- CHỈ có hình ảnh động + âm thanh nền (ambient sounds, music, nature sounds, sound effects)
 
 ⚠️ QUAN TRỌNG: Mỗi scene PHẢI NÊU RÕ chủ đề "${analysis.overallTheme}" trong action description.
    - Ví dụ: Thay vì "Hình ảnh máy bay bay" → "Hình ảnh máy bay MH370 bay qua vùng trời (chủ đề: ${analysis.overallTheme})"
@@ -547,19 +549,20 @@ ${nextSegment ? `- SEGMENT SAU (${nextSegment.timeRange}): ${nextSegment.focus}
    - CHỈ chia nhỏ thành 4 scenes (0-2s, 2-4s, 4-6s, 6-8s) và thêm chi tiết kỹ thuật
 
 2. CHI TIẾT CẦN THÊM (không đổi nội dung):
-   - action: Mô tả visual ĐÚNG với prompt gốc - PHẢI NÊU RÕ CHỦ ĐỀ "${analysis.overallTheme}" - KHÔNG TEXT/CHỮ/VOICE-OVER
+   - action: Mô tả visual ĐÚNG với prompt gốc - PHẢI NÊU RÕ CHỦ ĐỀ "${analysis.overallTheme}" - KHÔNG TEXT/CHỮ/GIỌNG NÓI
      VÍ DỤ: "Hình ảnh máy bay MH370 cất cánh (chủ đề: cuộc tìm kiếm MH370), với ánh sáng mờ ảo"
      KHÔNG ĐƯỢC: "Hình ảnh máy bay cất cánh" (thiếu context chủ đề)
    - cameraStyle: camera movement (zoom in/out, pan left/right/up/down, tilt, steady, tracking shot)
    - transition: chuyển cảnh (fade, dissolve, cut, smooth pan, cross dissolve, match cut)
-   - soundFocus: âm thanh nền phù hợp (ambient, dramatic music, nature sounds, effects - KHÔNG voice-over)
+   - soundFocus: âm thanh nền tự nhiên/nhạc nền (ambient sounds, background music, nature sounds, sound effects - TUYỆT ĐỐI KHÔNG voice-over/speech/dialogue/narration/human voice)
    - visualDetails: màu ${analysis.colorScheme}, phong cách ${analysis.visualStyle}, lighting, texture, atmosphere
 
 ⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC:
 - KHÔNG thêm cảnh/đối tượng/hành động mới không có trong ORIGINAL PROMPT
 - KHÔNG có text overlay, subtitle, caption, chữ viết bất kỳ
-- KHÔNG có voice-over, lời thoại, narration
+- KHÔNG có voice-over, lời thoại, narration, dialogue, speech, human voice, talking, speaking, narrator
 - CHỈ visual thuần: objects, scenes, actions, movements từ ORIGINAL PROMPT
+- CHỈ âm thanh nền: ambient sounds, background music, nature sounds, sound effects (KHÔNG giọng nói)
 - NHƯNG PHẢI NÊU RÕ CHỦ ĐỀ "${analysis.overallTheme}" trong mỗi action để Veo3 hiểu context câu chuyện
 
 QUAN TRỌNG VỀ TRANSITION GIỮA SEGMENTS:
@@ -618,14 +621,16 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                     // Thêm context chủ đề vào đầu prompt
                     const themeContext = `[CONTEXT: ${analysis.overallTheme}. Style: ${analysis.visualStyle}. Colors: ${analysis.colorScheme}] `;
 
-                    // Convert chi tiết timeline thành string description (KHÔNG có voice-over)
+                    // Convert chi tiết timeline thành string description (TUYỆT ĐỐI KHÔNG có voice-over/speech)
                     const scenesDescription = detailedTimeline.map(scene => {
                         const transitionText = scene.transition ? `Transition: ${scene.transition}.` : '';
-                        return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${scene.soundFocus}.`;
+                        // Đảm bảo soundFocus KHÔNG chứa voice-over/speech
+                        const soundText = scene.soundFocus ? scene.soundFocus.replace(/voice-over|voice over|narration|dialogue|speech|talking|speaking|narrator|human voice/gi, 'ambient sound') : 'ambient sound';
+                        return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${soundText} (NO voice-over, NO speech, NO dialogue).`;
                     }).join(' ');
 
-                    // Kết hợp context + scenes (KHÔNG có voice-over)
-                    optimizedPrompt = themeContext + scenesDescription;
+                    // Kết hợp context + scenes (TUYỆT ĐỐI KHÔNG có voice-over/speech)
+                    optimizedPrompt = themeContext + scenesDescription + ' [IMPORTANT: NO voice-over, NO narration, NO dialogue, NO speech, NO human voice in the entire video. Only visual content with ambient sounds/background music.]';
 
                     console.log(`✅ [Step 3] Segment ${index + 1} optimized với ${detailedTimeline.length} scenes chi tiết:`);
                     detailedTimeline.forEach(scene => {
@@ -638,9 +643,9 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         console.log(`      🔊 Sound: ${scene.soundFocus}`);
                     });
                 } else {
-                    // Fallback: dùng prompt gốc (không có voice-over)
-                    optimizedPrompt = segment.prompt;
-                    console.log(`⚠️ [Step 3] Segment ${index + 1} dùng prompt gốc`);
+                    // Fallback: dùng prompt gốc + thêm chỉ thị KHÔNG có voice-over
+                    optimizedPrompt = segment.prompt + ' [IMPORTANT: NO voice-over, NO narration, NO dialogue, NO speech, NO human voice. Only visual content with ambient sounds/background music.]';
+                    console.log(`⚠️ [Step 3] Segment ${index + 1} dùng prompt gốc + chỉ thị NO voice-over`);
                 }
 
                 // Tạo video với retry mechanism (exponential backoff)
@@ -924,7 +929,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
     }
 }
 
-console.log(`🚀 [START] Tạo video từ YouTube với voice-over tiếng Việt (chia theo transcript)...`);
+console.log(`🚀 [START] Tạo video từ YouTube KHÔNG CÓ THOẠI (chỉ visual + âm thanh nền, chia theo transcript)...`);
 createMH370Video32s().then(result => {
     if (result.success) {
         console.log('🎉 Hoàn thành thành công!');
