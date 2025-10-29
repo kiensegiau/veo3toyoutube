@@ -61,43 +61,48 @@ async function createVideo(req, res, storageData) {
 
         const aspectRatio = 'VIDEO_ASPECT_RATIO_LANDSCAPE';
         
-        // Tự động lấy cookies mới từ Chrome Labs
-        
-        const labsProfileManager = LabsProfileManager;
-        const extractResult = await labsProfileManager.extractLabsCookies();
-        
-        let labsCookies = null;
-        
-        if (extractResult.success) {
-            labsCookies = extractResult.cookies;
-            
-            
-            // Cập nhật thời gian lấy cookies
-            labsProfileManager.lastExtractTime = new Date().toISOString();
-            
-            // Cập nhật currentCookies và lưu file
-            storageData.currentCookies = labsCookies;
-            storageData.tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
-            saveStorageData(storageData);
-            
-            // Chỉ lưu cookie ra file khi cookie được extract mới (không phải đọc từ file)
-            if (!extractResult.fromFile) {
-                labsProfileManager.saveLabsCookies(labsCookies);
-            }
-        } else {
-            
-            
-            // Fallback: Lấy cookies từ file txt cũ
-            labsCookies = await getLabsCookies();
-            
-            if (!labsCookies) {
+        // Determine run mode (unified behavior):
+        // 1) If client sends cookies -> ALWAYS use them
+        // 2) Else if default mode -> auto-extract then fallback to file
+        // 3) Else if vps mode -> error (require client cookies)
+        const runMode = (process.env.RUN_MODE || 'default').toLowerCase();
+        const sanitizeCookieHeader = (val) => {
+            if (!val || typeof val !== 'string') return '';
+            // Remove potential "Cookie:" prefix, remove comments lines, collapse newlines/spaces
+            let s = String(val).replace(/^Cookie:\s*/i, '');
+            s = s.split(/\r?\n/).filter(line => line && !/^\s*#/.test(line)).join('; ');
+            s = s.replace(/\r|\n/g, '').trim();
+            return s;
+        };
+        let labsCookies = sanitizeCookieHeader((req.body && (req.body.labsCookies || req.body.cookies || req.body.cookie)) || req.headers['x-labs-cookie'] || '');
+        if (!labsCookies) {
+            if (runMode === 'vps') {
                 return res.status(400).json({
                     success: false,
-                    message: `Không thể lấy cookies từ Chrome Labs và file txt cũ: ${extractResult.error}`
+                    message: 'VPS mode: Thiếu Labs cookies. Gửi labsCookies trong body hoặc header x-labs-cookie.'
                 });
             }
-            
-            
+            // Default mode fallback
+            const labsProfileManager = LabsProfileManager;
+            const extractResult = await labsProfileManager.extractLabsCookies();
+            if (extractResult.success) {
+                labsCookies = sanitizeCookieHeader(extractResult.cookies);
+                labsProfileManager.lastExtractTime = new Date().toISOString();
+                storageData.currentCookies = labsCookies;
+                storageData.tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000);
+                saveStorageData(storageData);
+                if (!extractResult.fromFile) {
+                    labsProfileManager.saveLabsCookies(labsCookies);
+                }
+            } else {
+                labsCookies = sanitizeCookieHeader(await getLabsCookies());
+                if (!labsCookies) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Không thể lấy cookies tự động hoặc từ file: ${extractResult.error}`
+                    });
+                }
+            }
         }
 
         
@@ -196,12 +201,12 @@ async function createVideo(req, res, storageData) {
         // Lưu operation name để check status sau
         if (data.operations && data.operations.length > 0) {
             storageData.currentOperationName = data.operations[0].operation.name;
-            
             saveStorageData(storageData);
         }
 
         // Lưu request vào history
         const requestId = timestamp.toString();
+        const tenantId = (req.headers['x-tenant-id'] || (req.body && req.body.tenantId) || '').toString().trim() || 'default';
         const historyEntry = {
             requestId,
             timestamp: new Date().toISOString(),
@@ -209,7 +214,8 @@ async function createVideo(req, res, storageData) {
             videoModel: 'veo_3_1_t2v_fast_portrait_ultra',
             aspectRatio,
             status: 'PENDING',
-            operationName: storageData.currentOperationName
+            operationName: storageData.currentOperationName,
+            tenantId
         };
         
         storageData.requestHistory = storageData.requestHistory || [];

@@ -28,6 +28,20 @@ const { analyzeFramesAPI, generateVeo3JSONAPI } = require('./api/video/veo3-fram
 const app = express();
 const PORT = Number(process.env.PORT || 8888);
 
+// Run mode: default or vps (only accept credentials from client HTML)
+(() => {
+	try {
+		const arg = (process.argv || []).find(a => a.startsWith('--mode='));
+		if (arg) {
+			process.env.RUN_MODE = arg.split('=')[1] || '';
+		}
+		if (!process.env.RUN_MODE) process.env.RUN_MODE = 'default';
+		console.log(`⚙️  Run mode: ${process.env.RUN_MODE}`);
+	} catch (_) {
+		process.env.RUN_MODE = 'default';
+	}
+})();
+
 // Middleware
 const shouldCompress = (req, res) => {
 	// Disable compression for SSE endpoint to prevent buffering
@@ -128,7 +142,7 @@ function startAutoBatchPolling() {
                 // Check status for all pending operations
                 for (const operation of operations) {
                     try {
-                        const mockReq = { body: { operationName: operation.operationName } };
+                        const mockReq = { body: { operationName: operation.operationName, tenantId: operation.tenantId || 'default' } };
                         const mockRes = {
                             json: (data) => {
                                 if (data.success && data.videoStatus === 'COMPLETED') {
@@ -158,6 +172,19 @@ function startAutoBatchPolling() {
 }
 
 // ===== API ROUTES =====
+
+// Helper: block Labs browser/cookie endpoints in VPS mode
+function blockInVps(req, res, next) {
+	if ((process.env.RUN_MODE || 'default').toLowerCase() === 'vps') {
+		return res.status(403).json({ success: false, message: 'Endpoint bị vô hiệu hóa trong VPS mode. Hãy nhập Labs Cookies thủ công.' });
+	}
+	return next();
+}
+
+// Utility endpoint: reveal current run mode to UI
+app.get('/api/run-mode', (req, res) => {
+	res.json({ success: true, runMode: (process.env.RUN_MODE || 'default') });
+});
 
 // Logging middleware for all TTS endpoints
 app.use('/api/tts', (req, res, next) => {
@@ -214,12 +241,12 @@ app.post('/api/extract-cookies-all', profileAPI.extractCookiesAll);
 app.post('/api/open-clean-chrome-youtube', profileAPI.openCleanChromeForYouTube);
 app.post('/api/open-chrome-logged-in', profileAPI.openChromeWithLoggedInProfile);
 
-// Labs Management APIs
-app.post('/api/open-labs-browser', labsAPI.openLabsBrowser);
-app.post('/api/extract-labs-cookies', labsAPI.extractLabsCookies);
-app.post('/api/test-labs-cookies', labsAPI.testLabsCookies);
-app.post('/api/close-labs-browser', labsAPI.closeLabsBrowser);
-app.get('/api/labs-profile-info', labsAPI.getLabsProfileInfo);
+// Labs Management APIs (blocked in VPS mode)
+app.post('/api/open-labs-browser', blockInVps, labsAPI.openLabsBrowser);
+app.post('/api/extract-labs-cookies', blockInVps, labsAPI.extractLabsCookies);
+app.post('/api/test-labs-cookies', blockInVps, labsAPI.testLabsCookies);
+app.post('/api/close-labs-browser', blockInVps, labsAPI.closeLabsBrowser);
+app.get('/api/labs-profile-info', blockInVps, labsAPI.getLabsProfileInfo);
 
 // Transcript APIs
 app.post('/api/get-transcript', transcriptAPI.getTranscript);
@@ -321,7 +348,8 @@ app.get('/api/list-videos', (req, res) => {
 
 app.get('/api/history', (req, res) => {
     try {
-        const result = storageUtils.getHistory(storageData);
+        const tenantId = (req.query && req.query.tenantId) ? String(req.query.tenantId) : null;
+        const result = storageUtils.getHistory(storageData, tenantId);
         if (result.success) {
             res.json(result);
         } else {
@@ -339,7 +367,8 @@ app.get('/api/history', (req, res) => {
 
 app.delete('/api/history', (req, res) => {
     try {
-        const result = storageUtils.clearHistory(storageData);
+        const tenantId = (req.body && req.body.tenantId) ? String(req.body.tenantId) : null;
+        const result = storageUtils.clearHistory(storageData, tenantId);
         if (result.success) {
             res.json(result);
         } else {

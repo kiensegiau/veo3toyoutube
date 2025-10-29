@@ -871,10 +871,14 @@
                     <p class="section-description">
                         Tự động lấy cookies từ Google Labs
                 </p>
-                <div class="btn-group">
-                        <button type="button" class="btn btn-success" onclick="openLabsBrowser()">🚀 Mở Labs</button>
-                        <button type="button" class="btn" onclick="extractLabsCookies()">🍪 Lấy Cookies</button>
-                        <button type="button" class="btn btn-danger" onclick="closeLabsBrowser()">🔒 Đóng</button>
+                <div class="form-group">
+                        <label for="labsCookiesInput">🍪 Labs Cookies (VPS mode: nhập thủ công từ trình duyệt)</label>
+                        <textarea id="labsCookiesInput" rows="3" placeholder="SID=...; HSID=...; ..."></textarea>
+                </div>
+                    <div class="btn-group">
+                        <button id="btnOpenLabs" type="button" class="btn btn-success" onclick="openLabsBrowser()">🚀 Mở Labs</button>
+                        <button id="btnExtractLabs" type="button" class="btn" onclick="extractLabsCookies()">🍪 Lấy Cookies</button>
+                        <button id="btnCloseLabs" type="button" class="btn btn-danger" onclick="closeLabsBrowser()">🔒 Đóng</button>
                 </div>
                     <div id="labsStatus" style="margin-top: 12px; padding: 8px; background: #f1f5f9; border-radius: 4px; font-size: 12px; color: #475569;">
                     Trạng thái: Chưa mở Chrome Labs
@@ -974,6 +978,46 @@
     <script>
         let pollingInterval = null, currentRequestId = null;
         const rowIntervals = {}, opByRow = {};
+
+        // Labs cookies helpers (saved locally for convenience)
+        function getLabsCookiesInput(){
+            const el = document.getElementById('labsCookiesInput');
+            return (el && el.value || '').trim();
+        }
+        (function initLabsCookiesPersist(){
+            try{
+                const saved = localStorage.getItem('labsCookiesInput');
+                if(saved){ const el = document.getElementById('labsCookiesInput'); if(el) el.value = saved; }
+                const el = document.getElementById('labsCookiesInput');
+                if(el){ el.addEventListener('input', ()=> localStorage.setItem('labsCookiesInput', el.value || '')); }
+            }catch(_){ /* ignore */ }
+        })();
+
+        // Persist OpenAI API key (transcript rewrite) without save button
+        (function initOpenAIKeyPersist(){
+            try{
+                const saved = localStorage.getItem('openaiKey');
+                const el = document.getElementById('openaiKey');
+                if(el && saved){ el.value = saved; }
+                if(el){ el.addEventListener('input', ()=> localStorage.setItem('openaiKey', el.value || '')); }
+            }catch(_){ /* ignore */ }
+        })();
+
+        // Detect run mode and disable Labs buttons in VPS mode
+        (async function initRunMode(){
+            try{
+                const res = await fetch('/api/run-mode');
+                const data = await res.json();
+                const mode = (data && data.runMode || 'default').toLowerCase();
+                if(mode === 'vps'){
+                    const disableBtn = (id, tooltip) => { const b = document.getElementById(id); if(b){ b.disabled = true; b.title = tooltip; b.style.opacity = 0.6; } };
+                    disableBtn('btnOpenLabs', 'VPS mode: Chức năng bị vô hiệu hóa. Hãy nhập Labs Cookies thủ công.');
+                    disableBtn('btnExtractLabs', 'VPS mode: Chức năng bị vô hiệu hóa. Hãy nhập Labs Cookies thủ công.');
+                    disableBtn('btnCloseLabs', 'VPS mode: Chức năng bị vô hiệu hóa.');
+                    updateLabsStatus('VPS mode: Nhập Labs Cookies thủ công ở ô bên trên. Các nút Labs đã bị vô hiệu hóa.');
+                }
+            }catch(_){ /* ignore */ }
+        })();
 
         function parseInputToPrompts(raw) {
             const trimmed = (raw || '').trim();
@@ -1208,7 +1252,8 @@
 
         async function checkVideoStatus() {
             try {
-                const result = await apiCall('/check-status', 'POST', {});
+                const labsCookies = getLabsCookiesInput();
+                const result = await apiCall('/check-status', 'POST', labsCookies ? { labsCookies } : {});
                 if (result.success) {
                     const videoUrl = result.videoUrl || extractVideoUrl(result.data);
                     if (videoUrl) {
@@ -1266,7 +1311,8 @@
             for (let i = 0; i < prompts.length; i++) {
                 try {
                     updateRowStatus(i, '🚀 Đang gửi yêu cầu', '-');
-                    const createData = await apiCall('/create-video', 'POST', { prompt: prompts[i] });
+                    const labsCookies = getLabsCookiesInput();
+                    const createData = await apiCall('/create-video', 'POST', { prompt: prompts[i], ...(labsCookies ? { labsCookies } : {}) });
                     if (!createData.success) {
                         updateRowStatus(i, '❌ Lỗi tạo yêu cầu', escapeHtml(createData.message || 'Unknown error'));
                     } else {
@@ -1289,7 +1335,8 @@
             if (rowIntervals[index]) clearInterval(rowIntervals[index]);
             rowIntervals[index] = setInterval(async () => {
                 try {
-                    const statusData = await apiCall('/check-status', 'POST', { operationName });
+                    const labsCookies = getLabsCookiesInput();
+                    const statusData = await apiCall('/check-status', 'POST', { operationName, ...(labsCookies ? { labsCookies } : {}) });
                     if (statusData.videoStatus === 'COMPLETED') {
                         const videoUrl = statusData.videoUrl || (statusData.downloadInfo && statusData.downloadInfo.filePath) || '';
                         const localInfo = statusData.downloadInfo && statusData.downloadInfo.success

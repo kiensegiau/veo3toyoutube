@@ -97,12 +97,34 @@ function downloadVideo(videoUrl, operationName) {
 // Hàm kiểm tra trạng thái video
 async function checkStatus(req, res, storageData) {
     try {
-        const labsCookies = await getLabsCookies();
+        // Unified behavior (same as create):
+        // 1) If client sends cookies -> ALWAYS use them
+        // 2) Else if default mode -> read from file/auto sources
+        // 3) Else if vps mode -> require client cookies
+        const runMode = (process.env.RUN_MODE || 'default').toLowerCase();
+        const sanitizeCookieHeader = (val) => {
+            if (!val || typeof val !== 'string') return '';
+            let s = String(val).replace(/^Cookie:\s*/i, '');
+            s = s.split(/\r?\n/).filter(line => line && !/^\s*#/.test(line)).join('; ');
+            s = s.replace(/\r|\n/g, '').trim();
+            return s;
+        };
+        const hdrs = (req && typeof req === 'object' && req.headers && typeof req.headers === 'object') ? req.headers : {};
+        let labsCookies = sanitizeCookieHeader((req.body && (req.body.labsCookies || req.body.cookies || req.body.cookie)) || hdrs['x-labs-cookie'] || hdrs['X-Labs-Cookie'] || '');
         if (!labsCookies) {
-            return res.status(400).json({
-                success: false,
-                message: 'Chưa có Labs cookies. Vui lòng mở Chrome Labs và lấy cookies trước.'
-            });
+            if (runMode === 'vps') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'VPS mode: Thiếu Labs cookies. Gửi labsCookies trong body hoặc header x-labs-cookie.'
+                });
+            }
+            labsCookies = sanitizeCookieHeader(await getLabsCookies());
+            if (!labsCookies) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Chưa có Labs cookies. Vui lòng mở Chrome Labs và lấy cookies trước.'
+                });
+            }
         }
 
         // Lấy access token từ session endpoint
@@ -131,7 +153,8 @@ async function checkStatus(req, res, storageData) {
         }
 
         // Cho phép truyền operationName để hỗ trợ nhiều yêu cầu song song
-        const { operationName: opFromClient } = req.body || {};
+        const { operationName: opFromClient, tenantId: tenantIdRaw } = req.body || {};
+        const tenantId = (req.headers['x-tenant-id'] || tenantIdRaw || '').toString().trim() || 'default';
         // Sử dụng operation name từ client nếu có, nếu không dùng cái đang lưu gần nhất
         const operationName = opFromClient || storageData.currentOperationName || null;
 
@@ -306,7 +329,7 @@ async function checkStatus(req, res, storageData) {
             errorMessage: finalStatus === 'FAILED' ? 'Video generation failed' : null,
             downloadInfo: downloadInfo,
             operationName: operationName,
-            prompt: storageData.requestHistory?.find(req => req.operationName === operationName)?.prompt || 'Unknown'
+            prompt: storageData.requestHistory?.find(req => req.operationName === operationName && (!tenantId || req.tenantId === tenantId))?.prompt || 'Unknown'
         });
 
     } catch (error) {

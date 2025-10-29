@@ -99,9 +99,12 @@ function listVideos() {
 }
 
 // Get request history
-function getHistory(storageData) {
+function getHistory(storageData, tenantId = null) {
     try {
-        const history = storageData.requestHistory || [];
+        let history = storageData.requestHistory || [];
+        if (tenantId) {
+            history = history.filter(h => h.tenantId === tenantId);
+        }
         
         // Sort by timestamp (newest first)
         history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -120,9 +123,13 @@ function getHistory(storageData) {
 }
 
 // Clear request history
-function clearHistory(storageData) {
+function clearHistory(storageData, tenantId = null) {
     try {
-        storageData.requestHistory = [];
+        if (tenantId) {
+            storageData.requestHistory = (storageData.requestHistory || []).filter(h => h.tenantId !== tenantId);
+        } else {
+            storageData.requestHistory = [];
+        }
         saveStorageData(storageData);
         
         return {
