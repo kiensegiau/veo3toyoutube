@@ -266,9 +266,11 @@ app.post('/api/create-mh370-video', async (req, res) => {
         });
         // Forward child stdout/stderr to SSE logs
         if (child.stdout) child.stdout.on('data', (d) => {
+            try { process.stdout.write(d); } catch (_) {}
             try { broadcastLog({ source: 'mh370', level: 'log', message: String(d).trimEnd() }); } catch (_) {}
         });
         if (child.stderr) child.stderr.on('data', (d) => {
+            try { process.stderr.write(d); } catch (_) {}
             try { broadcastLog({ source: 'mh370', level: 'error', message: String(d).trimEnd() }); } catch (_) {}
         });
         child.on('close', (code) => {
