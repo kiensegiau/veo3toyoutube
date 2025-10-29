@@ -55,6 +55,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
+// Serve temp folder for preview/download (read-only)
+try {
+    const tempPath = path.join(__dirname, 'temp');
+    app.use('/temp', express.static(tempPath));
+} catch (_) {}
 
 // ===== Realtime log streaming (SSE) =====
 const sseClients = new Set();
@@ -285,8 +290,16 @@ app.post('/api/tts/wait', vibeeTTS.waitUntilReady);
 // Utility APIs
 app.post('/api/create-mh370-video', async (req, res) => {
     try {
-        const { youtubeUrl } = req.body || {};
+        const { youtubeUrl, openaiApiKey, labsCookies } = req.body || {};
         if (!youtubeUrl) return res.status(400).json({ success: false, message: 'youtubeUrl is required' });
+        if ((process.env.RUN_MODE || 'default').toLowerCase() === 'vps') {
+            if (!openaiApiKey || typeof openaiApiKey !== 'string' || openaiApiKey.trim().length < 10) {
+                return res.status(400).json({ success: false, message: 'VPS mode: Thiếu OpenAI API Key. Gửi openaiApiKey trong body.' });
+            }
+            if (!labsCookies || typeof labsCookies !== 'string' || labsCookies.trim().length < 10) {
+                return res.status(400).json({ success: false, message: 'VPS mode: Thiếu Labs cookies. Gửi labsCookies trong body.' });
+            }
+        }
         const { spawn } = require('child_process');
         const path = require('path');
         const scriptPath = path.join(__dirname, 'create-mh370-32s-video.js');
@@ -294,7 +307,12 @@ app.post('/api/create-mh370-video', async (req, res) => {
             cwd: __dirname,
             stdio: ['ignore', 'pipe', 'pipe'],
             shell: false,
-            windowsHide: true
+            windowsHide: true,
+            env: {
+                ...process.env,
+                ...(openaiApiKey ? { OPENAI_API_KEY: openaiApiKey } : {}),
+                ...(labsCookies ? { LABS_COOKIES: labsCookies } : {})
+            }
         });
         // Forward child stdout/stderr to SSE logs
         if (child.stdout) child.stdout.on('data', (d) => {
@@ -348,6 +366,45 @@ app.get('/api/list-videos', (req, res) => {
             message: 'Failed to list videos',
             error: error.message
         });
+    }
+});
+
+// List temp folder structure (top-level subdirectories and their files)
+app.get('/api/list-temp', (req, res) => {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const tempRoot = path.join(__dirname, 'temp');
+        if (!fs.existsSync(tempRoot)) {
+            return res.json({ success: true, root: '/temp', entries: [], count: 0 });
+        }
+        const entries = [];
+        const dirs = fs.readdirSync(tempRoot).filter(name => {
+            try { return fs.statSync(path.join(tempRoot, name)).isDirectory(); } catch { return false; }
+        });
+        for (const dir of dirs) {
+            const dirPath = path.join(tempRoot, dir);
+            let files = [];
+            try {
+                files = fs.readdirSync(dirPath).filter(f => {
+                    try { return fs.statSync(path.join(dirPath, f)).isFile(); } catch { return false; }
+                }).map(f => {
+                    const p = path.join(dirPath, f);
+                    const st = fs.statSync(p);
+                    return {
+                        name: f,
+                        sizeMB: Math.max(0, (st.size || 0) / (1024 * 1024)).toFixed(2),
+                        mtimeMs: st.mtimeMs,
+                        publicPath: `/temp/${encodeURIComponent(dir)}/${encodeURIComponent(f)}`
+                    };
+                }).sort((a,b)=> b.mtimeMs - a.mtimeMs);
+            } catch (_) {}
+            entries.push({ dir, count: files.length, files });
+        }
+        res.json({ success: true, root: '/temp', entries, count: entries.length });
+    } catch (error) {
+        console.error('❌ List temp error:', error);
+        res.status(500).json({ success: false, message: 'Failed to list temp', error: error.message });
     }
 });
 

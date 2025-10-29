@@ -44,6 +44,16 @@
             position: relative;
             overflow: hidden;
         }
+        .header-actions { margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end; }
+        .header-actions .mini-btn {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.25);
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
         .header-controls {
             margin-top: 16px;
             display: grid;
@@ -701,6 +711,11 @@
                 <input id="veoProjectId" type="text" placeholder="🆔 VEO Project ID (tùy chọn)" />
                 <input id="openaiKey" type="password" placeholder="🔑 OpenAI API Key (tùy chọn)" />
             </div>
+            <div class="header-actions">
+                <button class="mini-btn" type="button" onclick="openVideoListWindow()">📁 Mở danh sách file video</button>
+                <button class="mini-btn" type="button" onclick="openFinalVideoListWindow()">🏁 Mở danh sách kết quả</button>
+                <button class="mini-btn" type="button" onclick="openTempListWindow()">🗂️ Mở thư mục temp</button>
+            </div>
         </div>
 
         <div class="tabs">
@@ -1247,6 +1262,60 @@
                 const files = (data.files || []).map(f => `<li><a href="/audio/${f}" target="_blank">${f}</a></li>`).join('');
                 document.getElementById('ttsResult').innerHTML = `<div class="success"><h4>📁 MP3 đã lưu (${data.count})</h4><ul>${files}</ul></div>`;
             } catch (e) { showError('Lỗi danh sách MP3: ' + e.message); }
+        }
+
+        // Open video list in a popup window with clickable links
+        async function openVideoListWindow(){
+            try{
+                const data = await apiCall('/list-videos');
+                const w = window.open('', '_blank', 'width=720,height=600');
+                if(!w){ alert('Trình duyệt chặn popup. Hãy cho phép popup cho trang này.'); return; }
+                const items = (data && data.success ? data.videos : []).map(v=>`<li><a href="/videos/${v}" target="_blank">${v}</a></li>`).join('');
+                w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Danh sách video</title></head><body style="font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;padding:12px;">
+                    <h3>📁 Danh sách video (${(data && data.success && data.videos ? data.videos.length : 0)})</h3>
+                    <ul>${items || '<li>Không có video.</li>'}</ul>
+                </body></html>`);
+                w.document.close();
+            }catch(e){ alert('Lỗi mở danh sách video: ' + (e.message||'unknown')); }
+        }
+
+        // Open final results list (filter and link to /final-videos)
+        async function openFinalVideoListWindow(){
+            try{
+                const data = await apiCall('/list-videos');
+                const all = (data && data.success && Array.isArray(data.videos)) ? data.videos : [];
+                const finals = all.filter(v => v.includes('workflow_') || v.includes('final_'));
+                const w = window.open('', '_blank', 'width=720,height=600');
+                if(!w){ alert('Trình duyệt chặn popup. Hãy cho phép popup cho trang này.'); return; }
+                const items = finals.map(v=>`<li><a href="/final-videos/${v}" target="_blank">${v}</a></li>`).join('');
+                w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Danh sách kết quả</title></head><body style="font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;padding:12px;">
+                    <h3>🏁 Danh sách kết quả (${finals.length})</h3>
+                    <ul>${items || '<li>Chưa có kết quả.</li>'}</ul>
+                </body></html>`);
+                w.document.close();
+            }catch(e){ alert('Lỗi mở danh sách kết quả: ' + (e.message||'unknown')); }
+        }
+
+        // Open temp structure listing
+        async function openTempListWindow(){
+            try{
+                const data = await apiCall('/list-temp');
+                const w = window.open('', '_blank', 'width=900,height=650');
+                if(!w){ alert('Trình duyệt chặn popup. Hãy cho phép popup.'); return; }
+                const entries = (data && data.success ? data.entries : []) || [];
+                const html = entries.map(e => `
+                    <div style="margin-bottom:14px;">
+                        <h4 style="margin:6px 0;">📁 ${e.dir} <span style="color:#64748b">(${e.count} files)</span></h4>
+                        <ul>
+                            ${((e.files||[]).map(f=>`<li><a href="${f.publicPath}" target="_blank">${f.name}</a> <span style=\"color:#64748b\">(${f.sizeMB} MB)</span></li>`).join(''))}
+                        </ul>
+                    </div>`).join('');
+                w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Temp</title></head><body style="font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;padding:12px;">
+                    <h3>🗂️ Thư mục temp (${entries.length})</h3>
+                    ${html || '<div>Trống.</div>'}
+                </body></html>`);
+                w.document.close();
+            }catch(e){ alert('Lỗi mở temp: ' + (e.message||'unknown')); }
         }
 
         function showLoading(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
@@ -2124,14 +2193,19 @@
 		})();
 
 		// Tạo video 32s từ YouTube trong Logs section
-		async function runMH370FromLogs(){
+        async function runMH370FromLogs(){
 			const url = (document.getElementById('mh370Url').value || '').trim();
 			if(!url){ alert('Nhập URL YouTube trước.'); return; }
 			try{
+                const labsCookies = getLabsCookiesInput();
 				const res = await fetch(`${API_BASE}/create-mh370-video`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ youtubeUrl: url })
+                    body: JSON.stringify({
+                        youtubeUrl: url,
+                        openaiApiKey: (document.getElementById('openaiKey')?.value||'').trim(),
+                        ...(labsCookies ? { labsCookies } : {})
+                    })
 				});
 				const data = await res.json();
 				if(!data.success){ alert('Không khởi động được job: ' + (data.message || 'Unknown error')); return; }

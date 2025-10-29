@@ -6,8 +6,10 @@ const { promisify } = require('util');
 
 const execAsync = promisify(exec);
 
-// ChatGPT API configuration
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+// ChatGPT API configuration (no hardcoded default)
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const LABS_COOKIES = (process.env.LABS_COOKIES || '').trim();
+const RUN_MODE = (process.env.RUN_MODE || 'default').toLowerCase();
 
 // Video Configuration
 const SEGMENT_DURATION = 8; // Each segment duration (seconds)
@@ -56,6 +58,18 @@ function readCookieFromFile() {
 async function getCachedOrFreshCookie(serverUrl) {
     const now = Date.now();
 
+    // In VPS mode: never fetch or read file. Use LABS_COOKIES only.
+    if (RUN_MODE === 'vps') {
+        if (LABS_COOKIES) {
+            cachedCookie = LABS_COOKIES;
+            cookieCacheTime = now;
+            console.log('🍪 [VPS] Dùng Labs cookies từ ENV (LABS_COOKIES)');
+            return cachedCookie;
+        }
+        console.log('❌ [VPS] Thiếu LABS_COOKIES trong env. Không được phép đọc file hay gọi server.');
+        return null;
+    }
+
     // Nếu có cache và chưa hết hạn
     if (cachedCookie && (now - cookieCacheTime) < COOKIE_CACHE_DURATION) {
         console.log(`🍪 Sử dụng cached cookie (còn ${Math.floor((COOKIE_CACHE_DURATION - (now - cookieCacheTime)) / 1000 / 60)} phút)`);
@@ -83,18 +97,18 @@ async function getCachedOrFreshCookie(serverUrl) {
         console.error(`❌ Lỗi lấy cookie từ server:`, error.message);
         console.log(`🔄 Thử lấy cookie từ file labs-cookies.txt...`);
 
-        // Fallback: Đọc cookie từ file txt
-        const cookieFromFile = readCookieFromFile();
-
-        if (cookieFromFile) {
-            cachedCookie = cookieFromFile;
-            cookieCacheTime = now;
-            console.log(`✅ Sử dụng cookie từ file labs-cookies.txt`);
-            return cachedCookie;
-        } else {
-            console.error(`❌ Không thể lấy cookie từ cả server và file txt`);
-            return null;
+        // Fallback (default mode only): Đọc cookie từ file txt
+        if (RUN_MODE !== 'vps') {
+            const cookieFromFile = readCookieFromFile();
+            if (cookieFromFile) {
+                cachedCookie = cookieFromFile;
+                cookieCacheTime = now;
+                console.log(`✅ Sử dụng cookie từ file labs-cookies.txt`);
+                return cachedCookie;
+            }
         }
+        console.error(`❌ Không thể lấy cookie (server/file bị cấm trong VPS hoặc không có)`);
+        return null;
     }
 }
 
@@ -662,7 +676,8 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 input: optimizedPrompt,
-                                prompt: optimizedPrompt
+                                prompt: optimizedPrompt,
+                                ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {})
                             })
                         });
 
@@ -763,7 +778,8 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            operationName: operationId
+                            operationName: operationId,
+                            ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {})
                         })
                     });
                     
