@@ -74,6 +74,8 @@ async function createVideo(req, res, storageData) {
             s = s.replace(/\r|\n/g, '').trim();
             return s;
         };
+        console.log(`🎯 [create-video] incoming prompt="${prompt}"`);
+        console.log(`⚙️  [create-video] runMode=${runMode}`);
         let labsCookies = sanitizeCookieHeader((req.body && (req.body.labsCookies || req.body.cookies || req.body.cookie)) || req.headers['x-labs-cookie'] || '');
         if (!labsCookies) {
             if (runMode === 'vps') {
@@ -88,12 +90,8 @@ async function createVideo(req, res, storageData) {
             if (extractResult.success) {
                 labsCookies = sanitizeCookieHeader(extractResult.cookies);
                 labsProfileManager.lastExtractTime = new Date().toISOString();
-                storageData.currentCookies = labsCookies;
-                storageData.tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000);
-                saveStorageData(storageData);
-                if (!extractResult.fromFile) {
-                    labsProfileManager.saveLabsCookies(labsCookies);
-                }
+                if (!extractResult.fromFile) { labsProfileManager.saveLabsCookies(labsCookies); }
+                console.log(`🍪 [create-video] cookie source=auto-extract length=${labsCookies.length}`);
             } else {
                 labsCookies = sanitizeCookieHeader(await getLabsCookies());
                 if (!labsCookies) {
@@ -102,12 +100,16 @@ async function createVideo(req, res, storageData) {
                         message: `Không thể lấy cookies tự động hoặc từ file: ${extractResult.error}`
                     });
                 }
+                console.log(`🍪 [create-video] cookie source=file length=${labsCookies.length}`);
             }
+        } else {
+            console.log(`🍪 [create-video] cookie source=client length=${labsCookies.length}`);
         }
 
         
 
-        const VEO_PROJECT_ID = process.env.VEO_PROJECT_ID || '69a71e65-d70b-41dc-a540-fc8964582233';
+        const VEO_PROJECT_ID = (req.body && req.body.projectId) || (req.headers && (req.headers['x-veo-project-id'] || req.headers['X-Veo-Project-Id'])) || process.env.VEO_PROJECT_ID || '69a71e65-d70b-41dc-a540-fc8964582233';
+        console.log(`🆔 [create-video] projectId=${VEO_PROJECT_ID}`);
         const requestBody = {
             clientContext: {
                 projectId: VEO_PROJECT_ID, // from env VEO_PROJECT_ID
@@ -155,6 +157,7 @@ async function createVideo(req, res, storageData) {
             } else if (sessionData && sessionData.access_token) {
                 authToken = `Bearer ${sessionData.access_token}`;
             }
+            console.log(`🔑 [create-video] session token=${authToken ? 'present' : 'absent'}`);
         }
         
         // Gọi Google Labs API với token hoặc cookies
@@ -186,6 +189,7 @@ async function createVideo(req, res, storageData) {
         // Lưu response vào file logs
         const timestamp = Date.now();
         const operationName = data.operations?.[0]?.operation?.name || 'unknown_operation';
+        console.log(`📦 [create-video] operationName=${operationName}`);
         const logFileName = `create-response-${timestamp}-${operationName}.json`;
         const logFilePath = path.join(__dirname, '../../logs', logFileName);
         
@@ -199,28 +203,9 @@ async function createVideo(req, res, storageData) {
         
 
         // Lưu operation name để check status sau
-        if (data.operations && data.operations.length > 0) {
-            storageData.currentOperationName = data.operations[0].operation.name;
-            saveStorageData(storageData);
-        }
+        // Không lưu currentOperationName vào storage nữa (tránh tạo lịch sử)
 
-        // Lưu request vào history
-        const requestId = timestamp.toString();
-        const tenantId = (req.headers['x-tenant-id'] || (req.body && req.body.tenantId) || '').toString().trim() || 'default';
-        const historyEntry = {
-            requestId,
-            timestamp: new Date().toISOString(),
-            prompt,
-            videoModel: 'veo_3_1_t2v_fast_portrait_ultra',
-            aspectRatio,
-            status: 'PENDING',
-            operationName: storageData.currentOperationName,
-            tenantId
-        };
-        
-        storageData.requestHistory = storageData.requestHistory || [];
-        storageData.requestHistory.push(historyEntry);
-        saveStorageData(storageData);
+        // Bỏ lưu lịch sử yêu cầu (requestHistory)
 
         
 
@@ -228,8 +213,8 @@ async function createVideo(req, res, storageData) {
             success: true,
             message: `Video generation request sent for: "${prompt}"`,
             data: data,
-            requestId: requestId,
-            operationName: storageData.currentOperationName
+            requestId: timestamp.toString(),
+            operationName
         });
 
     } catch (error) {
@@ -256,7 +241,7 @@ function saveStorageData(storageData) {
         const path = require('path');
         const storageFile = path.join(__dirname, '../../server-storage.json');
         fs.writeFileSync(storageFile, JSON.stringify(storageData, null, 2));
-        console.log('💾 Storage data saved to file');
+        // silent: no log to console
     } catch (error) {
         console.error('❌ Error saving storage data:', error);
     }

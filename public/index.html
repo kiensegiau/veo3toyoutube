@@ -44,6 +44,26 @@
             position: relative;
             overflow: hidden;
         }
+        .header-controls {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: 1fr 280px 280px;
+            gap: 8px;
+            align-items: center;
+            text-align: left;
+        }
+        .header-controls input, .header-controls textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            font-size: 12px;
+            outline: none;
+        }
+        .header-controls textarea { height: 40px; resize: vertical; }
+        .header-controls input::placeholder, .header-controls textarea::placeholder { color: rgba(255,255,255,0.8); }
         
         .header::before {
             content: '';
@@ -676,6 +696,11 @@
         <div class="header">
             <h1>🎬 AI Video Generator</h1>
             <p>Tạo video từ văn bản – đơn giản, nhanh, chuyên nghiệp</p>
+            <div class="header-controls">
+                <textarea id="labsCookiesInput" placeholder="🍪 Labs Cookies (SID=...; HSID=...; ...) - VPS: bắt buộc"></textarea>
+                <input id="veoProjectId" type="text" placeholder="🆔 VEO Project ID (tùy chọn)" />
+                <input id="openaiKey" type="password" placeholder="🔑 OpenAI API Key (tùy chọn)" />
+            </div>
         </div>
 
         <div class="tabs">
@@ -871,10 +896,7 @@
                     <p class="section-description">
                         Tự động lấy cookies từ Google Labs
                 </p>
-                <div class="form-group">
-                        <label for="labsCookiesInput">🍪 Labs Cookies (VPS mode: nhập thủ công từ trình duyệt)</label>
-                        <textarea id="labsCookiesInput" rows="3" placeholder="SID=...; HSID=...; ..."></textarea>
-                </div>
+                <!-- Labs Cookies đã chuyển lên Header -->
                     <div class="btn-group">
                         <button id="btnOpenLabs" type="button" class="btn btn-success" onclick="openLabsBrowser()">🚀 Mở Labs</button>
                         <button id="btnExtractLabs" type="button" class="btn" onclick="extractLabsCookies()">🍪 Lấy Cookies</button>
@@ -1003,6 +1025,16 @@
             }catch(_){ /* ignore */ }
         })();
 
+        // Persist VEO Project ID
+        (function initVeoProjectPersist(){
+            try{
+                const saved = localStorage.getItem('veoProjectId');
+                const el = document.getElementById('veoProjectId');
+                if(el && saved){ el.value = saved; }
+                if(el){ el.addEventListener('input', ()=> localStorage.setItem('veoProjectId', el.value || '')); }
+            }catch(_){ /* ignore */ }
+        })();
+
         // Detect run mode and disable Labs buttons in VPS mode
         (async function initRunMode(){
             try{
@@ -1017,6 +1049,48 @@
                     updateLabsStatus('VPS mode: Nhập Labs Cookies thủ công ở ô bên trên. Các nút Labs đã bị vô hiệu hóa.');
                 }
             }catch(_){ /* ignore */ }
+        })();
+
+        // ===== Persist pending operations to localStorage =====
+        const OPS_KEY = 'pendingOperations';
+        function getStoredOps(){
+            try{ return JSON.parse(localStorage.getItem(OPS_KEY) || '[]'); }catch(_){ return []; }
+        }
+        function setStoredOps(list){
+            try{ localStorage.setItem(OPS_KEY, JSON.stringify(Array.isArray(list)?list:[])); }catch(_){ }
+        }
+        function addStoredOp(op){
+            const list = getStoredOps();
+            if(op && op.operationName && !list.some(x=>x.operationName===op.operationName)){
+                list.push({ operationName: op.operationName, prompt: op.prompt || '', ts: Date.now() });
+                setStoredOps(list);
+            }
+        }
+        function removeStoredOp(operationName){
+            const list = getStoredOps().filter(x=>x.operationName!==operationName);
+            setStoredOps(list);
+        }
+
+        // Resume polling for stored operations after reload
+        (function resumeStoredOps(){
+            const list = getStoredOps();
+            if(!list.length) return;
+            list.forEach(item=>{
+                // lightweight background polling
+                let tries = 0; const maxTries = 1800; // ~1h
+                const timer = setInterval(async ()=>{
+                    try{
+                        tries++;
+                        const labsCookies = getLabsCookiesInput();
+                        const res = await apiCall('/check-status', 'POST', { operationName: item.operationName, ...(labsCookies?{ labsCookies }: {}) });
+                        if(res && (res.videoStatus==='COMPLETED' || res.videoStatus==='FAILED' || res.videoStatus==='SKIPPED')){
+                            removeStoredOp(item.operationName);
+                            clearInterval(timer);
+                        }
+                        if(tries>=maxTries) clearInterval(timer);
+                    }catch(_){ }
+                }, 2000);
+            });
         })();
 
         function parseInputToPrompts(raw) {
@@ -1312,7 +1386,9 @@
                 try {
                     updateRowStatus(i, '🚀 Đang gửi yêu cầu', '-');
                     const labsCookies = getLabsCookiesInput();
-                    const createData = await apiCall('/create-video', 'POST', { prompt: prompts[i], ...(labsCookies ? { labsCookies } : {}) });
+                    const projectId = (document.getElementById('veoProjectId')?.value || '').trim();
+                    const payload = { prompt: prompts[i], ...(labsCookies ? { labsCookies } : {}), ...(projectId ? { projectId } : {}) };
+                    const createData = await apiCall('/create-video', 'POST', payload);
                     if (!createData.success) {
                         updateRowStatus(i, '❌ Lỗi tạo yêu cầu', escapeHtml(createData.message || 'Unknown error'));
                     } else {
@@ -1321,6 +1397,7 @@
                             opByRow[i] = createData.operationName;
                             const opEl = document.getElementById(`op-${i}`);
                             if (opEl) opEl.textContent = `operation: ${createData.operationName}`;
+                            addStoredOp({ operationName: createData.operationName, prompt: prompts[i] });
                             startRowPolling(i, createData.operationName);
                         }
                     }
@@ -1345,9 +1422,11 @@
                         const link = videoUrl ? `<div><strong>URL:</strong> <a href="${videoUrl}" target="_blank">Mở video</a></div>` : '';
                         updateRowStatus(index, '✅ Hoàn tất', `${localInfo}${link}` || 'Đã xong');
                         clearInterval(rowIntervals[index]);
+                        removeStoredOp(operationName);
                     } else if (statusData.videoStatus === 'FAILED') {
                         updateRowStatus(index, '❌ Thất bại', escapeHtml(statusData.errorMessage || 'Unknown error'));
                         clearInterval(rowIntervals[index]);
+                        removeStoredOp(operationName);
                     } else if (statusData.videoStatus === 'SKIPPED') {
                         if (statusData.removedFromStorage) {
                             // Xóa row khỏi bảng nếu operation đã bị xóa khỏi storage
@@ -1363,6 +1442,7 @@
                             updateRowStatus(index, '⚠️ Bỏ qua', escapeHtml(statusData.errorMessage || 'Video bị bỏ qua do lỗi không thể xử lý'));
                         }
                         clearInterval(rowIntervals[index]);
+                        removeStoredOp(operationName);
                     } else {
                         updateRowStatus(index, '⏳ Đang tạo...', 'Vui lòng chờ...');
                     }

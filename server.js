@@ -127,7 +127,12 @@ function startAutoBatchPolling() {
     if (autoBatchPollingInterval) {
         clearInterval(autoBatchPollingInterval);
     }
-    
+    // Disabled by default; enable only when explicitly requested
+    if (String(process.env.ENABLE_AUTO_POLLING || '').toLowerCase() !== 'true') {
+        console.log('⏱️ Auto batch polling is disabled');
+        return;
+    }
+
     console.log(`⏱️ Auto batch polling enabled (interval ${AUTO_BATCH_POLLING_INTERVAL} ms)`);
     
     autoBatchPollingInterval = setInterval(async () => {
@@ -449,8 +454,7 @@ app.listen(PORT, () => {
     console.log(`   POST /api/create-veo3-complete-video - Tạo video hoàn chỉnh 2 phút từ video gốc`);
     console.log(`   POST /api/create-simple-8s-video - Tạo video 8s đơn giản`);
     
-    // Start auto batch polling
-    startAutoBatchPolling();
+    // Auto batch polling not started by default
 });
 
 // Graceful shutdown

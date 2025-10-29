@@ -8,7 +8,7 @@
     "dev": "electron .",
     "server": "nodemon server.js",
     "prod": "node server.js",
-    "vps": "node server.js --mode=vps",
+    "vps": "nodemon server.js --mode=vps",
     "build:win": "electron-builder --win nsis",
     "install-deps": "npm install"
   },
