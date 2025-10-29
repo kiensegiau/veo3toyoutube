@@ -62,7 +62,7 @@ async function createVideo(req, res, storageData) {
         const aspectRatio = 'VIDEO_ASPECT_RATIO_LANDSCAPE';
         
         // Tự động lấy cookies mới từ Chrome Labs
-        console.log(`🔄 Tự động lấy cookies mới từ Chrome Labs...`);
+        
         const labsProfileManager = LabsProfileManager;
         const extractResult = await labsProfileManager.extractLabsCookies();
         
@@ -70,8 +70,7 @@ async function createVideo(req, res, storageData) {
         
         if (extractResult.success) {
             labsCookies = extractResult.cookies;
-            console.log(`🍪 Labs cookies mới:`, labsCookies ? 'Found' : 'Not found');
-            console.log(`🍪 Số lượng cookies: ${extractResult.cookieCount}`);
+            
             
             // Cập nhật thời gian lấy cookies
             labsProfileManager.lastExtractTime = new Date().toISOString();
@@ -81,11 +80,12 @@ async function createVideo(req, res, storageData) {
             storageData.tokenExpiryTime = Date.now() + (1.5 * 60 * 60 * 1000); // 1.5 giờ
             saveStorageData(storageData);
             
-            // Lưu cookies vào file riêng
-            labsProfileManager.saveLabsCookies(labsCookies);
+            // Chỉ lưu cookie ra file khi cookie được extract mới (không phải đọc từ file)
+            if (!extractResult.fromFile) {
+                labsProfileManager.saveLabsCookies(labsCookies);
+            }
         } else {
-            console.log(`⚠️ Không thể lấy cookies từ Chrome Labs: ${extractResult.error}`);
-            console.log(`🔄 Thử lấy cookies từ file txt cũ...`);
+            
             
             // Fallback: Lấy cookies từ file txt cũ
             labsCookies = await getLabsCookies();
@@ -97,11 +97,10 @@ async function createVideo(req, res, storageData) {
                 });
             }
             
-            console.log(`🍪 Sử dụng cookies từ file txt cũ`);
+            
         }
 
-        console.log(`🎬 Tạo video với prompt: "${prompt}"`);
-        console.log(`🍪 Sử dụng Labs cookies: ${labsCookies.substring(0, 100)}...`);
+        
 
         const VEO_PROJECT_ID = process.env.VEO_PROJECT_ID || '69a71e65-d70b-41dc-a540-fc8964582233';
         const requestBody = {
@@ -123,7 +122,7 @@ async function createVideo(req, res, storageData) {
             }]
         };
 
-        console.log('🧾 Create request body (sent to Labs):', JSON.stringify(requestBody, null, 2));
+        
 
         // Thử lấy token thực sự từ session endpoint
         const sessionResponse = await fetch('https://labs.google/fx/api/auth/session', {
@@ -168,7 +167,7 @@ async function createVideo(req, res, storageData) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Labs API error:', response.status, errorText);
+            console.error('❌ Labs API error:', response.status);
             return res.status(500).json({
                 success: false,
                 message: `Labs API error: ${response.status}`,
@@ -177,7 +176,7 @@ async function createVideo(req, res, storageData) {
         }
 
         const data = await response.json();
-        console.log('🧾 Create response (raw from Labs):', JSON.stringify(data, null, 2));
+        
 
         // Lưu response vào file logs
         const timestamp = Date.now();
@@ -192,12 +191,12 @@ async function createVideo(req, res, storageData) {
         }
         
         fs.writeFileSync(logFilePath, JSON.stringify(data, null, 2));
-        console.log(`📝 Saved create response to logs/${logFileName}`);
+        
 
         // Lưu operation name để check status sau
         if (data.operations && data.operations.length > 0) {
             storageData.currentOperationName = data.operations[0].operation.name;
-            console.log(`🔑 Operation name saved: ${storageData.currentOperationName}`);
+            
             saveStorageData(storageData);
         }
 
@@ -217,8 +216,7 @@ async function createVideo(req, res, storageData) {
         storageData.requestHistory.push(historyEntry);
         saveStorageData(storageData);
 
-        console.log(`✅ Video generation request sent for: "${prompt}"`);
-        console.log(`📊 Response status: ${response.status}`);
+        
 
         res.json({
             success: true,

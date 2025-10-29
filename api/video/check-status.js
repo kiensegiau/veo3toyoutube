@@ -65,8 +65,7 @@ function downloadVideo(videoUrl, operationName) {
                 fs.mkdirSync(videosDir, { recursive: true });
             }
             
-            console.log(`📥 Đang tải video: ${videoUrl}`);
-            console.log(`💾 Lưu tại: ${filePath}`);
+            
             
             const file = fs.createWriteStream(filePath);
             
@@ -75,7 +74,7 @@ function downloadVideo(videoUrl, operationName) {
                 
                 file.on('finish', () => {
                     file.close();
-                    console.log(`✅ Video đã được tải về: ${fileName}`);
+                    
                     resolve({
                         success: true,
                         fileName: fileName,
@@ -143,7 +142,7 @@ async function checkStatus(req, res, storageData) {
             });
         }
 
-        console.log(`🔍 Checking status with operation: ${operationName}`);
+        
 
         const requestBody = {
             operations: [{
@@ -174,18 +173,13 @@ async function checkStatus(req, res, storageData) {
         }
 
         const data = await response.json();
-        console.log(`🔍 Full response for operation ${operationName}:`, JSON.stringify(data, null, 2));
 
         // Tìm operation trong response
         let targetOperation = null;
         if (data.operations && data.operations.length > 0) {
-            console.log(`🔍 Looking for operation: ${operationName}`);
-            console.log(`🔍 Available operations:`, data.operations.map(op => op.operation.name));
             
             targetOperation = data.operations.find(op => op.operation.name === operationName);
-            if (targetOperation) {
-                console.log(`✅ Found target operation ${operationName}: ${targetOperation.status}`);
-            }
+            
         }
 
         if (!targetOperation) {
@@ -197,7 +191,7 @@ async function checkStatus(req, res, storageData) {
         }
 
         const status = targetOperation.status;
-        console.log(`🎬 ${operationName} -> ${status}`);
+        
 
         let videoUrl = null;
         let downloadInfo = null;
@@ -226,12 +220,10 @@ async function checkStatus(req, res, storageData) {
                 errorCode === 8;    // QUOTA_EXCEEDED
             
             if (shouldRemove) {
-                console.log(`⚠️ Xóa operation ${operationName} - Lỗi không thể khắc phục: ${errorMessage} (code: ${errorCode})`);
                 
                 // Xóa operation khỏi storage
                 try {
                     removeOperation(storageData, operationName);
-                    console.log(`🗑️ Đã xóa operation ${operationName} khỏi storage`);
                 } catch (removeError) {
                     console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
                 }
@@ -259,24 +251,20 @@ async function checkStatus(req, res, storageData) {
                 const metadata = targetOperation.operation.metadata;
                 if (metadata.video && metadata.video.fifeUrl) {
                     videoUrl = metadata.video.fifeUrl;
-                    console.log(`🎥 Found video URL in fifeUrl: ${videoUrl}`);
+                   
                 }
             }
 
             if (videoUrl) {
-                console.log(`✅ Video ready for operation ${operationName}: ${videoUrl}`);
                 finalStatus = 'COMPLETED';
                 
                 // Tự động tải video về máy
                 try {
-                    console.log(`📥 Đang tải video: ${videoUrl}`);
                     downloadInfo = await downloadVideo(videoUrl, operationName);
-                    console.log(`✅ Video đã được tải về: ${downloadInfo.fileName}`);
                     
                     // Xóa operation đã hoàn thành khỏi storage (tránh check lại)
                     try {
                         removeOperation(storageData, operationName);
-                        console.log(`🗑️ Đã xóa operation ${operationName} khỏi storage (đã hoàn thành)`);
                     } catch (removeError) {
                         console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
                     }
@@ -285,13 +273,11 @@ async function checkStatus(req, res, storageData) {
                     downloadInfo = { success: false, error: downloadError.message };
                 }
             } else {
-                console.log(`❌ Video URL not found for operation ${operationName}`);
                 finalStatus = 'FAILED';
                 
                 // Xóa operation không có URL khỏi storage
                 try {
                     removeOperation(storageData, operationName);
-                    console.log(`🗑️ Đã xóa operation ${operationName} khỏi storage (không có URL)`);
                 } catch (removeError) {
                     console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
                 }
@@ -300,19 +286,16 @@ async function checkStatus(req, res, storageData) {
             finalStatus = 'FAILED';
             
             // Xóa operation thất bại khỏi storage
-            console.log(`⚠️ Operation ${operationName} thất bại - Xóa khỏi storage`);
             try {
                 removeOperation(storageData, operationName);
-                console.log(`🗑️ Đã xóa operation ${operationName} khỏi storage`);
             } catch (removeError) {
                 console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
             }
         } else if (status === 'MEDIA_GENERATION_STATUS_ACTIVE') {
-            console.log(`⏳ Video still processing for operation ${operationName}: ${status}`);
             finalStatus = 'PENDING';
         }
 
-        console.log(`📊 Final status: ${finalStatus}, URL: ${videoUrl ? 'Found' : 'Not found'}`);
+        
 
         res.json({
             success: true,

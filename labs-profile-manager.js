@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 const ChromeProfileManager = require('./chrome-profile-manager');
+try { require('dotenv').config(); } catch (_) {}
 
 /**
  * 🧪 Labs Profile Manager - Quản lý profile Chrome riêng cho Google Labs
@@ -16,6 +17,62 @@ class LabsProfileManager {
         this.autoExtractInterval = null;
         this.autoExtractEnabled = false;
         this.lastExtractTime = null;
+        this.cachedCookies = null;
+        this.cachedCookieCount = 0;
+        this.cookieCacheTtlMs = 45 * 60 * 1000; // 45 minutes
+        this.lastCookiesSource = null; // 'file' | 'browser'
+    }
+
+    /**
+     * Kiểm tra cache cookies còn hiệu lực
+     */
+    isCookieCacheValid() {
+        if (!this.cachedCookies || !this.lastExtractTime) return false;
+        const last = new Date(this.lastExtractTime).getTime();
+        return (Date.now() - last) < this.cookieCacheTtlMs;
+    }
+
+    /**
+     * Lấy cookies từ cache nếu còn hiệu lực
+     */
+    getCachedCookies() {
+        if (!this.isCookieCacheValid()) return null;
+        return {
+            success: true,
+            cookies: this.cachedCookies,
+            cookieCount: this.cachedCookieCount,
+            isLoggedIn: true,
+            profileName: this.labsProfileName,
+            fromCache: true
+        };
+    }
+
+    /**
+     * Đọc cookies từ file labs-cookies.txt (nếu có)
+     */
+    readCookiesFromFile() {
+        try {
+            const filePath = path.join(__dirname, 'labs-cookies.txt');
+            if (!fs.existsSync(filePath)) {
+                return null;
+            }
+
+            const content = fs.readFileSync(filePath, 'utf8');
+            const lines = content.split(/\r?\n/);
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (line && !line.startsWith('#')) {
+                    // Bỏ cặp nháy bao ngoài nếu có
+                    if ((line.startsWith('"') && line.endsWith('"')) || (line.startsWith("'") && line.endsWith("'"))) {
+                        line = line.substring(1, line.length - 1);
+                    }
+                    return line;
+                }
+            }
+            return null;
+        } catch (_) {
+            return null;
+        }
     }
 
     /**
@@ -25,7 +82,6 @@ class LabsProfileManager {
         try {
             if (!fs.existsSync(this.labsProfilePath)) {
                 fs.mkdirSync(this.labsProfilePath, { recursive: true });
-                console.log(`📁 Tạo Labs profile tại: ${this.labsProfilePath}`);
             }
             return this.labsProfilePath;
         } catch (error) {
@@ -91,20 +147,16 @@ class LabsProfileManager {
                 devtools: false
             };
 
-            console.log(`🚀 Khởi động Chrome Labs tại: ${this.labsProfilePath}`);
             this.browser = await puppeteer.launch(launchOptions);
             this.page = await this.browser.newPage();
             
             // Áp dụng stealth settings
             await this.profileManager.applyStealthSettings(this.page);
             
-            console.log(`🌐 Điều hướng đến Google Labs Flow...`);
             await this.page.goto('https://labs.google/fx/tools/flow', { 
                 waitUntil: 'networkidle2', 
                 timeout: 30000 
             });
-            
-            console.log(`✅ Chrome Labs đã mở thành công`);
             
             // Tự động bật auto-extract mặc định 30 phút
             this.enableAutoExtract(30);
@@ -120,9 +172,68 @@ class LabsProfileManager {
     /**
      * Lấy cookies chỉ từ tab Google Labs
      */
-    async extractLabsCookies() {
+    async extractLabsCookies(force = false) {
         try {
+            const shouldValidate = process.env.LABS_VALIDATE_COOKIES === 'true';
+            const disableBrowser = process.env.LABS_DISABLE_BROWSER === 'true';
+            const cacheValid = this.isCookieCacheValid();
+            // Dùng cache nếu còn hiệu lực và không bắt buộc làm mới
+            if (!force) {
+                const cached = this.getCachedCookies();
+                if (cached) {
+                    return cached;
+                }
+            }
+
+            // Ưu tiên dùng file txt trước khi mở Chrome (có thể validate tuỳ chọn)
+            const fileCookies = this.readCookiesFromFile();
+            if (fileCookies && !force) {
+                if (shouldValidate) {
+                    try {
+                        const test = await this.testLabsCookies(fileCookies);
+                        if (test && test.success) {
+                            this.cachedCookies = fileCookies;
+                            this.cachedCookieCount = fileCookies.split(';').length;
+                            this.lastExtractTime = new Date().toISOString();
+                            this.lastCookiesSource = 'file';
+                            return {
+                                success: true,
+                                cookies: fileCookies,
+                                cookieCount: this.cachedCookieCount,
+                                isLoggedIn: true,
+                                profileName: this.labsProfileName,
+                                fromCache: true,
+                                fromFile: true
+                            };
+                        }
+                    } catch (_) {
+                    }
+                } else {
+                    // Không validate: dùng trực tiếp cookies từ file để tránh mở Chrome không cần thiết
+                    this.cachedCookies = fileCookies;
+                    this.cachedCookieCount = fileCookies.split(';').length;
+                    this.lastExtractTime = new Date().toISOString();
+                    this.lastCookiesSource = 'file';
+                    return {
+                        success: true,
+                        cookies: fileCookies,
+                        cookieCount: this.cachedCookieCount,
+                        isLoggedIn: true,
+                        profileName: this.labsProfileName,
+                        fromCache: true,
+                        fromFile: true
+                    };
+                }
+            }
+
             // Nếu browser chưa mở, mở mới
+            if (disableBrowser) {
+                return {
+                    success: false,
+                    error: 'LABS_DISABLE_BROWSER is true, skip opening Chrome',
+                    profileName: this.labsProfileName
+                };
+            }
             if (!this.isLabsBrowserOpen()) {
                 console.log(`🚀 Chrome Labs chưa mở, đang mở...`);
                 const opened = await this.openLabsBrowser();
@@ -131,12 +242,12 @@ class LabsProfileManager {
                 }
             }
 
-            console.log(`🍪 Lấy cookies từ tab Google Labs...`);
+            
             
             // Đảm bảo đang ở trang Google Labs Flow
             const currentUrl = await this.page.url();
             if (!currentUrl.includes('labs.google/fx/tools/flow')) {
-                console.log(`🔄 Chuyển đến Google Labs Flow...`);
+                
                 await this.page.goto('https://labs.google/fx/tools/flow', { 
                     waitUntil: 'networkidle2',
                     timeout: 30000 
@@ -149,7 +260,6 @@ class LabsProfileManager {
             // Chờ thêm để đảm bảo cookies được load
             try {
                 await this.page.waitForSelector('body', { timeout: 10000 });
-                console.log('✅ Trang đã load hoàn toàn');
                 
                 // Chờ thêm để đảm bảo JavaScript đã chạy
                 await this.page.waitForTimeout(3000);
@@ -160,12 +270,11 @@ class LabsProfileManager {
                 });
                 
                 if (!isReady) {
-                    console.log('⏳ Chờ trang hoàn thành load...');
                     await this.page.waitForTimeout(5000);
                 }
                 
             } catch (error) {
-                console.log('⚠️ Không thể chờ selector body, tiếp tục...');
+                
             }
             
             // Kiểm tra đăng nhập cho trang Flow
@@ -185,7 +294,7 @@ class LabsProfileManager {
             
             // Lấy tất cả cookies
             const allCookies = await this.page.cookies();
-            console.log(`📊 Total cookies found: ${allCookies.length}`);
+            
             
             // Lọc cookies liên quan đến Google Labs
             const labsCookies = allCookies.filter(cookie => 
@@ -195,27 +304,31 @@ class LabsProfileManager {
                 cookie.domain.includes('googleusercontent.com')
             );
             
-            console.log(`🎯 Labs cookies found: ${labsCookies.length}`);
+            
             
             // Log cookies để debug
-            labsCookies.forEach(cookie => {
-                console.log(`  - ${cookie.name}=${cookie.value.substring(0, 20)}... (${cookie.domain})`);
-            });
+            // Ẩn log chi tiết từng cookie để giảm noise
             
             // Chuyển đổi thành string format
             const cookieString = labsCookies
                 .map(cookie => `${cookie.name}=${cookie.value}`)
                 .join(';');
             
-            console.log(`✅ Successfully extracted ${labsCookies.length} Labs cookies`);
-            console.log(`🍪 Cookie string length: ${cookieString.length} characters`);
+            
+            
+            // Cập nhật cache
+            this.cachedCookies = cookieString;
+            this.cachedCookieCount = labsCookies.length;
+            this.lastExtractTime = new Date().toISOString();
+            this.lastCookiesSource = 'browser';
             
             return {
                 success: true,
                 cookies: cookieString,
                 cookieCount: labsCookies.length,
                 isLoggedIn: isLoggedIn,
-                profileName: this.labsProfileName
+                profileName: this.labsProfileName,
+                fromCache: false
             };
             
         } catch (error) {
@@ -280,6 +393,10 @@ class LabsProfileManager {
      */
     saveLabsCookies(cookieString) {
         try {
+            // Bỏ qua nếu cookie hiện tại đến từ file để tránh cập nhật timestamp gây nhầm lẫn
+            if (this.lastCookiesSource === 'file') {
+                return null;
+            }
             // Chỉ lưu vào 1 file duy nhất
             const fileName = 'labs-cookies.txt';
             const filePath = path.join(__dirname, fileName);
@@ -406,8 +523,12 @@ class LabsProfileManager {
         this.autoExtractInterval = setInterval(async () => {
             try {
                 if (this.isLabsBrowserOpen()) {
+                    // Bỏ qua nếu cache còn hiệu lực
+                    if (this.isCookieCacheValid()) {
+                        return;
+                    }
                     console.log(`⏰ Tự động lấy cookies...`);
-                    const result = await this.extractLabsCookies();
+                    const result = await this.extractLabsCookies(false);
                     if (result.success) {
                         this.lastExtractTime = new Date().toISOString();
                         console.log(`✅ Tự động lấy cookies thành công - ${result.cookieCount} cookies`);
@@ -459,8 +580,14 @@ class LabsProfileManager {
                 };
             }
 
+            // Nếu cache còn hiệu lực thì trả về luôn
+            const cached = this.getCachedCookies();
+            if (cached) {
+                return cached;
+            }
+
             console.log(`🔄 Tự động lấy cookies ngay lập tức...`);
-            const result = await this.extractLabsCookies();
+            const result = await this.extractLabsCookies(false);
             
             if (result.success) {
                 this.lastExtractTime = new Date().toISOString();
