@@ -931,6 +931,25 @@
             <div id="response"></div>
             <div id="batchTable" style="margin-top: 20px;"></div>
             <div id="videoResult"></div>
+
+            <!-- Live Logs -->
+            <div class="section" id="logsSection" style="margin-top: 20px;">
+                <h3>🖥️ Logs (realtime)</h3>
+                <div class="form-group" style="margin-top: 10px; display:flex; gap:8px; align-items:center;">
+                    <input type="url" id="mh370Url" placeholder="https://www.youtube.com/watch?v=..." style="flex:1;" />
+                    <button class="btn btn-success" type="button" onclick="runMH370FromLogs()">🛫 Run MH370</button>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:10px;">
+                    <div>
+                        <h4 style="margin-bottom:6px;">Server</h4>
+                        <pre id="logOutputServer" style="max-height: 300px; overflow: auto; white-space: pre-wrap;"></pre>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom:6px;">MH370 Job</h4>
+                        <pre id="logOutputMH370" style="max-height: 300px; overflow: auto; white-space: pre-wrap;"></pre>
+                    </div>
+                </div>
+            </div>
 			
             </div>
         </div>
@@ -1915,6 +1934,70 @@
 			// default tab
 			showTab('tab-workflow');
 		})();
+
+		// ===== Live Logs subscriber (split into 2 panels) =====
+		(function initLiveLogs(){
+			try{
+				const outServer = document.getElementById('logOutputServer');
+				const outMH370 = document.getElementById('logOutputMH370');
+				if(!outServer || !outMH370) return;
+				const ROOT_BASE = (typeof API_BASE === 'string') ? API_BASE.replace(/\/?api$/, '') : 'http://localhost:8888';
+				const COLORS = { log: '#1e293b', info: '#1e293b', warn: '#92400e', error: '#991b1b' };
+				const MAX_LINES = 1000;
+				let retryMs = 1000;
+				let es = null;
+				function append(out, line){
+					out.textContent += line + '\n';
+					const lines = out.textContent.split('\n');
+					if(lines.length > MAX_LINES){
+						out.textContent = lines.slice(-Math.floor(MAX_LINES*0.8)).join('\n');
+					}
+					out.scrollTop = out.scrollHeight;
+				}
+				function connect(){
+					if(es){ try{ es.close(); }catch(_){} }
+					es = new EventSource(`${ROOT_BASE}/logs/stream`);
+					es.onopen = () => { retryMs = 1000; append(outServer, `[${new Date().toLocaleTimeString('vi-VN')}] INFO  Kết nối log đã mở.`); };
+					es.onmessage = (e) => {
+						try{
+							const data = JSON.parse(e.data || '{}');
+							const time = new Date(data.ts || Date.now()).toLocaleTimeString('vi-VN');
+							const level = (data.level || 'log').toUpperCase().padEnd(5, ' ');
+							const line = `[${time}] ${level} ${data.message || ''}`;
+							const panel = (data.source || '').toLowerCase() === 'mh370' ? outMH370 : outServer;
+							append(panel, line);
+							panel.style.setProperty('--log-color', COLORS[(data.level || 'log')] || '#1e293b');
+						}catch(_){ append(outServer, e.data); }
+					};
+					es.onerror = () => {
+						append(outServer, `[${new Date().toLocaleTimeString('vi-VN')}] WARN  Mất kết nối log, thử lại sau ${retryMs}ms...`);
+						es.close();
+						setTimeout(connect, retryMs);
+						retryMs = Math.min(retryMs * 2, 60000);
+					};
+				}
+				connect();
+			}catch(_){ /* ignore */ }
+		})();
+
+		// MH370 runner inside Logs section
+		async function runMH370FromLogs(){
+			const url = (document.getElementById('mh370Url').value || '').trim();
+			if(!url){ alert('Nhập URL YouTube trước.'); return; }
+			try{
+				const res = await fetch(`${API_BASE}/create-mh370-video`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ youtubeUrl: url })
+				});
+				const data = await res.json();
+				if(!data.success){ alert('Không khởi động được job: ' + (data.message || 'Unknown error')); return; }
+				const outMH370 = document.getElementById('logOutputMH370');
+				if(outMH370){ outMH370.textContent += `\n[${new Date().toLocaleTimeString('vi-VN')}] INFO  Bắt đầu job MH370 (pid=${data.pid || 'n/a'})\n`; outMH370.scrollTop = outMH370.scrollHeight; }
+			}catch(e){
+				alert('Lỗi gọi API: ' + e.message);
+			}
+		}
 
 		// ===== MH370 quick workflow (32s) =====
 		async function runMH370FromYouTube(){

@@ -29,13 +29,78 @@ const app = express();
 const PORT = Number(process.env.PORT || 8888);
 
 // Middleware
-app.use(compression());
+const shouldCompress = (req, res) => {
+	// Disable compression for SSE endpoint to prevent buffering
+	if (req.path === '/logs/stream') return false;
+	return compression.filter(req, res);
+};
+app.use(compression({ filter: shouldCompress }));
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ===== Realtime log streaming (SSE) =====
+const sseClients = new Set();
+function broadcastLog(event) {
+	try {
+		const payload = typeof event === 'string' ? { level: 'info', message: event } : event;
+		const line = `data: ${JSON.stringify({ ts: Date.now(), ...payload })}\n\n`;
+		for (const res of sseClients) {
+			res.write(line);
+		}
+	} catch (_) {}
+}
+
+// Hook console methods to also broadcast to SSE clients
+(() => {
+	const orig = {
+		log: console.log.bind(console),
+		warn: console.warn.bind(console),
+		error: console.error.bind(console)
+	};
+	console.log = (...args) => {
+		orig.log(...args);
+		broadcastLog({ source: 'server', level: 'log', message: args.map(a => (typeof a === 'string' ? a : (a && a.stack) || JSON.stringify(a))).join(' ') });
+	};
+	console.warn = (...args) => {
+		orig.warn(...args);
+		broadcastLog({ source: 'server', level: 'warn', message: args.map(a => (typeof a === 'string' ? a : (a && a.stack) || JSON.stringify(a))).join(' ') });
+	};
+	console.error = (...args) => {
+		orig.error(...args);
+		broadcastLog({ source: 'server', level: 'error', message: args.map(a => (typeof a === 'string' ? a : (a && a.stack) || JSON.stringify(a))).join(' ') });
+	};
+})();
+
+// SSE endpoint for clients to subscribe to logs
+app.get('/logs/stream', (req, res) => {
+	// Keep socket alive indefinitely
+	req.socket.setTimeout(0);
+	res.set({
+		'Content-Type': 'text/event-stream',
+		'Cache-Control': 'no-cache, no-transform',
+		Connection: 'keep-alive',
+		'X-Accel-Buffering': 'no' // for nginx (if any)
+	});
+	res.flushHeaders?.();
+	// Client-side automatic retry hint
+	res.write('retry: 5000\n');
+	res.write(`data: ${JSON.stringify({ ts: Date.now(), level: 'info', message: '📡 Connected to log stream' })}\n\n`);
+
+	// Heartbeat to keep connection alive across proxies
+	const heartbeat = setInterval(() => {
+		try { res.write(`: keep-alive ${Date.now()}\n\n`); } catch (_) {}
+	}, 15000);
+
+	sseClients.add(res);
+	req.on('close', () => {
+		clearInterval(heartbeat);
+		sseClients.delete(res);
+	});
+});
 
 // Load storage data
 let storageData = storageUtils.loadStorageData();
@@ -195,8 +260,19 @@ app.post('/api/create-mh370-video', async (req, res) => {
         const scriptPath = path.join(__dirname, 'create-mh370-32s-video.js');
         const child = spawn(process.execPath, [scriptPath, `--url=${youtubeUrl}`], {
             cwd: __dirname,
-            stdio: 'inherit',
-            shell: process.platform === 'win32'
+            stdio: ['ignore', 'pipe', 'pipe'],
+            shell: false,
+            windowsHide: true
+        });
+        // Forward child stdout/stderr to SSE logs
+        if (child.stdout) child.stdout.on('data', (d) => {
+            try { broadcastLog({ source: 'mh370', level: 'log', message: String(d).trimEnd() }); } catch (_) {}
+        });
+        if (child.stderr) child.stderr.on('data', (d) => {
+            try { broadcastLog({ source: 'mh370', level: 'error', message: String(d).trimEnd() }); } catch (_) {}
+        });
+        child.on('close', (code) => {
+            try { broadcastLog({ source: 'mh370', level: 'info', message: `MH370 process exited with code ${code}` }); } catch (_) {}
         });
         res.json({ success: true, message: 'Job started', pid: child.pid });
     } catch (error) {
