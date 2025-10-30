@@ -1,0 +1,16 @@
+{
+  "name": "labs-cookie-exporter",
+  "version": "1.1.0",
+  "description": "Google Labs profile & cookie exporter (auto) tool",
+  "main": "labs-profile-manager.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node run-labs-export.js",
+    "export": "node run-labs-export.js",
+    "login": "node run-labs-login.js",
+    "login-export": "node run-labs-login-and-export.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^21.3.8"
+  }
+}
