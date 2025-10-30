@@ -118,36 +118,10 @@ class LabsProfileManager {
     }
 
     /**
-     * Lấy cookies chỉ từ tab Google Labs
+     * Lấy cookies chỉ từ tab Google Labs (luôn bỏ qua cache)
      */
-    async extractLabsCookies(forceFresh = false) {
-        // Nếu đã có cookie hợp lệ <12h thì trả lại, không cần mở Chrome (trừ khi forceFresh)
-        if (!forceFresh) {
-            try {
-                const cookieFile = require('path').join(__dirname, 'labs-cookies.txt');
-                if (require('fs').existsSync(cookieFile)) {
-                    const lines = require('fs').readFileSync(cookieFile, 'utf8').split(/\r?\n/);
-                    if (lines.length >= 2 && lines[0].startsWith('# Labs Cookies - Updated:')) {
-                        const timestampStr = lines[0].replace('# Labs Cookies - Updated:','').trim();
-                        const lastUpdate = new Date(timestampStr).getTime();
-                        const now = Date.now();
-                        if (!isNaN(lastUpdate) && (now - lastUpdate < 12 * 60 * 60 * 1000)) {
-                            console.log('✅ Cookies trong labs-cookies.txt còn hạn, không mở lại Chrome!');
-                            return {
-                                success: true,
-                                cookies: lines[1],
-                                cookieCount: (lines[1].split(';')||[]).length,
-                                isLoggedIn: true,
-                                fromCache: true,
-                                profileName: this.labsProfileName
-                            };
-                        }
-                    }
-                }
-            } catch (e) {
-                console.log('⚠️ Lỗi đọc cache cookie labs-cookies.txt, tiếp tục lấy mới...', e.message);
-            }
-        }
+    async extractLabsCookies() {
+        // BỎ QUA CACHE: luôn mở Chrome để lấy mới
         try {
             // Nếu browser chưa mở, mở mới
             if (!this.isLabsBrowserOpen()) {
@@ -487,7 +461,7 @@ class LabsProfileManager {
             }
 
             console.log(`🔄 Tự động lấy cookies ngay lập tức...`);
-            const result = await this.extractLabsCookies(true);
+            const result = await this.extractLabsCookies();
             
             if (result.success) {
                 this.lastExtractTime = new Date().toISOString();
