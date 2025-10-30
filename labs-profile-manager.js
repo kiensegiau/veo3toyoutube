@@ -121,6 +121,31 @@ class LabsProfileManager {
      * Lấy cookies chỉ từ tab Google Labs
      */
     async extractLabsCookies() {
+        // Nếu đã có cookie hợp lệ <12h thì trả lại, không cần mở Chrome
+        try {
+            const cookieFile = require('path').join(__dirname, 'labs-cookies.txt');
+            if (require('fs').existsSync(cookieFile)) {
+                const lines = require('fs').readFileSync(cookieFile, 'utf8').split(/\r?\n/);
+                if (lines.length >= 2 && lines[0].startsWith('# Labs Cookies - Updated:')) {
+                    const timestampStr = lines[0].replace('# Labs Cookies - Updated:','').trim();
+                    const lastUpdate = new Date(timestampStr).getTime();
+                    const now = Date.now();
+                    if (!isNaN(lastUpdate) && (now - lastUpdate < 12 * 60 * 60 * 1000)) {
+                        console.log('✅ Cookies trong labs-cookies.txt còn hạn, không mở lại Chrome!');
+                        return {
+                            success: true,
+                            cookies: lines[1],
+                            cookieCount: (lines[1].split(';')||[]).length,
+                            isLoggedIn: true,
+                            fromCache: true,
+                            profileName: this.labsProfileName
+                        };
+                    }
+                }
+            }
+        } catch (e) {
+            console.log('⚠️ Lỗi đọc cache cookie labs-cookies.txt, tiếp tục lấy mới...', e.message);
+        }
         try {
             // Nếu browser chưa mở, mở mới
             if (!this.isLabsBrowserOpen()) {

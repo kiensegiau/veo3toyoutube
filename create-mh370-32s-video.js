@@ -854,6 +854,26 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
         // Tất cả requests đã hoàn thành (xử lý tuần tự)
         const successfulOperations = veo3Results.filter(r => r.success);
         
+        // ⭐⭐⭐ LƯU TẤT CẢ PROMPT TỐI ƯU VỚI ĐẦY ĐỦ THÔNG TIN ⭐⭐⭐
+        const optimizedPromptsInfo = veo3Results.map(r => ({
+            segmentIndex: r.segmentIndex,
+            timeRange: r.timeRange,
+            originalPrompt: r.originalPrompt,
+            optimizedPrompt: r.optimizedPrompt,
+            detailedTimeline: r.detailedTimeline ?? null,
+            success: r.success,
+            error: r.error ?? null
+        }));
+        const promptsSavePath = path.join(outputDir, 'veo-optimized-prompts.json');
+        fs.writeFileSync(promptsSavePath, JSON.stringify(optimizedPromptsInfo, null, 2), 'utf8');
+        console.log(`✅ [Step 3] Đã lưu optimized prompt chi tiết cho từng segment vào: ${promptsSavePath}`);
+
+        // ⭐⭐⭐ LƯU ARRAY CHỈ CÓ optimizedPrompt ⭐⭐⭐
+        const optimizedPromptArray = veo3Results.map(r => r.optimizedPrompt);
+        const promptsOnlyPath = path.join(outputDir, 'veo-optimized-prompts-only.json');
+        fs.writeFileSync(promptsOnlyPath, JSON.stringify(optimizedPromptArray, null, 2), 'utf8');
+        console.log(`✅ [Step 3] Đã lưu ONLY array optimizedPrompt cho từng segment vào: ${promptsOnlyPath}`);
+        
         console.log(`✅ [Step 3] Đã tối ưu và gửi ${successfulOperations.length}/${analysis.segments.length} Veo3 requests`);
         console.log(`🚀 [Step 3] Tất cả Veo3 đang chạy ngầm với prompt đã tối ưu...`);
         
