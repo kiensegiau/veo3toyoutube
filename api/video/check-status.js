@@ -110,14 +110,16 @@ async function checkStatus(req, res, storageData) {
             return s;
         };
         const hdrs = (req && typeof req === 'object' && req.headers && typeof req.headers === 'object') ? req.headers : {};
-        let labsCookies = sanitizeCookieHeader((req.body && (req.body.labsCookies || req.body.cookies || req.body.cookie)) || hdrs['x-labs-cookie'] || hdrs['X-Labs-Cookie'] || '');
-        if (!labsCookies) {
-            if (runMode === 'vps') {
+        let labsCookies;
+        if (runMode === 'vps') {
+            labsCookies = sanitizeCookieHeader((req.body && (req.body.labsCookies || req.body.cookies || req.body.cookie)) || hdrs['x-labs-cookie'] || hdrs['X-Labs-Cookie'] || '');
+            if (!labsCookies) {
                 return res.status(400).json({
                     success: false,
                     message: 'VPS mode: Thiếu Labs cookies. Gửi labsCookies trong body hoặc header x-labs-cookie.'
                 });
             }
+        } else {
             labsCookies = sanitizeCookieHeader(await getLabsCookies());
             if (!labsCookies) {
                 return res.status(400).json({
