@@ -290,7 +290,7 @@ app.post('/api/tts/wait', vibeeTTS.waitUntilReady);
 // Utility APIs
 app.post('/api/create-mh370-video', async (req, res) => {
     try {
-        const { youtubeUrl, openaiApiKey, labsCookies } = req.body || {};
+        const { youtubeUrl, openaiApiKey, labsCookies, projectId } = req.body || {};
         if (!youtubeUrl) return res.status(400).json({ success: false, message: 'youtubeUrl is required' });
         if ((process.env.RUN_MODE || 'default').toLowerCase() === 'vps') {
             if (!openaiApiKey || typeof openaiApiKey !== 'string' || openaiApiKey.trim().length < 10) {
@@ -298,6 +298,9 @@ app.post('/api/create-mh370-video', async (req, res) => {
             }
             if (!labsCookies || typeof labsCookies !== 'string' || labsCookies.trim().length < 10) {
                 return res.status(400).json({ success: false, message: 'VPS mode: Thiếu Labs cookies. Gửi labsCookies trong body.' });
+            }
+            if (!projectId || typeof projectId !== 'string' || projectId.trim().length < 10) {
+                return res.status(400).json({ success: false, message: 'VPS mode: Thiếu projectId. Gửi projectId trong body.' });
             }
         }
         const { spawn } = require('child_process');
@@ -311,7 +314,8 @@ app.post('/api/create-mh370-video', async (req, res) => {
             env: {
                 ...process.env,
                 ...(openaiApiKey ? { OPENAI_API_KEY: openaiApiKey } : {}),
-                ...(labsCookies ? { LABS_COOKIES: labsCookies } : {})
+                ...(labsCookies ? { LABS_COOKIES: labsCookies } : {}),
+                ...(projectId ? { VEO_PROJECT_ID: projectId } : {})
             }
         });
         // Forward child stdout/stderr to SSE logs

@@ -37,7 +37,7 @@ function saveStorageData(storageData) {
     try {
         const storageFile = path.join(__dirname, '../../server-storage.json');
         fs.writeFileSync(storageFile, JSON.stringify(storageData, null, 2));
-        console.log('💾 Storage data saved to file');
+        // silent: avoid noisy log spam
     } catch (error) {
         console.error('❌ Error saving storage data:', error);
     }
@@ -128,7 +128,7 @@ function clearHistory(storageData, tenantId = null) {
         if (tenantId) {
             storageData.requestHistory = (storageData.requestHistory || []).filter(h => h.tenantId !== tenantId);
         } else {
-            storageData.requestHistory = [];
+        storageData.requestHistory = [];
         }
         saveStorageData(storageData);
         

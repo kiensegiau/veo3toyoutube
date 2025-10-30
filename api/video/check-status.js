@@ -153,7 +153,8 @@ async function checkStatus(req, res, storageData) {
         }
 
         // Cho phép truyền operationName để hỗ trợ nhiều yêu cầu song song
-        const { operationName: opFromClient, tenantId: tenantIdRaw } = req.body || {};
+        const { operationName: opFromClient, tenantId: tenantIdRaw, noRemove: noRemoveFlag } = req.body || {};
+        const noRemove = !!noRemoveFlag || !!(req.headers && (req.headers['x-no-remove'] || req.headers['X-No-Remove']));
         const tenantId = (req.headers['x-tenant-id'] || tenantIdRaw || '').toString().trim() || 'default';
         // Sử dụng operation name từ client nếu có, nếu không dùng cái đang lưu gần nhất
         const operationName = opFromClient || storageData.currentOperationName || null;
@@ -242,14 +243,8 @@ async function checkStatus(req, res, storageData) {
                 errorCode === 13 || // HIGH_TRAFFIC
                 errorCode === 8;    // QUOTA_EXCEEDED
             
-            if (shouldRemove) {
-                
-                // Xóa operation khỏi storage
-                try {
-                    removeOperation(storageData, operationName);
-                } catch (removeError) {
-                    console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
-                }
+            if (shouldRemove && !noRemove) {
+                try { removeOperation(storageData, operationName); } catch (removeError) { console.error('❌ Lỗi xóa operation khỏi storage:', removeError); }
                 
                 return res.json({
                     success: true,
@@ -284,12 +279,9 @@ async function checkStatus(req, res, storageData) {
                 // Tự động tải video về máy
                 try {
                     downloadInfo = await downloadVideo(videoUrl, operationName);
-                    
-                    // Xóa operation đã hoàn thành khỏi storage (tránh check lại)
-                    try {
-                        removeOperation(storageData, operationName);
-                    } catch (removeError) {
-                        console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
+                    // Xóa operation sau khi tải nếu cho phép
+                    if (!noRemove) {
+                        try { removeOperation(storageData, operationName); } catch (removeError) { console.error('❌ Lỗi xóa operation khỏi storage:', removeError); }
                     }
                 } catch (downloadError) {
                     console.error('❌ Lỗi tải video:', downloadError);
@@ -298,21 +290,17 @@ async function checkStatus(req, res, storageData) {
             } else {
                 finalStatus = 'FAILED';
                 
-                // Xóa operation không có URL khỏi storage
-                try {
-                    removeOperation(storageData, operationName);
-                } catch (removeError) {
-                    console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
+                // Xóa operation không có URL khỏi storage (nếu cho phép)
+                if (!noRemove) {
+                    try { removeOperation(storageData, operationName); } catch (removeError) { console.error('❌ Lỗi xóa operation khỏi storage:', removeError); }
                 }
             }
         } else if (status === 'MEDIA_GENERATION_STATUS_FAILED') {
             finalStatus = 'FAILED';
             
-            // Xóa operation thất bại khỏi storage
-            try {
-                removeOperation(storageData, operationName);
-            } catch (removeError) {
-                console.error('❌ Lỗi xóa operation khỏi storage:', removeError);
+            // Xóa operation thất bại khỏi storage (nếu cho phép)
+            if (!noRemove) {
+                try { removeOperation(storageData, operationName); } catch (removeError) { console.error('❌ Lỗi xóa operation khỏi storage:', removeError); }
             }
         } else if (status === 'MEDIA_GENERATION_STATUS_ACTIVE') {
             finalStatus = 'PENDING';

@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
@@ -10,6 +11,55 @@ const execAsync = promisify(exec);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const LABS_COOKIES = (process.env.LABS_COOKIES || '').trim();
 const RUN_MODE = (process.env.RUN_MODE || 'default').toLowerCase();
+const VEO_PROJECT_ID = (process.env.VEO_PROJECT_ID || '').trim();
+
+// Networking helpers for resilient OpenAI calls
+const keepAliveAgent = new https.Agent({ keepAlive: true, maxSockets: 50 });
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+async function fetchOpenAIWithRetry(payload, { maxRetries = 7, baseDelayMs = 1500 } = {}){
+    let attempt = 0;
+    while (true){
+        attempt++;
+        const controller = new AbortController();
+        const timeout = setTimeout(()=> controller.abort(), 90000); // 90s
+        try{
+            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload),
+                agent: keepAliveAgent,
+                signal: controller.signal
+            });
+            clearTimeout(timeout);
+            if (resp.ok){ return await resp.json(); }
+            const status = resp.status;
+            const text = await resp.text().catch(()=> '');
+            // Backoff for 429/5xx
+            if ((status === 429 || status >= 500) && attempt <= maxRetries){
+                const retryAfter = Number(resp.headers.get('retry-after') || 0) * 1000;
+                const backoff = retryAfter || Math.min(30000, baseDelayMs * Math.pow(2, attempt-1));
+                console.log(`⚠️  OpenAI HTTP ${status}. Retry in ${Math.round(backoff/1000)}s (attempt ${attempt}/${maxRetries})`);
+                await sleep(backoff + Math.floor(Math.random()*400));
+                continue;
+            }
+            throw new Error(`OpenAI HTTP ${status}: ${text}`);
+        }catch(err){
+            clearTimeout(timeout);
+            const msg = String(err && err.message || err);
+            const transient = /ECONNRESET|ETIMEDOUT|socket hang up|network|aborted|timeout/i.test(msg);
+            if (transient && attempt <= maxRetries){
+                const backoff = Math.min(30000, baseDelayMs * Math.pow(2, attempt-1));
+                console.log(`⚠️  OpenAI transient error: ${msg}. Retry in ${Math.round(backoff/1000)}s (attempt ${attempt}/${maxRetries})`);
+                await sleep(backoff + Math.floor(Math.random()*400));
+                continue;
+            }
+            throw err;
+        }
+    }
+}
 
 // Video Configuration
 const SEGMENT_DURATION = 8; // Each segment duration (seconds)
@@ -278,15 +328,9 @@ async function createMH370Video32s() {
         // Step 2: ChatGPT phân tích và tạo prompt cho batch này
         console.log(`🤖 [Batch ${batchIndex + 1}] ChatGPT tạo prompt cho ${batchSegmentCount} segments...`);
         
-        const chatGPTResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'gpt-4o-mini',
-                messages: [
+        const chatGPTResult = await fetchOpenAIWithRetry({
+            model: 'gpt-4o-mini',
+            messages: [
                     { 
                         role: "system", 
                         content: `Bạn là chuyên gia tạo prompt video cho Veo3 với khả năng visual hóa nội dung transcript CHÍNH XÁC.
@@ -392,10 +436,7 @@ ${batchIndex > 0 ? `5. Batch này có LIÊN KẾT mượt mà với batch trư�
                 ],
                 max_tokens: Math.min(16384, batchSegmentCount * 200), // Động dựa trên số segments trong batch
                 temperature: 0.3 // Thấp để chính xác, ít sáng tạo, tập trung vào transcript
-            })
         });
-        
-        const chatGPTResult = await chatGPTResponse.json();
         console.log(`🤖 [Batch ${batchIndex + 1}] ChatGPT result:`, chatGPTResult.choices ? '✅ Success' : '❌ Failed');
 
         if (!chatGPTResult.choices) {
@@ -460,8 +501,68 @@ ${batchIndex > 0 ? `5. Batch này có LIÊN KẾT mượt mà với batch trư�
         
         // XỬ LÝ THEO LÔ để nhanh nhưng vẫn an toàn
         const veo3Results = [];
-        const CONCURRENCY = 5; // số segment xử lý đồng thời
+        const earlyMonitorPromises = [];
+        const CONCURRENCY = 5; // giảm đồng thời để tránh burst Step 4
         console.log(`⏱️ [Step 3] Xử lý THEO LÔ ${analysis.segments.length} segments (concurrency=${CONCURRENCY})`);
+
+        async function monitorAndDownload(veo3Result, opts = {}){
+            const { startDelayMs = 0, pollEveryMs = 5000, maxAttempts = 60 } = opts;
+            let operationId = veo3Result.operationId;
+            let recreateAttempts = 0;
+            const maxRecreate = 2;
+            const promptForRecreate = veo3Result.optimizedPrompt || veo3Result.originalPrompt || '';
+            if (startDelayMs > 0) { await sleep(startDelayMs); }
+            console.log(`🔄 [Monitor] Start op=${operationId} seg=${veo3Result.segmentIndex + 1} delay=${startDelayMs}ms interval=${pollEveryMs}ms`);
+            let attempts = 0;
+            while (attempts < maxAttempts) {
+                try {
+                    const statusResponse = await fetch(`${serverUrl}/api/check-status`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            operationName: operationId,
+                            noRemove: true,
+                            ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {})
+                        })
+                    });
+                    const statusResult = await statusResponse.json();
+                    if (statusResult.success && statusResult.videoStatus === 'COMPLETED' && statusResult.videoUrl) {
+                        const downloadResponse = await fetch(`${serverUrl}/api/tts/download`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ audioUrl: statusResult.videoUrl, filename: `video_segment_${veo3Result.segmentIndex}_${Date.now()}.mp4` })
+                        });
+                        const downloadResult = await downloadResponse.json();
+                        if (downloadResult.success) {
+                            const videoPath = downloadResult.savedTo || downloadResult.outPath || downloadResult.path;
+                            return { success: true, segmentIndex: veo3Result.segmentIndex, path: videoPath, publicPath: downloadResult.publicPath, filename: downloadResult.filename, operationId };
+                        }
+                        return { success: false, segmentIndex: veo3Result.segmentIndex, error: 'Download failed' };
+                    } else if (statusResult.success && statusResult.videoStatus === 'PENDING') {
+                        attempts++;
+                        await sleep(pollEveryMs);
+                    } else {
+                        if (recreateAttempts < maxRecreate && promptForRecreate) {
+                            recreateAttempts++;
+                            try {
+                                const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
+                                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ input: promptForRecreate, prompt: promptForRecreate, ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {}) })
+                                });
+                                const veo3Json = await veo3Response.json();
+                                if (veo3Json && veo3Json.success && veo3Json.operationName) {
+                                    operationId = veo3Json.operationName; attempts = 0; continue;
+                                }
+                            } catch (_) {}
+                        }
+                        return { success: false, segmentIndex: veo3Result.segmentIndex, error: 'Operation failed' };
+                    }
+                } catch (e) {
+                    attempts++;
+                    await sleep(pollEveryMs);
+                }
+            }
+            return { success: false, segmentIndex: veo3Result.segmentIndex, error: 'Timeout' };
+        }
 
         async function processOneSegment(index) {
             const segment = analysis.segments[index];
@@ -474,15 +575,9 @@ ${batchIndex > 0 ? `5. Batch này có LIÊN KẾT mượt mà với batch trư�
                 const nextSegment = index < analysis.segments.length - 1 ? analysis.segments[index + 1] : null;
 
                 // Gọi ChatGPT để tối ưu prompt với format chi tiết
-                const optimizeResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'gpt-4o-mini',
-                        messages: [
+                const optimizeResult = await fetchOpenAIWithRetry({
+                    model: 'gpt-4o-mini',
+                    messages: [
                             {
                                 role: "system",
                                 content: `Bạn là chuyên gia tối ưu prompt cho Veo 3.1 (Google Video AI mới nhất).
@@ -604,10 +699,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         ],
                         max_tokens: 1500,
                         temperature: 0.3 // Thấp để giữ đúng nội dung, không sáng tạo thêm
-                    })
                 });
-
-                const optimizeResult = await optimizeResponse.json();
 
                 if (!optimizeResult.choices) {
                     throw new Error('ChatGPT optimization failed');
@@ -677,7 +769,8 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                             body: JSON.stringify({
                                 input: optimizedPrompt,
                                 prompt: optimizedPrompt,
-                                ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {})
+                                ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {}),
+                                ...(VEO_PROJECT_ID ? { projectId: VEO_PROJECT_ID } : {})
                             })
                         });
 
@@ -711,7 +804,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
 
                 if (veo3Result && veo3Result.success) {
                     console.log(`✅ [Step 3] Segment ${index + 1} Veo3: ${veo3Result.operationName}`);
-                    return {
+                    const resultObj = {
                         segmentIndex: index,
                         timeRange: segment.timeRange,
                         focus: segment.focus,
@@ -721,6 +814,9 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         operationId: veo3Result.operationName,
                         success: true
                     };
+                    // Khởi động theo dõi sớm sau 60s, poll mỗi 10s
+                    earlyMonitorPromises.push(monitorAndDownload(resultObj, { startDelayMs: 60000, pollEveryMs: 10000, maxAttempts: 36 }));
+                    return resultObj;
                 } else {
                     console.log(`❌ [Step 3] Segment ${index + 1} thất bại sau ${maxRetries} lần thử`);
                     return {
@@ -761,11 +857,15 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
         console.log(`✅ [Step 3] Đã tối ưu và gửi ${successfulOperations.length}/${analysis.segments.length} Veo3 requests`);
         console.log(`🚀 [Step 3] Tất cả Veo3 đang chạy ngầm với prompt đã tối ưu...`);
         
-        // Step 4: Chạy ngầm - kiểm tra và tải video khi sẵn sàng
+        // Step 4: Chạy ngầm - kiểm tra và tải video khi sẵn sàng (throttle)
         console.log(`🔄 [Step 4] Chạy ngầm - kiểm tra và tải video khi sẵn sàng...`);
-        
-        const downloadPromises = successfulOperations.map(async (veo3Result) => {
-            const operationId = veo3Result.operationId;
+        const MONITOR_CONCURRENCY = 3; // giới hạn số op theo dõi cùng lúc
+
+        async function monitorAndDownloadLate(veo3Result){
+            let operationId = veo3Result.operationId;
+            let recreateAttempts = 0;
+            const maxRecreate = 2; // tạo lại tối đa 2 lần để tránh thiếu video
+            const promptForRecreate = veo3Result.optimizedPrompt || veo3Result.originalPrompt || '';
             console.log(`🔄 [Step 4] Monitor operation: ${operationId}`);
             
             // Polling để kiểm tra trạng thái
@@ -779,6 +879,7 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             operationName: operationId,
+                            noRemove: true,
                             ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {})
                         })
                     });
@@ -829,6 +930,34 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                         attempts++;
                         await new Promise(resolve => setTimeout(resolve, 5000)); // Chờ 5 giây
                     } else {
+                        // Thử tạo lại operation mới nếu còn lượt
+                        if (recreateAttempts < maxRecreate && promptForRecreate) {
+                            recreateAttempts++;
+                            console.log(`♻️  [Step 4] Operation ${operationId} thất bại/không thấy → TẠO LẠI (lần ${recreateAttempts}/${maxRecreate})`);
+                            try {
+                                const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        input: promptForRecreate,
+                                        prompt: promptForRecreate,
+                                        ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {}),
+                                        ...(VEO_PROJECT_ID ? { projectId: VEO_PROJECT_ID } : {})
+                                    })
+                                });
+                                const veo3Json = await veo3Response.json();
+                                if (veo3Json && veo3Json.success && veo3Json.operationName) {
+                                    operationId = veo3Json.operationName;
+                                    attempts = 0; // reset attempts cho op mới
+                                    console.log(`🔁 [Step 4] Đã tạo operation mới: ${operationId}`);
+                                    continue; // quay lại polling với op mới
+                                } else {
+                                    console.log(`❌ [Step 4] Tạo lại operation thất bại: ${veo3Json && veo3Json.message}`);
+                                }
+                            } catch (e) {
+                                console.log(`❌ [Step 4] Lỗi tạo lại operation: ${e.message}`);
+                            }
+                        }
                         console.log(`❌ [Step 4] Operation ${operationId} thất bại hoặc không tìm thấy`);
                         return {
                             segmentIndex: veo3Result.segmentIndex,
@@ -849,11 +978,24 @@ CHỈ trả về JSON array, KHÔNG thêm text nào khác.`
                 error: 'Timeout',
                 success: false
             };
-        });
-        
-        // Chờ tất cả video được tải về
-        console.log(`⏳ [Step 4] Chờ tất cả video được tải về...`);
-        const videoFiles = await Promise.all(downloadPromises);
+        }
+
+        let videoFiles = [];
+        if (earlyMonitorPromises.length > 0) {
+            console.log(`⏱️ [Step 4] Chờ monitors đã khởi động từ Step 3 (${earlyMonitorPromises.length})...`);
+            videoFiles = await Promise.all(earlyMonitorPromises);
+        } else {
+            // Thực thi theo lô nhỏ để tránh quá tải
+            console.log(`⏱️ [Step 4] Theo dõi ${successfulOperations.length} operations (window=${MONITOR_CONCURRENCY})`);
+            for (let i = 0; i < successfulOperations.length; i += MONITOR_CONCURRENCY) {
+                const chunk = successfulOperations.slice(i, i + MONITOR_CONCURRENCY);
+                const results = await Promise.all(chunk.map(monitorAndDownloadLate));
+                videoFiles.push(...results);
+                if (i + MONITOR_CONCURRENCY < successfulOperations.length) {
+                    await sleep(800); // nghỉ ngắn giữa các lô
+                }
+            }
+        }
         const successfulVideos = videoFiles.filter(v => v.success);
         
         console.log(`✅ [Step 4] Đã tải ${successfulVideos.length}/${successfulOperations.length} video`);

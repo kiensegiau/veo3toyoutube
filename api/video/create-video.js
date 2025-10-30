@@ -108,7 +108,10 @@ async function createVideo(req, res, storageData) {
 
         
 
-        const VEO_PROJECT_ID = (req.body && req.body.projectId) || (req.headers && (req.headers['x-veo-project-id'] || req.headers['X-Veo-Project-Id'])) || process.env.VEO_PROJECT_ID || '69a71e65-d70b-41dc-a540-fc8964582233';
+        const VEO_PROJECT_ID = (req.body && req.body.projectId) || (req.headers && (req.headers['x-veo-project-id'] || req.headers['X-Veo-Project-Id'])) || process.env.VEO_PROJECT_ID || '';
+        if ((process.env.RUN_MODE || 'default').toLowerCase() === 'vps' && !VEO_PROJECT_ID) {
+            return res.status(400).json({ success: false, message: 'VPS mode: Thiếu projectId. Gửi projectId trong body hoặc header x-veo-project-id.' });
+        }
         console.log(`🆔 [create-video] projectId=${VEO_PROJECT_ID}`);
         const requestBody = {
             clientContext: {

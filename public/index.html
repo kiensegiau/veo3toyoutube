@@ -2198,13 +2198,15 @@
 			if(!url){ alert('Nhập URL YouTube trước.'); return; }
 			try{
                 const labsCookies = getLabsCookiesInput();
+                const projectId = (document.getElementById('veoProjectId')?.value || '').trim();
 				const res = await fetch(`${API_BASE}/create-mh370-video`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         youtubeUrl: url,
                         openaiApiKey: (document.getElementById('openaiKey')?.value||'').trim(),
-                        ...(labsCookies ? { labsCookies } : {})
+                        ...(labsCookies ? { labsCookies } : {}),
+                        ...(projectId ? { projectId } : {})
                     })
 				});
 				const data = await res.json();
@@ -2242,7 +2244,11 @@
 			if (!youtubeUrl){ showError('Vui lòng nhập URL YouTube'); return; }
 			showLoading(true);
 			try{
-				const result = await apiCall('/create-mh370-video', 'POST', { youtubeUrl });
+				const labsCookies = getLabsCookiesInput();
+				const openaiApiKey = (document.getElementById('openaiKey')?.value || '').trim();
+				const projectId = (document.getElementById('veoProjectId')?.value || '').trim();
+				const payload = { youtubeUrl, ...(labsCookies ? { labsCookies } : {}), ...(openaiApiKey ? { openaiApiKey } : {}), ...(projectId ? { projectId } : {}) };
+				const result = await apiCall('/create-mh370-video', 'POST', payload);
 				if(result.success){
 					showSuccess(`Đã bắt đầu job tạo video 32s (pid=${result.pid || 'n/a'}). Theo dõi trong console server.`);
 				}else{
