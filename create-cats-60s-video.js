@@ -25,6 +25,16 @@ const VEO_PROJECT_ID = (process.env.VEO_PROJECT_ID || '').trim();
 // Networking helpers for resilient OpenAI calls
 const keepAliveAgent = new https.Agent({ keepAlive: true, maxSockets: 50 });
 function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+// Kiểm tra file video có audio stream hay không (dùng ffprobe)
+async function hasAudioStream(filePath){
+    try{
+        const cmd = `ffprobe -v error -select_streams a:0 -show_entries stream=index -of csv=p=0 "${filePath}"`;
+        const { stdout } = await execAsync(cmd);
+        return Boolean(String(stdout || '').trim());
+    }catch(_){
+        return false;
+    }
+}
 async function fetchOpenAIWithRetry(payload, { maxRetries = 7, baseDelayMs = 1500 } = {}){
     let attempt = 0;
     while (true){
@@ -167,14 +177,30 @@ async function createCatFamilyVideo60s(){
 
 YÊU CẦU BẮT BUỘC:
 - Nhân vật xuyên suốt: mèo bố, mèo mẹ, mèo con (đặt tên, tính cách nhất quán)
+- NHÂN HÓA (anthropomorphic): hình thể dáng người, đi hai chân, tỉ lệ cơ thể người, cử chỉ tay chân như người; khuôn mặt và tai mèo, có lông mèo; có thể mặc trang phục gọn gàng hiện đại phù hợp ngữ cảnh.
+- Nội dung PHÙ HỢP TRẺ EM: tích cực, ấm áp, không bạo lực/kinh dị/nguy hiểm, không hành vi xấu.
 - Không có chữ/text overlay, không voice-over, chỉ visual và âm thanh nền tự nhiên/nhạc nền.
 - Phong cách, bảng màu, không khí nhất quán toàn video.
+
+ĐA DẠNG CHỦ ĐỀ & TRÁNH TRÙNG LẶP:
+- 10 segment cần có hành động và tiểu chủ đề khác nhau (ví dụ: thể thao nhẹ, nấu ăn, làm vườn, vẽ tranh, picnic, đọc sách, khiêu vũ, dọn dẹp, tập thể dục, khám phá thiên nhiên...).
+- Không lặp lại bối cảnh hoặc hành động chính giữa các segment; nếu cùng địa điểm chung (nhà/ công viên), phải đổi góc máy/đạo cụ/hành động.
+- Duy trì mạch cảm xúc gia đình gắn kết, nhưng mỗi segment có điểm nhấn riêng.
+
+NHẤN MẠNH ĐỒNG NHẤT NHÂN VẬT (Character Consistency):
+- Trả về thêm characterSheet mô tả CHI TIẾT ngoại hình từng nhân vật để dùng xuyên suốt: giống loài, chiều cao, tỉ lệ cơ thể, màu lông/chấm/hoa văn, dáng mặt, tai, mắt, phụ kiện đặc trưng, trang phục CỐ ĐỊNH (màu/chất liệu/kiểu), đạo cụ yêu thích.
+- QUY TẮC: Giữ NGUYÊN khuôn mặt, màu lông, trang phục và phụ kiện của mỗi nhân vật ở tất cả segments; KHÔNG đổi giới tính, tuổi, giống, màu sắc hay trang phục (trừ khi có nêu rõ trong sheet).
 
 Trả về JSON duy nhất:
 {
   "overallTheme": string,
   "colorScheme": string,
   "visualStyle": string,
+  "characterSheet": {
+    "father": { "name": string, "traits": string, "appearance": string, "outfit": string, "uniqueMarks": string },
+    "mother": { "name": string, "traits": string, "appearance": string, "outfit": string, "uniqueMarks": string },
+    "kitten": { "name": string, "traits": string, "appearance": string, "outfit": string, "uniqueMarks": string }
+  },
   "characters": {
     "father": { "name": string, "traits": string },
     "mother": { "name": string, "traits": string },
@@ -203,7 +229,7 @@ QUY TẮC PROMPT TỪNG SEGMENT:
                 },
                 {
                     role: 'user',
-                    content: 'Tạo một câu chuyện gia đình mèo ấm áp, dễ thương, nhịp điệu nhẹ nhàng trong 60 giây.'
+                    content: 'Tạo một câu chuyện gia đình mèo ấm áp, dễ thương, nhịp điệu nhẹ nhàng trong 60 giây, kiểu NHÂN HÓA (anthropomorphic) — mèo dáng người đi hai chân, cử chỉ như người, trang phục hiện đại. Nội dung thân thiện trẻ em, đa bối cảnh/tiểu chủ đề không trùng lặp giữa các segment.'
                 }
             ],
             max_tokens: 4000,
@@ -219,6 +245,7 @@ QUY TẮC PROMPT TỪNG SEGMENT:
             overallTheme: story.overallTheme,
             colorScheme: story.colorScheme,
             visualStyle: story.visualStyle,
+            characterSheet: story.characterSheet || story.characters || {},
             segments: story.segments
         };
 
@@ -226,9 +253,7 @@ QUY TẮC PROMPT TỪNG SEGMENT:
         console.log(`✅ [Step 0] Màu sắc: ${analysis.colorScheme}`);
         console.log(`✅ [Step 0] Phong cách: ${analysis.visualStyle}`);
 
-        // Chuẩn bị cookie sớm
-        console.log('🍪 [Step 1] Lấy/cache cookie trước khi tạo videos...');
-        await getCachedOrFreshCookie(serverUrl);
+        
 
         // Step 2: Tối ưu prompt từng segment (JSON chi tiết 0-2,2-4,4-6)
         console.log('🤖 [Step 2] Tối ưu prompts cho Veo3...');
@@ -245,6 +270,7 @@ QUY TẮC PROMPT TỪNG SEGMENT:
             if (startDelayMs > 0) { await sleep(startDelayMs); }
             console.log(`🔄 [Monitor] Start op=${operationId} seg=${veo3Result.segmentIndex + 1}`);
             let attempts = 0;
+            const startTs = Date.now();
             while (attempts < maxAttempts) {
                 try {
                     const statusResponse = await fetch(`${serverUrl}/api/check-status`, {
@@ -270,6 +296,10 @@ QUY TẮC PROMPT TỪNG SEGMENT:
                         return { success: false, segmentIndex: veo3Result.segmentIndex, error: 'Download failed' };
                     } else if (statusResult.success && statusResult.videoStatus === 'PENDING') {
                         attempts++;
+                        if (attempts % 5 === 0) {
+                            const waitedSec = Math.floor((Date.now() - startTs) / 1000);
+                            console.log(`⏳ [Monitor] op=${operationId} seg=${veo3Result.segmentIndex + 1} vẫn PENDING (${attempts} lần, đã đợi ${waitedSec}s)`);
+                        }
                         await sleep(pollEveryMs);
                     } else {
                         if (recreateAttempts < maxRecreate && promptForRecreate) {
@@ -289,6 +319,10 @@ QUY TẮC PROMPT TỪNG SEGMENT:
                     }
                 } catch (e) {
                     attempts++;
+                    if (attempts % 5 === 0) {
+                        const waitedSec = Math.floor((Date.now() - startTs) / 1000);
+                        console.log(`⚠️  [Monitor] op=${operationId} seg=${veo3Result.segmentIndex + 1} lỗi tạm thời (${attempts} lần), đã đợi ${waitedSec}s. Tiếp tục chờ...`);
+                    }
                     await sleep(pollEveryMs);
                 }
             }
@@ -307,7 +341,7 @@ QUY TẮC PROMPT TỪNG SEGMENT:
                     messages: [
                         {
                             role: 'system',
-                            content: `Bạn tối ưu prompt Veo 3.1 cho video 6 giây.
+                    content: `Bạn tối ưu prompt Veo 3.1 cho video 6 giây.
 
 Trả về MỘT JSON ARRAY 3 phần tử (0-2s,2-4s,4-6s). Không thêm giải thích:
 [
@@ -322,7 +356,11 @@ Trả về MỘT JSON ARRAY 3 phần tử (0-2s,2-4s,4-6s). Không thêm giải 
   },
   ...
 ]
-YÊU CẦU: không text overlay, không narration/voice, giữ nguyên nội dung prompt gốc, nhấn mạnh chủ đề toàn cục.`
+YÊU CẦU:
+- Phù hợp trẻ em: tích cực, an toàn, không bạo lực/giật mình.
+- Không text overlay, không narration/voice.
+- Giữ nguyên chủ đề toàn cục và NHÂN HÓA.
+- TRÁNH TRÙNG LẶP: nếu segment trước đã có hành động X/bối cảnh Y, hãy chọn hành động/góc máy/đạo cụ khác cho segment hiện tại.`
                         },
                         {
                             role: 'user',
@@ -342,15 +380,17 @@ YÊU CẦU: không text overlay, không narration/voice, giữ nguyên nội dun
 
                 let optimizedPrompt;
                 if (detailedTimeline && Array.isArray(detailedTimeline)) {
-                    const themeContext = `[CONTEXT: ${analysis.overallTheme}. Style: ${analysis.visualStyle}. Colors: ${analysis.colorScheme}] `;
+                    const characterContext = `Father: ${analysis?.characterSheet?.father?.name || '—'} | ${analysis?.characterSheet?.father?.appearance || ''} | Outfit: ${analysis?.characterSheet?.father?.outfit || ''} | Marks: ${analysis?.characterSheet?.father?.uniqueMarks || ''}; Mother: ${analysis?.characterSheet?.mother?.name || '—'} | ${analysis?.characterSheet?.mother?.appearance || ''} | Outfit: ${analysis?.characterSheet?.mother?.outfit || ''} | Marks: ${analysis?.characterSheet?.mother?.uniqueMarks || ''}; Kitten: ${analysis?.characterSheet?.kitten?.name || '—'} | ${analysis?.characterSheet?.kitten?.appearance || ''} | Outfit: ${analysis?.characterSheet?.kitten?.outfit || ''} | Marks: ${analysis?.characterSheet?.kitten?.uniqueMarks || ''}`.trim();
+                    const themeContext = `[CONTEXT: ${analysis.overallTheme}. Style: ${analysis.visualStyle}. Colors: ${analysis.colorScheme}. CHARACTER SHEET: ${characterContext}. RULE: KEEP characters identical across all scenes (face, fur color/patterns, body proportions, outfits, accessories). DO NOT change species/age/gender/outfits.] `;
                     const scenesDescription = detailedTimeline.map(scene => {
                         const transitionText = scene.transition ? `Transition: ${scene.transition}.` : '';
                         const soundText = scene.soundFocus ? scene.soundFocus.replace(/voice-over|voice over|narration|dialogue|speech|talking|speaking|narrator|human voice/gi, 'ambient sound') : 'ambient sound';
                         return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${soundText} (NO voice-over, NO speech, NO dialogue).`;
                     }).join(' ');
-                    optimizedPrompt = themeContext + scenesDescription + ' [IMPORTANT: NO voice-over, NO narration, NO dialogue, NO speech, NO human voice in the entire video. Only visual content with ambient sounds/background music.]';
+                    optimizedPrompt = themeContext + scenesDescription + ' [IMPORTANT: CONSISTENT CHARACTERS (face/fur/outfit/accessories). NO changes across segments. NO voice-over, NO narration, NO dialogue, NO speech, NO human voice in the entire video. Only visual content with ambient sounds/background music.]';
                 } else {
-                    optimizedPrompt = `${segment.prompt} [IMPORTANT: NO voice-over, NO narration, NO dialogue, NO speech, NO human voice. Only visual content with ambient sounds/background music.]`;
+                    const characterFallback = ` [CONTEXT: CHARACTER CONSISTENCY — keep faces, fur colors/patterns, outfits, accessories unchanged for father/mother/kitten.]`;
+                    optimizedPrompt = `${segment.prompt}${characterFallback} [IMPORTANT: NO voice-over, NO narration, NO dialogue, NO speech, NO human voice. Only visual content with ambient sounds/background music.]`;
                 }
 
                 // Gọi tạo video
@@ -397,7 +437,10 @@ YÊU CẦU: không text overlay, không narration/voice, giữ nguyên nội dun
                         operationId: veo3Result.operationName,
                         success: true
                     };
-                    earlyMonitorPromises.push(monitorAndDownload(resultObj, { startDelayMs: 45000, pollEveryMs: 8000, maxAttempts: 40 }));
+                    console.log(`🧭 [Step 3] ĐÃ GỬI prompt cho segment ${index + 1}.`);
+                    console.log(`🕒 [Step 3] LỊCH THEO DÕI: bắt đầu NGAY (0s), kiểm tra mỗi 3s (tối đa 80 lần ≈ 4 phút).`);
+                    // Chạy ngầm theo dõi: bắt đầu ngay, poll 3s/lần để tải về sớm nhất khi sẵn sàng
+                    earlyMonitorPromises.push(monitorAndDownload(resultObj, { startDelayMs: 0, pollEveryMs: 3000, maxAttempts: 80 }));
                     return resultObj;
                 }
 
@@ -462,6 +505,32 @@ YÊU CẦU: không text overlay, không narration/voice, giữ nguyên nội dun
         await execAsync(mergeCmd);
         console.log(`🎉 Đã ghép video: ${finalVideoPath}`);
 
+        // Thêm âm thanh nền Diamonds.mp3 nếu có trong thư mục gốc
+        try {
+            const musicPath = path.resolve(path.join(__dirname, 'Diamonds.mp3'));
+            if (fs.existsSync(musicPath)) {
+                const finalWithAudioPath = finalVideoPath.replace(/\.mp4$/i, '_with_audio.mp4');
+                const videoHasAudio = await hasAudioStream(finalVideoPath);
+                if (videoHasAudio) {
+                    // Giữ nguyên âm thanh gốc + trộn thêm nhạc nền (giảm volume nhạc)
+                    const mixCmd = `ffmpeg -i "${finalVideoPath}" -stream_loop -1 -i "${musicPath}" -filter_complex "[0:a]volume=1.0[a0];[1:a]volume=1.0[a1];[a0][a1]amix=inputs=2:duration=shortest:dropout_transition=2[aout]" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -shortest "${finalWithAudioPath}"`;
+                    await execAsync(mixCmd);
+                    console.log(`🎵 Đã trộn nhạc nền, GIỮ âm thanh gốc: ${finalWithAudioPath}`);
+                } else {
+                    // Nếu video không có audio gốc: chỉ ghép nhạc nền
+                    const muxCmd = `ffmpeg -i "${finalVideoPath}" -stream_loop -1 -i "${musicPath}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest "${finalWithAudioPath}"`;
+                    await execAsync(muxCmd);
+                    console.log(`🎵 Video không có audio gốc, đã thêm nhạc nền: ${finalWithAudioPath}`);
+                }
+                // Ghi đè đường dẫn kết quả chính sang file có nhạc
+                resultFinalVideoPath = finalWithAudioPath;
+            } else {
+                console.log('🎵 Bỏ qua chèn nhạc: không tìm thấy Diamonds.mp3 ở thư mục gốc');
+            }
+        } catch (e) {
+            console.log(`⚠️ Lỗi khi chèn nhạc nền: ${e.message}`);
+        }
+
         const resultPath = path.join(outputDir, `cat-family-60s-result.json`);
         const finalResult = {
             timestamp: new Date().toISOString(),
@@ -471,7 +540,7 @@ YÊU CẦU: không text overlay, không narration/voice, giữ nguyên nội dun
             segmentsCreated: analysis.segments.length,
             veo3OperationsSent: successfulOperations.length,
             videosDownloaded: successfulVideos.length,
-            finalVideo: finalVideoPath,
+            finalVideo: typeof resultFinalVideoPath !== 'undefined' ? resultFinalVideoPath : finalVideoPath,
             segments: analysis.segments,
             veo3Results: veo3Results,
             videoFiles: successfulVideos,
