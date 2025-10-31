@@ -7,8 +7,8 @@ const { promisify } = require('util');
 
 const execAsync = promisify(exec);
 
-// ChatGPT API configuration
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+// ChatGPT API configuration (ENV-only, không hardcode)
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 
 /**
  * Trích xuất frame từ video segment
