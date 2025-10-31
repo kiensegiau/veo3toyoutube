@@ -700,6 +700,50 @@
             width: 300px;
             height: 300px;
         }
+
+        /* App window chrome (Windows-like) */
+        .app-titlebar {
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px 0 10px;
+            background: linear-gradient(180deg, #e8eef7 0%, #d9e2ef 100%);
+            border-bottom: 1px solid #c6d0e1;
+            user-select: none;
+        }
+        .app-titlebar .title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #1f2937;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .app-titlebar .title .dot {
+            width: 10px; height: 10px; border-radius: 50%; background: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+        }
+        .window-controls { display: flex; align-items: center; gap: 4px; }
+        .window-btn {
+            width: 36px; height: 26px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 6px; border: 1px solid #cbd5e1;
+            background: #eef2f7; color: #334155; cursor: pointer; font-size: 12px;
+        }
+        .window-btn:hover { background: #e2e8f0; }
+        .window-btn.close { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+        .window-btn.close:hover { background: #fecaca; }
+        /* Window states */
+        .container.maximized {
+            position: fixed; inset: 12px; margin: 0;
+            border-radius: 12px; z-index: 1000;
+        }
+        .container.minimized .header,
+        .container.minimized .content,
+        .container.minimized .tabs,
+        .container.minimized .full-width-section { display: none !important; }
+        .container.minimized { min-height: auto; }
     </style>
 </head>
 <body>
@@ -2434,7 +2478,11 @@
                 globalMainBootstrap = document.createElement('div');
                 globalMainBootstrap.className = 'container mt-4';
                 globalMainBootstrap.id = 'boostrapMainContainer';
-                document.body.prepend(globalMainBootstrap);
+                // Place at bottom of main content area (not at top)
+                const target = document.querySelector('.full-width-section')
+                    || document.querySelector('.content')
+                    || document.body;
+                target.appendChild(globalMainBootstrap);
             }
 
             // --- Tạo Video AI hàng loạt (Batch) ---
