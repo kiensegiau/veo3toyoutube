@@ -1170,7 +1170,15 @@
         }
 
         // Utility functions
-        const API_BASE = 'http://localhost:8888/api';
+        const API_BASE = (() => {
+            try {
+                if (window && window.location && window.location.origin && window.location.origin !== 'null') {
+                    return `${window.location.origin}/api`;
+                }
+            } catch(_) {}
+            const port = (typeof window !== 'undefined' && window.PORT) ? window.PORT : 8888;
+            return `http://localhost:${port}/api`;
+        })();
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json; charset=utf-8' } };
             if (data) options.body = JSON.stringify(data);
@@ -2198,7 +2206,7 @@
 				const outServer = document.getElementById('logOutputServer');
 				const outMH370 = document.getElementById('logOutputMH370');
 				if(!outServer || !outMH370) return;
-				const ROOT_BASE = (typeof API_BASE === 'string') ? API_BASE.replace(/\/?api$/, '') : 'http://localhost:8888';
+				const ROOT_BASE = API_BASE.replace(/\/?api$/, '');
 				const COLORS = { log: '#1e293b', info: '#1e293b', warn: '#92400e', error: '#991b1b' };
 				const MAX_LINES = 1000;
 				let retryMs = 1000;
