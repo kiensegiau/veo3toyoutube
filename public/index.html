@@ -25,12 +25,13 @@
         .container { 
             max-width: 100%; 
             margin: 0; 
-            background: rgba(255, 255, 255, 0.95); 
-            backdrop-filter: blur(20px);
-            border-radius: 24px; 
+            background: rgba(255, 255, 255, 0.96); 
+            backdrop-filter: blur(22px);
+            border-radius: 20px; 
             box-shadow: 
-                0 25px 50px -12px rgba(0, 0, 0, 0.25),
-                0 0 0 1px rgba(255, 255, 255, 0.1);
+                0 20px 40px -16px rgba(31, 41, 55, 0.35),
+                0 1px 0 0 rgba(255, 255, 255, 0.6) inset,
+                0 0 0 1px rgba(15, 23, 42, 0.05);
             overflow: hidden; 
             display: grid;
             grid-template-rows: auto 1fr;
@@ -38,28 +39,31 @@
         }
         
         .header { 
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
             color: white; 
-            padding: 32px; 
+            padding: 28px; 
             text-align: center; 
             position: relative;
             overflow: hidden;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
         }
         .header-actions { margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end; }
         .header-actions .mini-btn {
-            background: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.12);
             color: #fff;
             border: 1px solid rgba(255,255,255,0.25);
             padding: 6px 10px;
             border-radius: 8px;
             font-size: 12px;
             cursor: pointer;
+            transition: all .2s ease;
         }
+        .header-actions .mini-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
         .header-controls {
             margin-top: 16px;
             display: grid;
-            grid-template-columns: 1fr 280px 280px;
-            gap: 8px;
+            grid-template-columns: 1.2fr 0.9fr 0.9fr;
+            gap: 10px;
             align-items: center;
             text-align: left;
         }
@@ -67,13 +71,14 @@
             width: 100%;
             padding: 8px 10px;
             border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.25);
-            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.22);
+            background: rgba(15, 23, 42, 0.35);
             color: #fff;
             font-size: 12px;
             outline: none;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset;
         }
-        .header-controls textarea { height: 40px; resize: vertical; }
+        .header-controls textarea { height: 44px; resize: vertical; }
         .header-controls input::placeholder, .header-controls textarea::placeholder { color: rgba(255,255,255,0.8); }
         
         .header::before {
@@ -88,10 +93,11 @@
         }
         
         .header h1 { 
-            font-size: 2.5em; 
-            margin-bottom: 12px; 
-            font-weight: 700;
-            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+            font-size: 2.25em; 
+            margin-bottom: 10px; 
+            font-weight: 800;
+            letter-spacing: -0.015em;
+            background: linear-gradient(135deg, #ffffff 0%, #dbeafe 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -104,10 +110,10 @@
         }
         
         .content { 
-            padding: 32px; 
+            padding: 28px; 
             display: grid;
             grid-template-columns: 1fr; /* full-width single column for tab content */
-            gap: 32px;
+            gap: 28px;
             overflow-y: auto;
         }
         
@@ -151,16 +157,17 @@
             background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
             color: white; 
             border: none; 
-            padding: 12px 24px; 
+            padding: 11px 20px; 
             border-radius: 10px; 
             font-size: 14px; 
             font-weight: 600; 
             cursor: pointer; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             margin-right: 8px; 
             margin-bottom: 8px;
             position: relative;
             overflow: hidden;
+            box-shadow: 0 8px 16px rgba(29, 78, 216, 0.25);
         }
         
         .btn::before {
@@ -179,8 +186,9 @@
         }
         
         .btn:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+            transform: translateY(-1px); 
+            box-shadow: 0 14px 28px rgba(59, 130, 246, 0.32);
+            filter: saturate(1.05);
         }
         
         .btn:active { 
@@ -189,23 +197,27 @@
         
         .btn-secondary { 
             background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
         }
         
         .btn-danger { 
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 6px 14px rgba(239, 68, 68, 0.25);
         }
         
         .btn-success { 
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: linear-gradient(135deg, #16a34a 0%, #059669 100%);
+            box-shadow: 0 6px 14px rgba(22, 163, 74, 0.25);
         }
+        .btn:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
         
         .response { 
             margin-top: 24px; 
             padding: 20px; 
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
             border-radius: 12px; 
             border-left: 4px solid #3b82f6;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
         }
         
         .response h3 { 
@@ -358,21 +370,21 @@
         
         .section { 
             background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            padding: 24px; 
-            border-radius: 16px; 
-            margin-bottom: 24px;
+            padding: 22px; 
+            border-radius: 14px; 
+            margin-bottom: 22px;
             box-shadow: 
-                0 4px 6px rgba(0, 0, 0, 0.05),
-                0 1px 3px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
+                0 6px 18px rgba(0, 0, 0, 0.06),
+                0 1px 0 rgba(255, 255, 255, 0.6) inset;
+            border: 1px solid rgba(15, 23, 42, 0.06);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
         
         .section:hover {
             transform: translateY(-2px);
             box-shadow: 
-                0 10px 25px rgba(0, 0, 0, 0.1),
-                0 4px 6px rgba(0, 0, 0, 0.05);
+                0 16px 32px rgba(0, 0, 0, 0.10),
+                0 1px 0 rgba(255, 255, 255, 0.7) inset;
         }
         
         .section h3 { 
@@ -392,22 +404,26 @@
         /* Tabs */
         .tabs {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             gap: 8px;
-            padding: 6px 16px 6px 16px; /* giảm chiều cao tổng */
+            padding: 8px 16px; /* giảm chiều cao tổng */
             background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
             border-bottom: 1px solid #e2e8f0;
             position: sticky;
             top: 0;
             z-index: 20;
+            overflow-x: auto;
+            scrollbar-width: thin;
         }
+        .tabs::-webkit-scrollbar { height: 6px; }
+        .tabs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
         .tab-button {
             display: flex;
             align-items: center;
             justify-content: center;
             height: 36px; /* cố định chiều cao */
-            width: 132px; /* cố định chiều rộng để không co giãn theo chữ */
-            padding: 0 10px;
+            min-width: 120px; /* linh hoạt nhưng tối thiểu */
+            padding: 0 12px;
             border-radius: 8px;
             font-size: 12px;
             font-weight: 600;
@@ -421,12 +437,12 @@
             box-sizing: border-box; /* tránh thay đổi kích thước khi active */
             outline: none;
         }
-        .tab-button:hover { background: #e2e8f0; }
+        .tab-button:hover { background: #e2e8f0; transform: translateY(-1px); }
         .tab-button.active {
             color: #fff;
             background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
             border-color: transparent;
-            box-shadow: 0 6px 14px rgba(59,130,246,0.25);
+            box-shadow: 0 10px 20px rgba(59,130,246,0.28);
         }
         
         table { 
@@ -436,7 +452,7 @@
             font-size: 13px;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
         }
         
         th, td { 
@@ -454,19 +470,19 @@
         
         /* Responsive Design */
         @media (max-width: 1200px) {
-            .content {
-                grid-template-columns: 1fr;
-            }
+            .content { grid-template-columns: 1fr; }
+            .header-controls { grid-template-columns: 1fr 1fr; }
         }
         
         @media (max-width: 768px) {
             body { padding: 8px; }
             .container { min-height: calc(100vh - 16px); }
             .content { padding: 20px; }
-            .header { padding: 24px; }
-            .header h1 { font-size: 2em; }
-            .section { padding: 20px; }
-            .btn { padding: 10px 20px; font-size: 13px; }
+            .header { padding: 20px; }
+            .header h1 { font-size: 1.8em; }
+            .section { padding: 18px; }
+            .btn { padding: 10px 18px; font-size: 13px; }
+            .header-controls { grid-template-columns: 1fr; gap: 8px; }
         }
         
         /* Full width sections for better horizontal layout */
