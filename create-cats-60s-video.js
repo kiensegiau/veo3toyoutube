@@ -17,7 +17,7 @@ try {
 const execAsync = promisify(exec);
 
 // ChatGPT/Veo environment variables (đọc từ ENV hoặc .env)
-const OPENAI_API_KEY = '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';
+const OPENAI_API_KEY = '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'
 const LABS_COOKIES = (process.env.LABS_COOKIES || '').trim();
 const RUN_MODE = (process.env.RUN_MODE || 'default').toLowerCase();
 const VEO_PROJECT_ID = (process.env.VEO_PROJECT_ID || '').trim();
@@ -259,18 +259,28 @@ QUY TẮC PROMPT TỪNG SEGMENT:
         console.log('🤖 [Step 2] Tối ưu prompts cho Veo3...');
         const veo3Results = [];
         const earlyMonitorPromises = [];
-        const CONCURRENCY = 5;
+        const CONCURRENCY = 8; // Tăng từ 5 lên 8 để xử lý nhanh hơn
 
         async function monitorAndDownload(veo3Result, opts = {}){
-            const { startDelayMs = 0, pollEveryMs = 5000, maxAttempts = 60 } = opts;
+            const { startDelayMs = 0, maxAttempts = 100 } = opts; // Tăng maxAttempts để đủ thời gian
             let operationId = veo3Result.operationId;
             let recreateAttempts = 0;
             const maxRecreate = 2;
             const promptForRecreate = veo3Result.optimizedPrompt || veo3Result.originalPrompt || '';
-            if (startDelayMs > 0) { await sleep(startDelayMs); }
             console.log(`🔄 [Monitor] Start op=${operationId} seg=${veo3Result.segmentIndex + 1}`);
+            
+            // Đợi 1 phút trước khi bắt đầu kiểm tra lần đầu
+            const INITIAL_DELAY_MS = 60000; // 1 phút = 60 giây
+            console.log(`⏸️  [Monitor] Đợi ${INITIAL_DELAY_MS/1000}s trước khi bắt đầu kiểm tra...`);
+            await sleep(INITIAL_DELAY_MS);
+            console.log(`🔍 [Monitor] Bắt đầu kiểm tra op=${operationId} seg=${veo3Result.segmentIndex + 1}`);
+            
             let attempts = 0;
             const startTs = Date.now();
+            
+            // Polling cố định: kiểm tra mỗi 5 giây sau lần kiểm tra đầu
+            const POLL_INTERVAL_MS = 5000; // Poll cố định mỗi 5 giây
+            
             while (attempts < maxAttempts) {
                 try {
                     const statusResponse = await fetch(`${serverUrl}/api/check-status`, {
@@ -291,16 +301,19 @@ QUY TẮC PROMPT TỪNG SEGMENT:
                         const downloadResult = await downloadResponse.json();
                         if (downloadResult.success) {
                             const videoPath = downloadResult.savedTo || downloadResult.outPath || downloadResult.path;
+                            const waitedSec = Math.floor((Date.now() - startTs) / 1000);
+                            console.log(`✅ [Monitor] op=${operationId} seg=${veo3Result.segmentIndex + 1} HOÀN THÀNH sau ${waitedSec}s`);
                             return { success: true, segmentIndex: veo3Result.segmentIndex, path: videoPath, publicPath: downloadResult.publicPath, filename: downloadResult.filename, operationId };
                         }
                         return { success: false, segmentIndex: veo3Result.segmentIndex, error: 'Download failed' };
                     } else if (statusResult.success && statusResult.videoStatus === 'PENDING') {
                         attempts++;
-                        if (attempts % 5 === 0) {
-                            const waitedSec = Math.floor((Date.now() - startTs) / 1000);
-                            console.log(`⏳ [Monitor] op=${operationId} seg=${veo3Result.segmentIndex + 1} vẫn PENDING (${attempts} lần, đã đợi ${waitedSec}s)`);
+                        const waitedSec = Math.floor((Date.now() - startTs) / 1000);
+                        // Log ít hơn: mỗi 20 lần hoặc mỗi 60 giây
+                        if (attempts % 20 === 0 || (waitedSec > 0 && waitedSec % 60 === 0)) {
+                            console.log(`⏳ [Monitor] op=${operationId} seg=${veo3Result.segmentIndex + 1} PENDING (${attempts} lần, đã đợi ${waitedSec}s, poll mỗi ${POLL_INTERVAL_MS/1000}s)`);
                         }
-                        await sleep(pollEveryMs);
+                        await sleep(POLL_INTERVAL_MS);
                     } else {
                         if (recreateAttempts < maxRecreate && promptForRecreate) {
                             recreateAttempts++;
@@ -319,11 +332,11 @@ QUY TẮC PROMPT TỪNG SEGMENT:
                     }
                 } catch (e) {
                     attempts++;
-                    if (attempts % 5 === 0) {
-                        const waitedSec = Math.floor((Date.now() - startTs) / 1000);
+                    const waitedSec = Math.floor((Date.now() - startTs) / 1000);
+                    if (attempts % 10 === 0) {
                         console.log(`⚠️  [Monitor] op=${operationId} seg=${veo3Result.segmentIndex + 1} lỗi tạm thời (${attempts} lần), đã đợi ${waitedSec}s. Tiếp tục chờ...`);
                     }
-                    await sleep(pollEveryMs);
+                    await sleep(POLL_INTERVAL_MS);
                 }
             }
             return { success: false, segmentIndex: veo3Result.segmentIndex, error: 'Timeout' };
@@ -438,9 +451,9 @@ YÊU CẦU:
                         success: true
                     };
                     console.log(`🧭 [Step 3] ĐÃ GỬI prompt cho segment ${index + 1}.`);
-                    console.log(`🕒 [Step 3] LỊCH THEO DÕI: bắt đầu NGAY (0s), kiểm tra mỗi 3s (tối đa 80 lần ≈ 4 phút).`);
-                    // Chạy ngầm theo dõi: bắt đầu ngay, poll 3s/lần để tải về sớm nhất khi sẵn sàng
-                    earlyMonitorPromises.push(monitorAndDownload(resultObj, { startDelayMs: 0, pollEveryMs: 3000, maxAttempts: 80 }));
+                    console.log(`🕒 [Step 3] LỊCH THEO DÕI: đợi 60s rồi mới kiểm tra lần đầu, sau đó poll cố định mỗi 5s, tối đa 100 lần.`);
+                    // Chạy ngầm theo dõi: đợi 1 phút rồi mới bắt đầu kiểm tra, sau đó mỗi 5s một lần
+                    earlyMonitorPromises.push(monitorAndDownload(resultObj, { startDelayMs: 0, maxAttempts: 100 }));
                     return resultObj;
                 }
 
@@ -454,12 +467,12 @@ YÊU CẦU:
             const end = Math.min(start + CONCURRENCY, analysis.segments.length);
             const indexes = Array.from({ length: end - start }, (_, i) => start + i);
             const tasks = indexes.map((idx, offset) => (async () => {
-                if (offset > 0) await sleep(200 * offset);
+                if (offset > 0) await sleep(100 * offset); // Giảm từ 200ms xuống 100ms
                 return await processOneSegment(idx);
             })());
             const batchResults = await Promise.all(tasks);
             veo3Results.push(...batchResults);
-            if (end < analysis.segments.length) await sleep(800);
+            if (end < analysis.segments.length) await sleep(400); // Giảm từ 800ms xuống 400ms
         }
 
         const promptsSavePath = path.join(outputDir, 'veo-optimized-prompts.json');
