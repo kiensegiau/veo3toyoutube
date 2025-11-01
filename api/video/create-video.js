@@ -59,7 +59,22 @@ async function createVideo(req, res, storageData) {
         const rawInput = (req.body && (req.body.input !== undefined ? req.body.input : req.body.prompt)) ?? 'cat';
         const prompt = normalizeInputToPrompt(rawInput, 'cat');
 
-        const aspectRatio = 'VIDEO_ASPECT_RATIO_LANDSCAPE';
+        // Hỗ trợ chọn aspect ratio (PORTRAIT hoặc LANDSCAPE), mặc định là LANDSCAPE
+        const requestedAspectRatio = (req.body && (req.body.aspectRatio || req.body.aspectRatioType || req.body.videoAspectRatio));
+        const normalizedRequest = requestedAspectRatio ? String(requestedAspectRatio).toUpperCase() : 'LANDSCAPE';
+        
+        // Xử lý các format khác nhau: "PORTRAIT", "LANDSCAPE", "VIDEO_ASPECT_RATIO_PORTRAIT", etc.
+        const isPortrait = normalizedRequest.includes('PORTRAIT');
+        const aspectRatio = isPortrait 
+            ? 'VIDEO_ASPECT_RATIO_PORTRAIT'  // Khổ dọc (khi có tham số)
+            : 'VIDEO_ASPECT_RATIO_LANDSCAPE'; // Khổ ngang (mặc định)
+        
+        // Chọn videoModelKey tương ứng
+        const videoModelKey = isPortrait
+            ? 'veo_3_1_t2v_fast_portrait_ultra'    // Khổ dọc
+            : 'veo_3_1_t2v_fast_ultra';            // Khổ ngang (mặc định)
+        
+        console.log(`📐 [create-video] requested=${requestedAspectRatio}, aspectRatio=${aspectRatio}, videoModelKey=${videoModelKey}`);
         
         // Determine run mode (unified behavior):
         // 1) If client sends cookies -> ALWAYS use them
@@ -125,7 +140,7 @@ async function createVideo(req, res, storageData) {
                 textInput: {
                     prompt: prompt
                 },
-                videoModelKey: "veo_3_1_t2v_fast_ultra", // Veo 3.1 cho khổ ngang
+                videoModelKey: videoModelKey, // Tự động chọn theo aspect ratio
                 metadata: {
                     sceneId: crypto.randomUUID()
                 }

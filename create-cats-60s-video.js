@@ -320,7 +320,12 @@ QUY TẮC PROMPT TỪNG SEGMENT:
                             try {
                                 const veo3Response = await fetch(`${serverUrl}/api/create-video`, {
                                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ input: promptForRecreate, prompt: promptForRecreate, ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {}) })
+                                    body: JSON.stringify({ 
+                                        input: promptForRecreate, 
+                                        prompt: promptForRecreate, 
+                                        aspectRatio: 'PORTRAIT', // Yêu cầu khổ dọc
+                                        ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {}) 
+                                    })
                                 });
                                 const veo3Json = await veo3Response.json();
                                 if (veo3Json && veo3Json.success && veo3Json.operationName) {
@@ -418,6 +423,7 @@ YÊU CẦU:
                             body: JSON.stringify({
                                 input: optimizedPrompt,
                                 prompt: optimizedPrompt,
+                                aspectRatio: 'PORTRAIT', // Yêu cầu khổ dọc
                                 ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {}),
                                 ...(VEO_PROJECT_ID ? { projectId: VEO_PROJECT_ID } : {})
                             })
