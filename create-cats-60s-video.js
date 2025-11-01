@@ -168,6 +168,27 @@ async function createCatFamilyVideo60s(){
 
         // Step 0: Sinh kịch bản ngẫu nhiên về gia đình mèo (đồng bộ nhân vật)
         console.log('📖 [Step 0] Sinh kịch bản gia đình mèo (ngẫu nhiên, đồng bộ nhân vật)...');
+        
+        // Tạo các yếu tố ngẫu nhiên để đảm bảo kịch bản khác nhau mỗi lần
+        const randomElements = {
+            seasons: ['xuân', 'hè', 'thu', 'đông'][Math.floor(Math.random() * 4)],
+            timeOfDay: ['sáng sớm', 'buổi sáng', 'trưa', 'chiều', 'chiều tối', 'hoàng hôn'][Math.floor(Math.random() * 6)],
+            weather: ['nắng đẹp', 'mưa nhẹ', 'có gió', 'trời quang', 'mây bay', 'nắng vàng'][Math.floor(Math.random() * 6)],
+            location: ['thành phố hiện đại', 'vùng ngoại ô yên tĩnh', 'gần biển', 'vùng núi nhỏ', 'quê hương', 'khu vườn nhà'][Math.floor(Math.random() * 6)],
+            activityPool: ['chơi nhạc cụ', 'câu cá', 'xem phim', 'chơi board game', 'làm bánh', 'đi dạo phố', 'tham quan bảo tàng', 'học vẽ', 'chụp ảnh', 'tắm nắng', 'đọc truyện', 'chơi thể thao', 'dã ngoại', 'cắm trại', 'ngắm sao', 'thả diều', 'vẽ tranh tường', 'trồng cây', 'nướng BBQ', 'chơi xếp hình']
+        };
+        
+        // Chọn 10 hoạt động ngẫu nhiên không trùng lặp
+        const selectedActivities = [];
+        const shuffled = [...randomElements.activityPool].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < Math.min(10, shuffled.length); i++) {
+            selectedActivities.push(shuffled[i]);
+        }
+        
+        // Log các yếu tố ngẫu nhiên để đảm bảo mỗi lần chạy khác nhau
+        console.log(`🎲 [Step 0] Yếu tố ngẫu nhiên: Mùa=${randomElements.seasons}, Thời gian=${randomElements.timeOfDay}, Thời tiết=${randomElements.weather}, Địa điểm=${randomElements.location}`);
+        console.log(`🎲 [Step 0] Hoạt động gợi ý: ${selectedActivities.slice(0, 5).join(', ')}... (${selectedActivities.length} hoạt động)`);
+        
         const storyResult = await fetchOpenAIWithRetry({
             model: 'gpt-4o-mini',
             messages: [
@@ -182,10 +203,14 @@ YÊU CẦU BẮT BUỘC:
 - Không có chữ/text overlay, không voice-over, chỉ visual và âm thanh nền tự nhiên/nhạc nền.
 - Phong cách, bảng màu, không khí nhất quán toàn video.
 
-ĐA DẠNG CHỦ ĐỀ & TRÁNH TRÙNG LẶP:
-- 10 segment cần có hành động và tiểu chủ đề khác nhau (ví dụ: thể thao nhẹ, nấu ăn, làm vườn, vẽ tranh, picnic, đọc sách, khiêu vũ, dọn dẹp, tập thể dục, khám phá thiên nhiên...).
-- Không lặp lại bối cảnh hoặc hành động chính giữa các segment; nếu cùng địa điểm chung (nhà/ công viên), phải đổi góc máy/đạo cụ/hành động.
-- Duy trì mạch cảm xúc gia đình gắn kết, nhưng mỗi segment có điểm nhấn riêng.
+QUAN TRỌNG - ĐA DẠNG TỐI ĐA & TRÁNH TRÙNG LẶP:
+- MỖI LẦN TẠO KỊCH BẢN PHẢI HOÀN TOÀN KHÁC BIỆT về: chủ đề tổng thể, bối cảnh chính, hoạt động, không khí, màu sắc, phong cách visual.
+- 10 segment PHẢI có hành động và bối cảnh HOÀN TOÀN KHÁC NHAU, không lặp lại bất kỳ yếu tố nào.
+- Nếu segment trước ở trong nhà → segment sau phải ở ngoài trời hoặc địa điểm khác.
+- Nếu segment trước là hoạt động tĩnh → segment sau phải là hoạt động động.
+- Đảm bảo mỗi segment có góc máy, ánh sáng, không khí riêng biệt.
+- Sử dụng các địa điểm đa dạng: nhà, công viên, bãi biển, rừng, thành phố, quán cà phê, thư viện, phòng tập, studio, vườn hoa, sân sau, ban công, mái nhà, v.v.
+- Sử dụng các hoạt động đa dạng và SÁNG TẠO, không lặp lại giữa các lần tạo.
 
 NHẤN MẠNH ĐỒNG NHẤT NHÂN VẬT (Character Consistency):
 - Trả về thêm characterSheet mô tả CHI TIẾT ngoại hình từng nhân vật để dùng xuyên suốt: giống loài, chiều cao, tỉ lệ cơ thể, màu lông/chấm/hoa văn, dáng mặt, tai, mắt, phụ kiện đặc trưng, trang phục CỐ ĐỊNH (màu/chất liệu/kiểu), đạo cụ yêu thích.
@@ -225,21 +250,239 @@ QUY TẮC PROMPT TỪNG SEGMENT:
 - Giữ đúng nhân vật (tên), bối cảnh, màu sắc, phong cách.
 - Cấm mọi chữ/tiêu đề/subtitle/watermark. Không thoại/voice.
 - Chỉ mô tả hình ảnh, hành động, cảm xúc bằng visual.
+- Mỗi prompt phải CHI TIẾT về bối cảnh, ánh sáng, góc máy để đảm bảo đa dạng tối đa.
 `
                 },
                 {
                     role: 'user',
-                    content: 'Tạo một câu chuyện gia đình mèo ấm áp, dễ thương, nhịp điệu nhẹ nhàng trong 60 giây, kiểu NHÂN HÓA (anthropomorphic) — mèo dáng người đi hai chân, cử chỉ như người, trang phục hiện đại. Nội dung thân thiện trẻ em, đa bối cảnh/tiểu chủ đề không trùng lặp giữa các segment.'
+                    content: `Tạo một câu chuyện gia đình mèo ấm áp, dễ thương, nhịp điệu nhẹ nhàng trong 60 giây, kiểu NHÂN HÓA (anthropomorphic) — mèo dáng người đi hai chân, cử chỉ như người, trang phục hiện đại. 
+
+YÊU CẦU ĐẶC BIỆT:
+- Bối cảnh: ${randomElements.location}, ${randomElements.weather}, ${randomElements.timeOfDay}
+- Mùa: ${randomElements.seasons}
+- Hãy SÁNG TẠO và TẠO RA một câu chuyện HOÀN TOÀN MỚI, chưa từng thấy. Đừng lặp lại các kịch bản thông thường.
+- 10 segment phải có bối cảnh và hoạt động HOÀN TOÀN KHÁC NHAU, đa dạng tối đa.
+- Gợi ý hoạt động đa dạng (không bắt buộc dùng hết): ${selectedActivities.join(', ')}
+- Mỗi segment phải có địa điểm/hoạt động/màu sắc/không khí riêng biệt để tạo sự đa dạng tối đa.
+
+Nội dung thân thiện trẻ em, đa bối cảnh/tiểu chủ đề không trùng lặp giữa các segment.`
                 }
             ],
             max_tokens: 4000,
-            temperature: 0.9
+            temperature: 1.2 // Tăng temperature để tăng tính ngẫu nhiên và sáng tạo
         });
         if (!storyResult.choices) throw new Error('Không sinh được kịch bản');
         const storyText = storyResult.choices[0].message.content;
-        const storyJsonMatch = storyText.match(/\{[\s\S]*\}/);
-        if (!storyJsonMatch) throw new Error('Kịch bản trả về không phải JSON');
-        const story = JSON.parse(storyJsonMatch[0]);
+        
+        // Tìm JSON trong response (có thể có markdown code block)
+        let jsonString = null;
+        
+        // Thử tìm trong markdown code block trước
+        const markdownMatch = storyText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (markdownMatch) {
+            jsonString = markdownMatch[1].trim();
+        } else {
+            // Tìm JSON object bằng cách đếm balanced braces
+            const startIdx = storyText.indexOf('{');
+            if (startIdx !== -1) {
+                let braceCount = 0;
+                let inString = false;
+                let escapeNext = false;
+                
+                for (let i = startIdx; i < storyText.length; i++) {
+                    const char = storyText[i];
+                    
+                    if (escapeNext) {
+                        escapeNext = false;
+                        continue;
+                    }
+                    
+                    if (char === '\\') {
+                        escapeNext = true;
+                        continue;
+                    }
+                    
+                    if (char === '"') {
+                        inString = !inString;
+                        continue;
+                    }
+                    
+                    if (!inString) {
+                        if (char === '{') braceCount++;
+                        if (char === '}') {
+                            braceCount--;
+                            if (braceCount === 0) {
+                                jsonString = storyText.substring(startIdx, i + 1);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (!jsonString) {
+            console.error('❌ Không tìm thấy JSON trong response:', storyText.substring(0, 500));
+            throw new Error('Kịch bản trả về không phải JSON');
+        }
+        
+        // Clean up JSON string - fix common issues
+        jsonString = jsonString
+            // Remove trailing commas before closing braces/brackets
+            .replace(/,(\s*[}\]])/g, '$1')
+            // Fix single quotes used as string delimiters (replace with double quotes at boundaries)
+            .replace(/:\s*'([^']*)'/g, ': "$1"')  // Property values with single quotes
+            .replace(/{\s*'([^']*)'/g, '{ "$1"')  // First property key with single quotes
+            .replace(/,\s*'([^']*)'/g, ', "$1"')  // Property keys with single quotes
+            .trim();
+        
+        let story;
+        try {
+            story = JSON.parse(jsonString);
+        } catch (parseError) {
+            // Thử fix unescaped newlines TRONG strings (không escape newlines ngoài strings)
+            try {
+                let fixedJson = '';
+                let inString = false;
+                let escapeNext = false;
+                
+                for (let i = 0; i < jsonString.length; i++) {
+                    const char = jsonString[i];
+                    const nextChar = jsonString[i + 1];
+                    
+                    if (escapeNext) {
+                        fixedJson += char;
+                        escapeNext = false;
+                        continue;
+                    }
+                    
+                    if (char === '\\') {
+                        fixedJson += char;
+                        escapeNext = true;
+                        continue;
+                    }
+                    
+                    if (char === '"') {
+                        inString = !inString;
+                        fixedJson += char;
+                        continue;
+                    }
+                    
+                    if (inString) {
+                        // Trong string: escape control characters và unescaped quotes
+                        if (char === '\n') {
+                            fixedJson += '\\n';
+                        } else if (char === '\r') {
+                            if (nextChar === '\n') {
+                                fixedJson += '\\n';
+                                i++; // Skip next \n
+                            } else {
+                                fixedJson += '\\n';
+                            }
+                        } else if (char === '\t') {
+                            fixedJson += '\\t';
+                        } else if (char === '"') {
+                            // Unescaped quote trong string - escape nó
+                            fixedJson += '\\"';
+                        } else {
+                            fixedJson += char;
+                        }
+                    } else {
+                        // Ngoài string: giữ nguyên (newlines hợp lệ)
+                        fixedJson += char;
+                    }
+                }
+                
+                story = JSON.parse(fixedJson);
+            } catch (secondError) {
+                // Thử cách cuối cùng: fix unescaped quotes trong strings bằng cách rebuild JSON
+                try {
+                    let finalFixedJson = '';
+                    let inString = false;
+                    let escapeNext = false;
+                    
+                    for (let i = 0; i < jsonString.length; i++) {
+                        const char = jsonString[i];
+                        const nextChar = jsonString[i + 1] || '';
+                        
+                        if (escapeNext) {
+                            finalFixedJson += char;
+                            escapeNext = false;
+                            continue;
+                        }
+                        
+                        if (char === '\\') {
+                            finalFixedJson += char;
+                            escapeNext = true;
+                            continue;
+                        }
+                        
+                        if (char === '"') {
+                            // Check if this is start/end of string or unescaped quote inside string
+                            if (inString) {
+                                // Đang trong string - check xem có phải kết thúc string không
+                                // Nếu ký tự tiếp theo là : hoặc , hoặc } hoặc ] hoặc whitespace thì là kết thúc
+                                const afterQuote = jsonString.substring(i + 1).trim();
+                                if (afterQuote.match(/^[,:}\]\s]/)) {
+                                    // Kết thúc string hợp lệ
+                                    inString = false;
+                                    finalFixedJson += char;
+                                } else {
+                                    // Unescaped quote trong string - escape nó
+                                    finalFixedJson += '\\"';
+                                }
+                            } else {
+                                // Bắt đầu string
+                                inString = true;
+                                finalFixedJson += char;
+                            }
+                            continue;
+                        }
+                        
+                        if (inString) {
+                            // Trong string: escape control characters
+                            if (char === '\n') {
+                                finalFixedJson += '\\n';
+                            } else if (char === '\r') {
+                                finalFixedJson += '\\n';
+                                if (nextChar === '\n') i++; // Skip next \n
+                            } else if (char === '\t') {
+                                finalFixedJson += '\\t';
+                            } else {
+                                finalFixedJson += char;
+                            }
+                        } else {
+                            finalFixedJson += char;
+                        }
+                    }
+                    
+                    story = JSON.parse(finalFixedJson);
+                } catch (thirdError) {
+                    console.error('❌ Lỗi parse JSON (lần 1):', parseError.message);
+                    console.error('❌ Lỗi parse JSON (sau fix newlines):', secondError.message);
+                    console.error('❌ Lỗi parse JSON (sau fix quotes):', thirdError.message);
+                    console.error('❌ JSON string (first 500 chars):', jsonString.substring(0, 500));
+                    
+                    // Log phần quanh lỗi
+                    const errorPos = parseInt(thirdError.message.match(/position (\d+)/)?.[1] || secondError.message.match(/position (\d+)/)?.[1] || parseError.message.match(/position (\d+)/)?.[1] || '0');
+                    if (errorPos > 0 && errorPos < jsonString.length) {
+                        const start = Math.max(0, errorPos - 300);
+                        const end = Math.min(jsonString.length, errorPos + 300);
+                        console.error('❌ JSON string (around error position):', jsonString.substring(start, end));
+                        console.error('❌ Error position:', errorPos, 'Character at position:', JSON.stringify(jsonString[errorPos]));
+                    }
+                    
+                    // Lưu JSON lỗi ra file để debug
+                    const errorLogPath = path.join(outputDir, `json-error-${Date.now()}.txt`);
+                    try {
+                        fs.writeFileSync(errorLogPath, jsonString, 'utf8');
+                        console.error(`📄 Đã lưu JSON lỗi vào: ${errorLogPath}`);
+                    } catch (_) {}
+                    
+                    throw new Error(`Lỗi parse JSON: ${parseError.message}. Đã thử 3 cách fix nhưng vẫn lỗi. Vui lòng kiểm tra prompt hoặc thử lại.`);
+                }
+            }
+        }
 
         const analysis = {
             overallTheme: story.overallTheme,
@@ -354,23 +597,42 @@ QUY TẮC PROMPT TỪNG SEGMENT:
                 const prevSegment = index > 0 ? analysis.segments[index - 1] : null;
                 const nextSegment = index < analysis.segments.length - 1 ? analysis.segments[index + 1] : null;
 
+                // Xây dựng character description chi tiết
+                const characterSheet = analysis?.characterSheet || {};
+                const fatherInfo = characterSheet.father || {};
+                const motherInfo = characterSheet.mother || {};
+                const kittenInfo = characterSheet.kitten || {};
+                
+                const characterDescription = `NHÂN VẬT (NHẤT QUÁN 100%):
+- Mèo bố (${fatherInfo.name || 'Father'}): ${fatherInfo.appearance || ''}. Trang phục: ${fatherInfo.outfit || ''}. Đặc điểm: ${fatherInfo.uniqueMarks || ''}. Tính cách: ${fatherInfo.traits || ''}.
+- Mèo mẹ (${motherInfo.name || 'Mother'}): ${motherInfo.appearance || ''}. Trang phục: ${motherInfo.outfit || ''}. Đặc điểm: ${motherInfo.uniqueMarks || ''}. Tính cách: ${motherInfo.traits || ''}.
+- Mèo con (${kittenInfo.name || 'Kitten'}): ${kittenInfo.appearance || ''}. Trang phục: ${kittenInfo.outfit || ''}. Đặc điểm: ${kittenInfo.uniqueMarks || ''}. Tính cách: ${kittenInfo.traits || ''}.
+
+QUY TẮC NGHIÊM NGẶT: Nhân vật PHẢI GIỐNG HỆT NHAU ở mọi segment: cùng khuôn mặt, cùng màu lông/hoa văn, cùng trang phục, cùng tỉ lệ cơ thể. KHÔNG BAO GIỜ thay đổi ngoại hình.`;
+
                 const optimizeResult = await fetchOpenAIWithRetry({
                     model: 'gpt-4o-mini',
                     messages: [
                         {
                             role: 'system',
-                    content: `Bạn tối ưu prompt Veo 3.1 cho video 6 giây.
+                    content: `Bạn tối ưu prompt Veo 3.1 cho video 6 giây về gia đình mèo.
+
+QUAN TRỌNG NHẤT - NHẤT QUÁN NHÂN VẬT (100% MANDATORY):
+- BẮT BUỘC: Mỗi scene có nhân vật xuất hiện PHẢI mô tả đầy đủ: TÊN + NGOẠI HÌNH + TRANG PHỤC + ĐẶC ĐIỂM
+- Ví dụ: "${fatherInfo.name || 'Father'} (${fatherInfo.appearance || 'mô tả ngoại hình'}, ${fatherInfo.outfit || 'trang phục'}, ${fatherInfo.uniqueMarks || 'đặc điểm'}) đang [hành động]"
+- KHÔNG BAO GIỜ thay đổi bất kỳ chi tiết nào của nhân vật: khuôn mặt, màu lông, hoa văn, trang phục, tỉ lệ cơ thể, đặc điểm riêng
+- Mỗi nhân vật PHẢI giống hệt nhau trong TẤT CẢ scenes - KHÔNG có ngoại lệ
 
 Trả về MỘT JSON ARRAY 3 phần tử (0-2s,2-4s,4-6s). Không thêm giải thích:
 [
   {
     "timeStart": 0,
     "timeEnd": 2,
-    "action": "Mô tả hành động visual (KHÔNG CHỮ, KHÔNG VOICE)",
+    "action": "BẮT BUỘC: Mô tả hành động + TÊN nhân vật + NGOẠI HÌNH đầy đủ + TRANG PHỤC + ĐẶC ĐIỂM (ví dụ: 'Tommy (mèo nâu sọc đen, áo xanh, vết trắng chân trái) đang...')",
     "cameraStyle": "zoom/pan/tilt/steady...",
     "transition": "fade/dissolve/cut/...",
     "soundFocus": "ambient sounds/background music (NO voice-over/speech/dialogue)",
-    "visualDetails": "màu sắc, ánh sáng, texture, style"
+    "visualDetails": "màu sắc, ánh sáng, texture, style, và mô tả chi tiết ngoại hình nhân vật"
   },
   ...
 ]
@@ -378,14 +640,26 @@ YÊU CẦU:
 - Phù hợp trẻ em: tích cực, an toàn, không bạo lực/giật mình.
 - Không text overlay, không narration/voice.
 - Giữ nguyên chủ đề toàn cục và NHÂN HÓA.
-- TRÁNH TRÙNG LẶP: nếu segment trước đã có hành động X/bối cảnh Y, hãy chọn hành động/góc máy/đạo cụ khác cho segment hiện tại.`
+- TRÁNH TRÙNG LẶP: nếu segment trước đã có hành động X/bối cảnh Y, hãy chọn hành động/góc máy/đạo cụ khác cho segment hiện tại.
+- MANDATORY: Mỗi action có nhân vật PHẢI bắt đầu bằng mô tả đầy đủ ngoại hình theo format: "Tên (ngoại hình, trang phục, đặc điểm) đang..."`
                         },
                         {
                             role: 'user',
-                            content: `Chủ đề: ${analysis.overallTheme}\nMàu sắc: ${analysis.colorScheme}\nPhong cách: ${analysis.visualStyle}\nSegment ${index + 1}/${analysis.segments.length}: ${segment.timeRange}\nFocus: ${segment.focus}\nOriginal prompt: ${segment.prompt}\n${prevSegment ? `Segment trước: ${prevSegment.timeRange} - ${prevSegment.focus}` : 'Đầu video: dùng fade in'}\n${nextSegment ? `Segment sau: ${nextSegment.timeRange} - ${nextSegment.focus}` : 'Cuối video: dùng fade out'}`
+                            content: `${characterDescription}
+
+Chủ đề: ${analysis.overallTheme}
+Màu sắc: ${analysis.colorScheme}
+Phong cách: ${analysis.visualStyle}
+Segment ${index + 1}/${analysis.segments.length}: ${segment.timeRange}
+Focus: ${segment.focus}
+Original prompt: ${segment.prompt}
+${prevSegment ? `Segment trước: ${prevSegment.timeRange} - ${prevSegment.focus}` : 'Đầu video: dùng fade in'}
+${nextSegment ? `Segment sau: ${nextSegment.timeRange} - ${nextSegment.focus}` : 'Cuối video: dùng fade out'}
+
+LƯU Ý: Khi mô tả action, NHẤT ĐỊNH phải mô tả chi tiết ngoại hình nhân vật nếu họ xuất hiện trong scene. Ví dụ: "Mèo bố (tên) với [mô tả ngoại hình], mặc [trang phục], [đặc điểm] đang [hành động]".`
                         }
                     ],
-                    max_tokens: 1200,
+                    max_tokens: 1500,
                     temperature: 0.35
                 });
                 if (!optimizeResult.choices) throw new Error('ChatGPT optimization failed');
@@ -398,17 +672,58 @@ YÊU CẦU:
 
                 let optimizedPrompt;
                 if (detailedTimeline && Array.isArray(detailedTimeline)) {
-                    const characterContext = `Father: ${analysis?.characterSheet?.father?.name || '—'} | ${analysis?.characterSheet?.father?.appearance || ''} | Outfit: ${analysis?.characterSheet?.father?.outfit || ''} | Marks: ${analysis?.characterSheet?.father?.uniqueMarks || ''}; Mother: ${analysis?.characterSheet?.mother?.name || '—'} | ${analysis?.characterSheet?.mother?.appearance || ''} | Outfit: ${analysis?.characterSheet?.mother?.outfit || ''} | Marks: ${analysis?.characterSheet?.mother?.uniqueMarks || ''}; Kitten: ${analysis?.characterSheet?.kitten?.name || '—'} | ${analysis?.characterSheet?.kitten?.appearance || ''} | Outfit: ${analysis?.characterSheet?.kitten?.outfit || ''} | Marks: ${analysis?.characterSheet?.kitten?.uniqueMarks || ''}`.trim();
-                    const themeContext = `[CONTEXT: ${analysis.overallTheme}. Style: ${analysis.visualStyle}. Colors: ${analysis.colorScheme}. CHARACTER SHEET: ${characterContext}. RULE: KEEP characters identical across all scenes (face, fur color/patterns, body proportions, outfits, accessories). DO NOT change species/age/gender/outfits.] `;
-                    const scenesDescription = detailedTimeline.map(scene => {
+                    // Build character context CHI TIẾT và RÕ RÀNG
+                    const fatherDesc = `${fatherInfo.name || 'Father cat'}: ${fatherInfo.appearance || 'anthropomorphic cat with human-like body'}, wearing ${fatherInfo.outfit || 'clothing'}, distinctive marks: ${fatherInfo.uniqueMarks || 'none'}`;
+                    const motherDesc = `${motherInfo.name || 'Mother cat'}: ${motherInfo.appearance || 'anthropomorphic cat with human-like body'}, wearing ${motherInfo.outfit || 'clothing'}, distinctive marks: ${motherInfo.uniqueMarks || 'none'}`;
+                    const kittenDesc = `${kittenInfo.name || 'Kitten'}: ${kittenInfo.appearance || 'anthropomorphic cat with human-like body'}, wearing ${kittenInfo.outfit || 'clothing'}, distinctive marks: ${kittenInfo.uniqueMarks || 'none'}`;
+                    
+                    const characterContext = `CHARACTER SHEET (MUST APPEAR IDENTICAL IN EVERY SCENE): ${fatherDesc}. ${motherDesc}. ${kittenDesc}. CRITICAL RULE: These characters MUST look EXACTLY THE SAME in every scene - same face, same fur color/patterns, same outfit, same body proportions, same unique marks. NEVER change their appearance.`;
+                    
+                    const themeContext = `[STORY CONTEXT: ${analysis.overallTheme}. Visual Style: ${analysis.visualStyle}. Color Scheme: ${analysis.colorScheme}. ${characterContext}] `;
+                    
+                    // Build character reference để dùng trong mỗi scene
+                    const fatherRef = `${fatherInfo.name || 'Father'} (${fatherInfo.appearance || ''}, ${fatherInfo.outfit || ''}, ${fatherInfo.uniqueMarks || ''})`;
+                    const motherRef = `${motherInfo.name || 'Mother'} (${motherInfo.appearance || ''}, ${motherInfo.outfit || ''}, ${motherInfo.uniqueMarks || ''})`;
+                    const kittenRef = `${kittenInfo.name || 'Kitten'} (${kittenInfo.appearance || ''}, ${kittenInfo.outfit || ''}, ${kittenInfo.uniqueMarks || ''})`;
+                    
+                    const scenesDescription = detailedTimeline.map((scene) => {
                         const transitionText = scene.transition ? `Transition: ${scene.transition}.` : '';
                         const soundText = scene.soundFocus ? scene.soundFocus.replace(/voice-over|voice over|narration|dialogue|speech|talking|speaking|narrator|human voice/gi, 'ambient sound') : 'ambient sound';
-                        return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${scene.action}. Camera: ${scene.cameraStyle}. Visual: ${scene.visualDetails}. Sound: ${soundText} (NO voice-over, NO speech, NO dialogue).`;
+                        
+                        // Build action text với character description đầy đủ
+                        let actionText = scene.action;
+                        
+                        // Kiểm tra xem nhân vật nào xuất hiện trong scene và đảm bảo có mô tả đầy đủ
+                        const actionLower = actionText.toLowerCase();
+                        const mentionsFather = actionLower.includes(fatherInfo.name?.toLowerCase() || 'father') || actionLower.includes('mèo bố') || actionLower.includes('bố');
+                        const mentionsMother = actionLower.includes(motherInfo.name?.toLowerCase() || 'mother') || actionLower.includes('mèo mẹ') || actionLower.includes('mẹ');
+                        const mentionsKitten = actionLower.includes(kittenInfo.name?.toLowerCase() || 'kitten') || actionLower.includes('mèo con') || actionLower.includes('con');
+                        
+                        // Nếu nhân vật xuất hiện nhưng không có mô tả đầy đủ, thêm vào
+                        let characterDesc = '';
+                        if (mentionsFather && !actionText.includes(fatherInfo.appearance || '')) {
+                            characterDesc += ` ${fatherRef}`;
+                        }
+                        if (mentionsMother && !actionText.includes(motherInfo.appearance || '')) {
+                            characterDesc += ` ${motherRef}`;
+                        }
+                        if (mentionsKitten && !actionText.includes(kittenInfo.appearance || '')) {
+                            characterDesc += ` ${kittenRef}`;
+                        }
+                        
+                        // Nếu có nhân vật xuất hiện, thêm reminder về tính nhất quán
+                        if (mentionsFather || mentionsMother || mentionsKitten) {
+                            characterDesc += ' [CHARACTERS MUST LOOK IDENTICAL - same face, fur, outfit, body proportions]';
+                        }
+                        
+                        return `[${scene.timeStart}-${scene.timeEnd}s] ${transitionText} ${actionText}${characterDesc}. Camera: ${scene.cameraStyle}. Visual details: ${scene.visualDetails}. Sound: ${soundText} (NO voice-over, NO speech, NO dialogue).`;
                     }).join(' ');
-                    optimizedPrompt = themeContext + scenesDescription + ' [IMPORTANT: CONSISTENT CHARACTERS (face/fur/outfit/accessories). NO changes across segments. NO voice-over, NO narration, NO dialogue, NO speech, NO human voice in the entire video. Only visual content with ambient sounds/background music.]';
+                    
+                    optimizedPrompt = themeContext + scenesDescription + ' [CRITICAL RULE: CHARACTERS MUST APPEAR IDENTICAL IN EVERY SINGLE FRAME OF THIS VIDEO - exact same faces, exact same fur colors/patterns, exact same outfits, exact same body proportions, exact same unique marks. DO NOT change any aspect of character appearance. CONSISTENCY IS MANDATORY. NO voice-over, NO narration, NO dialogue, NO speech, NO human voice. Only visual content with ambient sounds/background music.]';
                 } else {
-                    const characterFallback = ` [CONTEXT: CHARACTER CONSISTENCY — keep faces, fur colors/patterns, outfits, accessories unchanged for father/mother/kitten.]`;
-                    optimizedPrompt = `${segment.prompt}${characterFallback} [IMPORTANT: NO voice-over, NO narration, NO dialogue, NO speech, NO human voice. Only visual content with ambient sounds/background music.]`;
+                    // Fallback với character description đầy đủ
+                    const characterFallback = `CHARACTER CONSISTENCY: Father (${fatherInfo.name || 'Father'}) - ${fatherInfo.appearance || ''}, wearing ${fatherInfo.outfit || ''}. Mother (${motherInfo.name || 'Mother'}) - ${motherInfo.appearance || ''}, wearing ${motherInfo.outfit || ''}. Kitten (${kittenInfo.name || 'Kitten'}) - ${kittenInfo.appearance || ''}, wearing ${kittenInfo.outfit || ''}. These characters MUST look identical in every scene - same face, fur color/patterns, outfits, body proportions.`;
+                    optimizedPrompt = `${segment.prompt}. ${characterFallback}. [IMPORTANT: NO voice-over, NO narration, NO dialogue, NO speech, NO human voice. Only visual content with ambient sounds/background music.]`;
                 }
 
                 // Gọi tạo video
