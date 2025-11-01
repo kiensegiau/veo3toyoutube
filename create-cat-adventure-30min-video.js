@@ -301,14 +301,15 @@ async function createCatAdventureVideo30min(){
             seasons: ['xuân', 'hè', 'thu', 'đông'][Math.floor(Math.random() * 4)],
             timeOfDay: ['sáng sớm', 'buổi sáng', 'trưa', 'chiều', 'chiều tối', 'hoàng hôn', 'đêm tối', 'bình minh'][Math.floor(Math.random() * 8)],
             settings: ['rừng nhiệt đới', 'sa mạc', 'đảo hoang', 'núi tuyết', 'đầm lầy', 'hang động', 'thành phố cổ', 'ven biển', 'rừng rậm', 'thảo nguyên', 'rừng ma thuật', 'thung lũng bí ẩn', 'cánh đồng hoa', 'sông ngầm', 'miệng núi lửa'][Math.floor(Math.random() * 15)],
-            challenges: ['giải cứu động vật', 'tìm đường về nhà', 'vượt qua thử thách', 'giúp đỡ bạn bè', 'bảo vệ lãnh thổ', 'tìm kho báu', 'chạy trốn kẻ thù', 'khám phá bí mật', 'giải mã cổ tích', 'chữa lành thiên nhiên', 'tìm hiểu sự thật', 'giải phóng tù nhân'][Math.floor(Math.random() * 12)],
+            challenges: ['chiến đấu với khủng long', 'chiến đấu với King Kong', 'chiến đấu với quái vật khổng lồ', 'chiến đấu với động vật lớn', 'giải cứu động vật khỏi quái vật', 'tìm đường về nhà', 'vượt qua thử thách', 'giúp đỡ bạn bè', 'bảo vệ lãnh thổ', 'tìm kho báu', 'chạy trốn kẻ thù', 'khám phá bí mật', 'giải mã cổ tích', 'chữa lành thiên nhiên', 'tìm hiểu sự thật', 'giải phóng tù nhân'][Math.floor(Math.random() * 16)],
+            enemies: ['khủng long T-Rex', 'khủng long Velociraptor', 'King Kong', 'quái vật khổng lồ', 'rồng', 'quái thú hung dữ', 'khủng long bay', 'quái vật đại dương', 'không có kẻ thù'][Math.floor(Math.random() * 9)],
             companions: ['mèo mẹ và mèo con', 'chỉ mèo con', 'mèo con và chó bạn', 'mèo con và khỉ bạn', 'mèo con và chim bạn', 'mèo con và thỏ bạn', 'mèo con và sóc bạn', 'mèo con một mình'][Math.floor(Math.random() * 8)],
             weather: ['nắng nóng', 'mưa lớn', 'bão tố', 'sương mù', 'nắng đẹp', 'trời quang', 'có gió', 'mây bay', 'cầu vồng sau mưa', 'trời đẹp'][Math.floor(Math.random() * 10)],
-            mood: ['hào hứng', 'bí ẩn', 'anh hùng', 'tình cảm', 'hài hước', 'phiêu lưu', 'kỳ bí', 'thơ mộng'][Math.floor(Math.random() * 8)]
+            mood: ['hào hứng', 'bí ẩn', 'anh hùng', 'tình cảm', 'hài hước', 'phiêu lưu', 'kỳ bí', 'thơ mộng', 'hấp dẫn', 'kịch tính'][Math.floor(Math.random() * 10)]
         };
         
-        // Chọn ngẫu nhiên các hoạt động phiêu lưu để gợi ý
-        const adventureActivities = ['leo núi', 'vượt sông', 'đi qua cầu', 'trèo cây', 'khám phá hang động', 'giải câu đố', 'tìm chìa khóa', 'mở cổng', 'thoát khỏi bẫy', 'giúp bạn gặp khó khăn', 'tránh nguy hiểm', 'vượt chướng ngại vật', 'đi theo dấu vết', 'tìm đường bí mật', 'học kỹ năng mới', 'sử dụng công cụ', 'hợp tác với bạn', 'giải quyết xung đột', 'khám phá kho báu', 'hoàn thành nhiệm vụ'];
+        // Chọn ngẫu nhiên các hoạt động phiêu lưu và chiến đấu để gợi ý
+        const adventureActivities = ['chiến đấu với khủng long', 'chiến đấu với King Kong', 'chiến đấu với quái vật', 'leo núi', 'vượt sông', 'đi qua cầu', 'trèo cây', 'khám phá hang động', 'giải câu đố', 'tìm chìa khóa', 'mở cổng', 'thoát khỏi bẫy', 'giúp bạn gặp khó khăn', 'tránh nguy hiểm', 'vượt chướng ngại vật', 'đi theo dấu vết', 'tìm đường bí mật', 'học kỹ năng mới', 'sử dụng công cụ', 'hợp tác với bạn', 'giải quyết xung đột', 'khám phá kho báu', 'hoàn thành nhiệm vụ', 'chạy trốn quái vật', 'che giấu khỏi kẻ thù', 'tấn công kẻ thù', 'phòng thủ khỏi nguy hiểm'];
         const shuffledActivities = [...adventureActivities].sort(() => Math.random() - 0.5);
         const selectedActivities = shuffledActivities.slice(0, Math.min(15, shuffledActivities.length));
         
@@ -318,6 +319,7 @@ async function createCatAdventureVideo30min(){
         console.log(`   - Thời gian: ${adventureElements.timeOfDay}`);
         console.log(`   - Bối cảnh: ${adventureElements.settings}`);
         console.log(`   - Thử thách: ${adventureElements.challenges}`);
+        console.log(`   - Kẻ thù/Quái vật: ${adventureElements.enemies}`);
         console.log(`   - Bạn đồng hành: ${adventureElements.companions}`);
         console.log(`   - Thời tiết: ${adventureElements.weather}`);
         console.log(`   - Không khí: ${adventureElements.mood}`);
@@ -334,7 +336,9 @@ async function createCatAdventureVideo30min(){
 YÊU CẦU BẮT BUỘC:
 - Nhân vật xuyên suốt: Mèo mẹ và mèo con (đặt tên, tính cách nhất quán)
 - NHÂN HÓA (anthropomorphic): hình thể dáng người, đi hai chân, tỉ lệ cơ thể người, cử chỉ tay chân như người; khuôn mặt và tai mèo, có lông mèo; có thể mặc trang phục gọn gàng hiện đại phù hợp ngữ cảnh phiêu lưu.
-- Nội dung: Cuộc phiêu lưu, giải cứu, hành động, mạo hiểm nhưng PHÙ HỢP TRẺ EM (không quá nguy hiểm/thực tế, có yếu tố tích cực)
+- Nội dung: Cuộc phiêu lưu HẤP DẪN với cảnh CHIẾN ĐẤU, giải cứu, hành động, mạo hiểm nhưng PHÙ HỢP TRẺ EM (không quá nguy hiểm/thực tế, có yếu tố tích cực)
+- BẮT BUỘC: Phải có cảnh CHIẾN ĐẤU với khủng long, King Kong, quái vật khổng lồ hoặc động vật lớn để video HẤP DẪN và KỊCH TÍNH
+- Không được chỉ di dạo - PHẢI có hành động, chiến đấu, thử thách thực sự
 - Không có chữ/text overlay, không voice-over, chỉ visual và âm thanh nền tự nhiên/nhạc nền.
 - Phong cách, bảng màu, không khí nhất quán toàn video.
 
@@ -371,17 +375,27 @@ Trả về outline tổng thể (text) và characterSheet (JSON):
                 },
                 {
                     role: 'user',
-                    content: `Tạo câu chuyện phiêu lưu 5 phút về mèo mẹ và mèo con (NHÂN HÓA - anthropomorphic) HOÀN TOÀN KHÁC BIỆT và SÁNG TẠO:
+                    content: `Tạo câu chuyện phiêu lưu 5 phút HẤP DẪN và KỊCH TÍNH về mèo mẹ và mèo con (NHÂN HÓA - anthropomorphic) HOÀN TOÀN KHÁC BIỆT và SÁNG TẠO:
 
 YẾU TỐ NGẪU NHIÊN (dùng để tạo câu chuyện độc đáo):
 - Mùa: ${adventureElements.seasons}
 - Thời gian: ${adventureElements.timeOfDay}
 - Bối cảnh chính: ${adventureElements.settings}
 - Thử thách chính: ${adventureElements.challenges}
+- Kẻ thù/Quái vật: ${adventureElements.enemies}
 - Bạn đồng hành: ${adventureElements.companions}
 - Thời tiết: ${adventureElements.weather}
 - Không khí: ${adventureElements.mood}
 - Hoạt động gợi ý (có thể dùng một phần): ${selectedActivities.join(', ')}
+
+YÊU CẦU ĐẶC BIỆT VỀ CẤU TRÚC CÂU CHUYỆN:
+- CÂU CHUYỆN PHẢI CÓ CẤU TRÚC XUYÊN SUỐT VÀ HOÀN CHỈNH:
+  * PHẦN 1 - MỞ ĐẦU (khoảng 25% đầu): Giới thiệu nhân vật, bối cảnh, bắt đầu cuộc phiêu lưu, khám phá môi trường, KHÔNG có chiến đấu
+  * PHẦN 2 - PHÁT TRIỂN (khoảng 25-50%): Phát hiện nguy hiểm, chuẩn bị đối phó, gặp kẻ thù lần đầu, có thể có 1-2 cảnh chiến đấu nhẹ
+  * PHẦN 3 - CAO TRÀO (khoảng 50-85%): Chiến đấu chính với ${adventureElements.enemies === 'không có kẻ thù' ? 'kẻ thù khổng lồ' : adventureElements.enemies}, thử thách lớn nhất, nhiều cảnh chiến đấu kịch tính
+  * PHẦN 4 - KẾT THÚC (khoảng 85-100%): Giải quyết vấn đề, chiến thắng, kết luận tích cực, KHÔNG có chiến đấu nữa (hoặc rất ít)
+- QUAN TRỌNG: Không được lặp lại cảnh chiến đấu ở mỗi segment - chỉ chiến đấu ở phần cao trào
+- Các segments khác phải có hành động đa dạng: khám phá, quan sát, chuẩn bị, tìm đường, giải cứu, vượt chướng ngại vật
 
 Yêu cầu về TÍNH LOGIC & NHẤT QUÁN:
 - Tạo một câu chuyện HOÀN TOÀN MỚI, SÁNG TẠO nhưng PHẢI CÓ LOGIC RÕ RÀNG
@@ -392,11 +406,14 @@ Yêu cầu về TÍNH LOGIC & NHẤT QUÁN:
 - Đảm bảo continuity: vật phẩm/công cụ/kiến thức từ chương trước phải xuất hiện ở chương sau nếu phù hợp
 
 Yêu cầu về NỘI DUNG:
-- Mèo NHÂN HÓA: dáng người, đi hai chân, cử chỉ như người, trang phục phù hợp phiêu lưu
+- Mèo NHÂN HÓA: dáng người, đi hai chân, cử chỉ như người, trang phục phù hợp phiêu lưu (có thể có vũ khí, công cụ)
 - Đồng nhất nhân vật: mèo mẹ và mèo con phải có ngoại hình CỐ ĐỊNH từ đầu đến cuối
 - Outline ${Math.ceil(NUM_SEGMENTS / 10)} chương, mỗi chương có nhiệm vụ/thử thách riêng nhưng LIÊN KẾT THÀNH CÂU CHUYỆN HOÀN CHỈNH
+- Mỗi chương phải có hành động và tiến triển logic, nhưng KHÔNG PHẢI chương nào cũng cần chiến đấu
+- Chiến đấu chỉ xuất hiện ở phần CAO TRÀO của câu chuyện (khoảng giữa video), không phải từ đầu đến cuối
+- Các hành động đa dạng: khám phá, quan sát, chuẩn bị, tìm đường, giải cứu, vượt chướng ngại vật, chiến đấu (chỉ ở cao trào)
 - Đảm bảo đa dạng: mỗi chương có bối cảnh/hoạt động/không khí khác nhau NHƯNG hợp lý với tổng thể
-- TRÁNH trùng lặp với các câu chuyện phiêu lưu thông thường, hãy sáng tạo một twist độc đáo`
+- TRÁNH chỉ di dạo - video phải HẤP DẪN với cảnh chiến đấu, hành động kịch tính nhưng phù hợp trẻ em`
                 }
             ],
             max_tokens: 5000, // Tăng từ 3000 lên 5000 vì cần tạo outline cho 23 chương (225/10)
@@ -478,9 +495,15 @@ YÊU CẦU VỀ TÍNH LOGIC & NHẤT QUÁN:
 - Nhân vật phải hành động nhất quán với tính cách và động cơ đã thiết lập
 
 YÊU CẦU VỀ NỘI DUNG:
-- Mèo NHÂN HÓA: dáng người, đi hai chân, cử chỉ như người, trang phục phù hợp
+- Mèo NHÂN HÓA: dáng người, đi hai chân, cử chỉ như người, trang phục phù hợp phiêu lưu (có thể có vũ khí, công cụ)
 - Nhân vật: Mèo mẹ (${story.characterSheet?.mother?.name || 'Mother'}) và mèo con (${story.characterSheet?.kitten?.name || 'Kitten'})
-- Cuộc phiêu lưu, giải cứu, hành động phù hợp trẻ em
+- Cuộc phiêu lưu HẤP DẪN với cảnh CHIẾN ĐẤU, giải cứu, hành động kịch tính, phù hợp trẻ em
+- PHÂN BỔ HỢP LÝ CÁC PHẦN CỦA CÂU CHUYỆN:
+  * Segments 1-25% (MỞ ĐẦU): Khám phá, giới thiệu, chuẩn bị - KHÔNG có chiến đấu
+  * Segments 25-50% (PHÁT TRIỂN): Phát hiện nguy hiểm, chuẩn bị - có thể có 1-2 cảnh chiến đấu nhẹ
+  * Segments 50-85% (CAO TRÀO): Chiến đấu chính với ${adventureElements.enemies === 'không có kẻ thù' ? 'kẻ thù' : adventureElements.enemies} - nhiều cảnh chiến đấu kịch tính
+  * Segments 85-100% (KẾT THÚC): Giải quyết, chiến thắng - KHÔNG có chiến đấu nữa
+- Không được lặp lại cảnh chiến đấu ở mỗi segment - chỉ tập trung ở phần cao trào
 - Không chữ, không voice-over
 - Đa dạng bối cảnh và hành động NHƯNG đảm bảo tính logic
 - QUAN TRỌNG: Giữ nguyên ngoại hình nhân vật từ characterSheet
@@ -514,6 +537,7 @@ Outline: ${outlineText.substring(0, 800)}
 Yếu tố ngẫu nhiên đã chọn:
 - Mùa: ${adventureElements.seasons}, Thời gian: ${adventureElements.timeOfDay}
 - Bối cảnh: ${adventureElements.settings}, Thử thách: ${adventureElements.challenges}
+- Kẻ thù/Quái vật: ${adventureElements.enemies}
 - Bạn đồng hành: ${adventureElements.companions}, Thời tiết: ${adventureElements.weather}
 - Không khí: ${adventureElements.mood}
 
@@ -532,7 +556,17 @@ YÊU CẦU QUAN TRỌNG:
 3. NHẤT QUÁN:
    - Nhân vật PHẢI nhất quán về ngoại hình ở mọi segment
    - Tính cách và hành động phải nhất quán với characterSheet
-   - Mỗi segment phải có góc máy/ánh sáng/không khí riêng biệt NHƯNG hợp lý với tổng thể`
+   - Mỗi segment phải có góc máy/ánh sáng/không khí riêng biệt NHƯNG hợp lý với tổng thể
+
+4. CẤU TRÚC CÂU CHUYỆN XUYÊN SUỐT:
+   - PHẢI tạo một câu chuyện HOÀN CHỈNH với cấu trúc rõ ràng:
+     * MỞ ĐẦU (segments 1-25%): Giới thiệu, khám phá, chuẩn bị - KHÔNG chiến đấu, chỉ khám phá và thiết lập
+     * PHÁT TRIỂN (segments 25-50%): Phát hiện nguy hiểm, chuẩn bị đối phó - có thể có 1-2 cảnh chiến đấu nhẹ, tập trung xây dựng căng thẳng
+     * CAO TRÀO (segments 50-85%): Chiến đấu chính với ${adventureElements.enemies === 'không có kẻ thù' ? 'kẻ thù' : adventureElements.enemies} - nhiều cảnh chiến đấu kịch tính, hành động
+     * KẾT THÚC (segments 85-100%): Giải quyết vấn đề, chiến thắng, kết luận tích cực - KHÔNG có chiến đấu nữa
+   - QUAN TRỌNG: Không được lặp lại cảnh chiến đấu ở mỗi segment - chiến đấu chỉ tập trung ở phần cao trào
+   - Các segments khác phải có hành động đa dạng: khám phá, quan sát, chuẩn bị, tìm đường, giải cứu, vượt chướng ngại vật
+   - Đảm bảo tính liên tục: mỗi segment là hệ quả logic của segment trước, tạo thành một câu chuyện xuyên suốt`
                     }
                 ],
                 max_tokens: 4000, // Giảm xuống 4000 vì test mode chỉ có 20 segments mỗi batch
@@ -596,6 +630,8 @@ YÊU CẦU QUAN TRỌNG:
             overallTheme: story.overallTheme || `Cuộc phiêu lưu của mèo trong ${adventureElements.settings}`,
             colorScheme: story.colorScheme || 'Natural, vibrant colors',
             visualStyle: story.visualStyle || 'Anthropomorphic cat, adventure style',
+            enemies: adventureElements.enemies, // Lưu enemies để dùng trong optimize prompt
+            challenges: adventureElements.challenges, // Lưu challenges để dùng trong optimize prompt
             characterSheet: story.characterSheet || {
                 mother: {
                     name: 'Mimi',
@@ -697,7 +733,7 @@ async function processVideoSegments(analysis, outputDir, serverUrl) {
                                 body: JSON.stringify({ 
                                     input: promptForRecreate, 
                                     prompt: promptForRecreate, 
-                                    aspectRatio: 'PORTRAIT',
+                                    aspectRatio: 'LANDSCAPE', // Khổ ngang cho video hấp dẫn hơn
                                     ...(LABS_COOKIES ? { labsCookies: LABS_COOKIES } : {}) 
                                 })
                             });
@@ -752,8 +788,9 @@ QUAN TRỌNG NHẤT - NHẤT QUÁN NHÂN VẬT (100% MANDATORY):
 - Ví dụ: "${motherInfo.name || 'Mother'} (${motherInfo.appearance || 'mô tả ngoại hình'}, ${motherInfo.outfit || 'trang phục'}, ${motherInfo.uniqueMarks || 'đặc điểm'}) đang [hành động]"
 - KHÔNG BAO GIỜ thay đổi bất kỳ chi tiết nào của nhân vật: khuôn mặt, màu lông, hoa văn, trang phục, tỉ lệ cơ thể, đặc điểm riêng
 - Mỗi nhân vật PHẢI giống hệt nhau trong TẤT CẢ scenes - KHÔNG có ngoại lệ
-- NHÂN HÓA: Mèo dáng người, đi hai chân, cử chỉ như người, trang phục phù hợp phiêu lưu
-- Cuộc phiêu lưu, giải cứu, hành động phù hợp trẻ em
+- NHÂN HÓA: Mèo dáng người, đi hai chân, cử chỉ như người, trang phục phù hợp phiêu lưu (có thể có vũ khí, công cụ)
+- Cuộc phiêu lưu HẤP DẪN với cảnh CHIẾN ĐẤU, giải cứu, hành động kịch tính, phù hợp trẻ em
+- BẮT BUỘC: Mỗi scene phải có hành động thực sự - không chỉ di dạo mà phải có: chiến đấu, chạy trốn, tấn công, phòng thủ
 - Không text overlay, không narration/voice
 
 Trả về MỘT JSON ARRAY 4 phần tử (0-2s, 2-4s, 4-6s, 6-8s). Không thêm giải thích:
@@ -796,10 +833,16 @@ Trả về MỘT JSON ARRAY 4 phần tử (0-2s, 2-4s, 4-6s, 6-8s). Không thêm
   }
 ]
 YÊU CẦU:
-- Phù hợp trẻ em: tích cực, an toàn, không bạo lực/giật mình.
+- Phù hợp trẻ em: tích cực, an toàn, không quá đáng sợ, có yếu tố anh hùng và tích cực.
+- CẤU TRÚC CÂU CHUYỆN XUYÊN SUỐT: Scene phải phù hợp với phần của câu chuyện (xem phần user prompt để biết segment thuộc phần nào)
+  * MỞ ĐẦU: khám phá, quan sát, chuẩn bị - KHÔNG chiến đấu
+  * PHÁT TRIỂN: phát hiện nguy hiểm, chuẩn bị - có thể có cảnh nhẹ
+  * CAO TRÀO: chiến đấu kịch tính, hành động - sử dụng vũ khí, kỹ năng, trí thông minh
+  * KẾT THÚC: giải quyết, chiến thắng - KHÔNG chiến đấu nữa
+- Không được lặp lại cảnh chiến đấu ở mỗi scene - chỉ chiến đấu khi ở phần cao trào
 - Không text overlay, không narration/voice.
 - Giữ nguyên chủ đề phiêu lưu và mèo NHÂN HÓA.
-- Đa dạng: mỗi scene có góc máy/hành động/không khí khác nhau.`
+- Đa dạng: mỗi scene có góc máy/hành động/không khí khác nhau, đặc biệt là cảnh chiến đấu kịch tính.`
                     },
                     {
                         role: 'user',
@@ -808,13 +851,25 @@ YÊU CẦU:
 Chủ đề: ${analysis.overallTheme}
 Màu sắc: ${analysis.colorScheme}
 Phong cách: ${analysis.visualStyle}
+Kẻ thù/Quái vật: ${analysis.enemies || 'không có kẻ thù'}
+Thử thách: ${analysis.challenges || 'vượt qua thử thách'}
+
 Segment ${index + 1}/${analysis.segments.length}: ${segment.timeRange}
 Focus: ${segment.focus || 'Adventure scene'}
 Original prompt: ${segment.prompt}
 ${prevSegment ? `Segment trước: ${prevSegment.timeRange} - ${prevSegment.focus || 'continuing adventure'}` : 'Đầu video: dùng fade in'}
 ${nextSegment ? `Segment sau: ${nextSegment.timeRange} - ${nextSegment.focus || 'continuing adventure'}` : 'Cuối video: dùng fade out'}
 
-LƯU Ý: Khi mô tả action, NHẤT ĐỊNH phải mô tả chi tiết ngoại hình nhân vật nếu họ xuất hiện trong scene. Ví dụ: "Mèo mẹ (${motherInfo.name || 'tên'}) với [mô tả ngoại hình], mặc [trang phục], [đặc điểm] đang [hành động]".`
+CẤU TRÚC CÂU CHUYỆN XUYÊN SUỐT:
+- Segment này thuộc phần nào của câu chuyện?
+  * MỞ ĐẦU (segments 1-25%): Scene khám phá, quan sát, chuẩn bị - KHÔNG chiến đấu
+  * PHÁT TRIỂN (segments 25-50%): Scene phát hiện nguy hiểm, chuẩn bị - có thể có cảnh nhẹ, tập trung xây dựng căng thẳng
+  * CAO TRÀO (segments 50-85%): Scene chiến đấu kịch tính với ${analysis.enemies === 'không có kẻ thù' ? 'kẻ thù' : analysis.enemies}, hành động - nhiều cảnh chiến đấu
+  * KẾT THÚC (segments 85-100%): Scene giải quyết, chiến thắng, kết luận - KHÔNG chiến đấu nữa
+- QUAN TRỌNG: Không được lặp lại cảnh chiến đấu nếu segment không thuộc phần cao trào
+- Hành động phù hợp với phần của câu chuyện: khám phá, quan sát, chuẩn bị, tìm đường, giải cứu, vượt chướng ngại vật, hoặc chiến đấu (chỉ ở cao trào)
+- Đảm bảo tính liên tục: scene này phải tiếp nối logic từ segment trước và dẫn đến segment sau
+- LƯU Ý: Khi mô tả action, NHẤT ĐỊNH phải mô tả chi tiết ngoại hình nhân vật nếu họ xuất hiện trong scene. Ví dụ: "Mèo mẹ (${motherInfo.name || 'tên'}) với [mô tả ngoại hình], mặc [trang phục], [đặc điểm] đang [hành động phù hợp với phần của câu chuyện]".`
                     }
                 ],
                 max_tokens: 2000, // Tăng từ 1500 lên 2000 vì mỗi segment có 4 scenes (nhiều hơn 3 scenes của 60s)
