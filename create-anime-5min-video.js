@@ -17,7 +17,7 @@ try {
 const execAsync = promisify(exec);
 
 // ENV
-const OPENAI_API_KEY = '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'
+const OPENAI_API_KEY = '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'
 const LABS_COOKIES = (process.env.LABS_COOKIES || '').trim();
 const RUN_MODE = (process.env.RUN_MODE || 'default').toLowerCase();
 const VEO_PROJECT_ID = (process.env.VEO_PROJECT_ID || '').trim();
@@ -250,17 +250,17 @@ async function createAnimeCharacterAndStory() {
     };
     try { fs.writeFileSync(path.join(outputDir, 'random-context.json'), JSON.stringify(randomContext, null, 2), 'utf8'); } catch (_) {}
 
-    console.log('📖 [Step 1] Tạo NHÂN VẬT anime cực kỳ chi tiết...');
+    console.log('📖 [Step 1] Tạo NHÂN VẬT anime người (Nhật) cực kỳ chi tiết...');
     const characterRes = await fetchOpenAIWithRetry({
         model: 'gpt-4o-mini',
         messages: [
             {
                 role: 'system',
-                content: 'Bạn là nhà thiết kế nhân vật anime 2D, phong cách hoạt hình điện ảnh, tạo một nhân vật NHÂN HÓA (anthropomorphic) dáng người, dùng cho video 5 phút. Trả về JSON.'
+                content: 'Bạn là nhà thiết kế nhân vật anime 2D phong cách Nhật Bản (slice-of-life, chill). Tạo MỘT NHÂN VẬT CON NGƯỜI dùng cho video 5 phút. Trả về JSON hợp lệ duy nhất.'
             },
             {
                 role: 'user',
-                content: `Tạo MỘT NHÂN VẬT anime cực kỳ chi tiết (anthropomorphic, đi hai chân, dáng người), dùng xuyên suốt, giữ 100% nhất quán (không thay đổi khuôn mặt/màu lông/trang phục/tỉ lệ cơ thể/đặc điểm).
+                content: `Tạo MỘT NHÂN VẬT anime CON NGƯỜI cực kỳ chi tiết, đi hai chân, dáng người, dùng xuyên suốt, giữ 100% nhất quán (không thay đổi khuôn mặt/tóc/màu da/trang phục/tỉ lệ cơ thể/đặc điểm).
 
 YẾU TỐ NGẪU NHIÊN (để đảm bảo KHÁC BIỆT mỗi lần chạy, bắt buộc đưa vào mô tả):
 - Mùa: ${randomContext.season}
@@ -279,7 +279,7 @@ YẾU TỐ NGẪU NHIÊN (để đảm bảo KHÁC BIỆT mỗi lần chạy, b�
 YÊU CẦU TRẢ VỀ JSON:
 {
   "name": string,
-  "species": "anthropomorphic cat",
+  "species": "human",
   "age": string,
   "gender": string,
   "backstory": string,
@@ -288,17 +288,19 @@ YÊU CẦU TRẢ VỀ JSON:
   "weaknesses": string,
   "appearance": {
     "body": string,        // tỉ lệ cơ thể, dáng, chiều cao, vóc dáng
-    "fur": string,         // màu lông, hoa văn, texture
-    "face": string,        // khuôn mặt, mắt, mũi, miệng, râu, tai
+    "hair": string,        // kiểu tóc, màu tóc, độ dài, texture
+    "eyes": string,        // màu mắt, hình dáng, độ long lanh
+    "skin": string,        // tông da, đặc điểm nổi bật
     "uniqueMarks": string  // vết/điểm nhận dạng đặc biệt, vị trí cụ thể
   },
   "outfit": {
     "top": string,
     "bottom": string,
     "footwear": string,
-    "accessories": string
+    "accessories": string,
+    "jewelry": string
   },
-  "tools": string,         // vũ khí/công cụ mang theo
+  "props": string,         // đồ vật đi kèm (ốp lưng điện thoại, túi, sách, tách trà...)
   "colorPalette": string,  // bảng màu chủ đạo
   "animationStyle": "2D anime cinematic, vibrant, dynamic lighting"
 }
@@ -323,7 +325,7 @@ LƯU Ý:
         messages: [
             {
                 role: 'system',
-                content: 'Bạn là biên kịch anime 2D. Tạo câu chuyện 5 phút có cấu trúc rõ ràng và chia thành các cảnh 8 giây.'
+                content: 'Bạn là biên kịch anime 2D phong cách slice-of-life Nhật Bản (chill, ấm áp). Tạo câu chuyện 5 phút có cấu trúc rõ ràng và chia thành các cảnh 8 giây, nhịp nhẹ nhàng, tập trung cảm xúc và không khí. CHỈ TRẢ VỀ MỘT JSON HỢP LỆ, KHÔNG kèm giải thích.'
             },
             {
                 role: 'user',
@@ -331,10 +333,10 @@ LƯU Ý:
 ${JSON.stringify(character)}
 
 YÊU CẦU CÂU CHUYỆN 5 PHÚT:
-- Chủ đề tích cực, phiêu lưu nhẹ, phù hợp thiếu nhi
-- Cấu trúc: Mở đầu (giới thiệu) → Phát triển (nảy sinh vấn đề) → Cao trào (giải quyết) → Kết thúc (ấm áp)
+- Chủ đề tích cực, slice-of-life ấm áp, chill, không bạo lực; tập trung khoảnh khắc đời thường/thiên nhiên/thành phố và sự kết nối.
+- Cấu trúc: Mở đầu (thiết lập không khí) → Phát triển (một mục tiêu nhỏ/việc cần làm) → Cao trào cảm xúc (khám phá/nhận ra điều ý nghĩa) → Kết thúc (dịu nhẹ, ấm áp)
 - KHÔNG có chữ overlay, KHÔNG thoại/voice-over
-- Phong cách: anime 2D cinematic, màu sắc sống động, ánh sáng động
+- Phong cách: anime 2D cinematic Nhật Bản, ánh sáng mềm, bầu trời/ánh nắng/đêm đô thị; nhịp nhẹ.
 
 YẾU TỐ NGẪU NHIÊN (đảm bảo câu chuyện KHÁC BIỆT mỗi lần chạy; phải được dệt vào bối cảnh/cảnh/nhịp):
 - Mùa: ${randomContext.season}; Thời điểm: ${randomContext.timeOfDay}
@@ -348,6 +350,7 @@ QUY TẮC ĐA DẠNG & LOGIC:
 - Mỗi cảnh 8s phải góp phần vào tiến trình câu chuyện; bối cảnh và hành động thay đổi hợp lý.
 - Tránh lặp lại hành động y hệt giữa các cảnh liên tiếp (trừ khi có dụng ý).
 - Nhân vật phải GIỮ NGUYÊN ngoại hình/trang phục/đặc điểm/tỉ lệ trong tất cả cảnh.
+ - Tránh chiến đấu/đối đầu nặng; ưu tiên cảm xúc, quan sát, khám phá nhỏ, chuyển cảnh đẹp (bầu trời, gió, ánh sáng, nước, thành phố).
 
 TRẢ VỀ JSON:
 {
@@ -363,12 +366,31 @@ TRẢ VỀ JSON:
 `
             }
         ],
+        response_format: { type: 'json_object' },
         max_tokens: 4000,
         temperature: 1.0
     });
     if (!outlineRes.choices) throw new Error('Không sinh được story');
-    const outlineText = outlineRes.choices[0].message.content;
-    const story = parseJsonFromText(outlineText, outputDir, 'story');
+    let outlineText = outlineRes.choices[0].message.content;
+    let story;
+    try {
+        story = parseJsonFromText(outlineText, outputDir, 'story');
+    } catch (e) {
+        console.warn('⚠️ Parse story lần 1 thất bại. Thử lại với chế độ nghiêm ngặt...');
+        const strictRes = await fetchOpenAIWithRetry({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'system', content: 'Bạn trả về JSON hợp lệ duy nhất. Không thêm bất kỳ ký tự hoặc giải thích nào ngoài JSON.' },
+                { role: 'user', content: `Sinh lại story 5 phút theo đúng yêu cầu dưới dạng MỘT JSON HỢP LỆ duy nhất (dùng dấu ":", "," chuẩn, KHÔNG dấu thừa, KHÔNG bình luận, KHÔNG markdown). Thuộc tính bắt buộc: overallTheme, colorScheme, visualStyle, outline, scenes (array ${NUM_SEGMENTS} phần tử với index, timeStart, timeEnd, focus, prompt).\n\nNhân vật:\n${JSON.stringify(character)}\n\nNgữ cảnh ngẫu nhiên:\n${JSON.stringify(randomContext)}\n` }
+            ],
+            response_format: { type: 'json_object' },
+            max_tokens: 3500,
+            temperature: 0.3
+        });
+        if (!strictRes.choices) throw e;
+        outlineText = strictRes.choices[0].message.content;
+        story = parseJsonFromText(outlineText, outputDir, 'story');
+    }
 
     // Chuẩn hóa scenes theo mốc 8s và số lượng
     let scenes = Array.isArray(story.scenes) ? story.scenes.slice(0, NUM_SEGMENTS) : [];
@@ -443,14 +465,40 @@ async function sendScenesToVeo3(analysis, outputDir, serverUrl) {
     }
 
     function buildPromptForScene(segment, character) {
-        const charBlock = `CHARACTER (MUST REMAIN IDENTICAL IN ALL SCENES): ${character.name} — species: ${character.species}. Body: ${character.appearance?.body}. Fur: ${character.appearance?.fur}. Face: ${character.appearance?.face}. Unique marks: ${character.appearance?.uniqueMarks}. Outfit: top ${character.outfit?.top}, bottom ${character.outfit?.bottom}, footwear ${character.outfit?.footwear}, accessories ${character.outfit?.accessories}. Tools: ${character.tools}. Color palette: ${character.colorPalette}. Personality: ${character.personality}.`;
-        const animeEnforce = `ANIME STYLE ENFORCEMENT: This video MUST be ANIME 2D animation with a hand-drawn, cel-shaded look. Use stylized outlines, flat shading with soft gradients, limited frame smearing, and exaggerated expressions typical of anime. Absolutely NOT realistic, NOT photorealistic, NOT live-action, NOT CGI-realistic.`;
-        const styleBlock = `STYLE: ${analysis.visualStyle}. Color Scheme: ${analysis.colorScheme}. 2D anime cinematic, vibrant colors, dynamic lighting, smooth animation, cel-shaded, hand-drawn aesthetic.`;
+        const charBlock = `CHARACTER (MUST REMAIN IDENTICAL IN ALL SCENES): ${character.name} — species: ${character.species}. Body: ${character.appearance?.body || 'slender human proportions, average height'}. Hair: ${character.appearance?.hair || 'soft, natural, anime style'}. Eyes: ${character.appearance?.eyes || 'bright anime eyes'}. Skin: ${character.appearance?.skin || 'natural tone'}. Unique marks: ${character.appearance?.uniqueMarks || 'subtle distinctive mark'}. Outfit: top ${character.outfit?.top || 'casual top'}, bottom ${character.outfit?.bottom || 'comfortable bottom'}, footwear ${character.outfit?.footwear || 'casual shoes'}, accessories ${character.outfit?.accessories || 'minimal accessories'}, jewelry ${character.outfit?.jewelry || 'simple jewelry'}. Props: ${character.props || 'small daily-life item'}. Color palette: ${character.colorPalette || 'soft, warm hues'}. Personality: ${character.personality || 'gentle and reflective'}.`;
+        const animeEnforce = `ANIME STYLE ENFORCEMENT: Japanese 2D anime, hand-drawn/cel-shaded, slice-of-life, chill and gentle pacing, soft ambient lighting, sky gradients, subtle light bloom and lens haze, clean line art, atmospheric depth. Inspired by modern Japanese anime films (cityscapes, skies, tender color grading). Absolutely NOT realistic, NOT photorealistic, NOT live-action, NOT CGI-realistic.`;
+        const styleBlock = `STYLE: ${analysis.visualStyle}. Color Scheme: ${analysis.colorScheme}. Japanese slice-of-life anime, calm and cinematic composition, soft gradients, pastel-to-vibrant skies, gentle camera moves, smooth limited animation.`;
         const negatives = `NEGATIVE STYLE: no realism, no photorealism, no live-action look, no DSLR bokeh realism, no ray-traced CGI, no real human skin or pores, no text or subtitles on screen.`;
         const anchor = analysis?.randomContext?.nonce ? `CHARACTER ANCHOR CODE: ${analysis.randomContext.nonce}. Always keep the same face, fur pattern/colors, outfit, body proportions, and unique marks tied to this anchor.` : '';
+
+        // Chi tiết cảnh theo index để đa dạng and consistent với randomContext
+        const rc = analysis.randomContext || {};
+        const shotTypes = ['wide establishing', 'medium tracking', 'close-up emotional', 'over-the-shoulder', 'low-angle wide', 'high-angle contemplative', 'profile medium', 'POV gentle', 'two-shot balanced'];
+        const lenses = ['24mm', '28mm', '35mm', '50mm', '85mm'];
+        const movements = rc.cameraStyles || ['pan chậm', 'tilt lên', 'zoom nhấn', 'handheld nhẹ', 'track theo'];
+        const shotType = shotTypes[segment.index % shotTypes.length];
+        const lens = lenses[segment.index % lenses.length];
+        const move = movements[segment.index % movements.length];
+        const weather = rc.season === 'đông' ? 'lạnh, gió nhẹ' : rc.season === 'hạ' ? 'ấm, gió mát' : rc.season === 'thu' ? 'dịu, gió hiu hiu' : 'mát, không khí trong';
+        const timeLabel = rc.timeOfDay || 'chiều muộn';
+        const envBase = rc.mainSetting || 'thành phố Nhật yên bình';
+        const envSubs = Array.isArray(rc.subSettings) && rc.subSettings.length > 0 ? rc.subSettings.join(', ') : 'hàng cây, bầu trời nhiều mây, phố nhỏ';
+        const colorFlavor = rc.colorPalette ? `color grade theo bảng màu ${rc.colorPalette}` : 'màu pastel ấm, trời gradient';
+        const animFlavor = rc.animationFlavor ? `animation flavor: ${rc.animationFlavor}` : 'cel-shade đậm, viền sạch';
+
+        // Continuity từ segment trước/sau (nếu cần trong prompt cho model hiểu mạch)
+        const prev = analysis.segments[segment.index - 2];
+        const next = analysis.segments[segment.index];
+        const continuity = `${prev ? `CONTINUITY PREV: ${prev.timeRange} - ${prev.focus}.` : 'OPENING: gentle fade-in.'} ${next ? `CONTINUITY NEXT: ${next.timeRange} - ${next.focus}.` : 'ENDING: gentle fade-out.'}`;
+
+        const sceneBlueprint = `SCENE BLUEPRINT: shot=${shotType}, lens=${lens}, cameraMove=${move}, composition=rule-of-thirds with strong leading lines and layered depth, lighting=soft ambient with rim light and sky glow, ${colorFlavor}, environment=${envBase} (details: ${envSubs}), timeOfDay=${timeLabel}, weather=${weather}, backgroundAction=subtle everyday motion (leaves, signage flicker, distant traffic), transition=smooth dissolve.`;
+
+        // Template kiểu người dùng đưa (không phải JSON output, chỉ là hướng dẫn mạnh)
+        const templateGuide = `SCENE STRUCTURE TEMPLATE: title='${envBase} – tranquil moment', character={ name: ${character.name}, ethnicity: 'Japanese (anime style)', age: ${character.age || 'young adult'}, appearance: 'hair detail consistent with character, outfit as described, posture relaxed', expression: 'peaceful, soft contentment' }, setting={ location: '${envBase}', time_of_day: '${timeLabel}', environment_details: '${envSubs}' , weather: '${weather}' }, action='gentle everyday action (e.g., sip tea, gaze at view, adjust hair)', camera_style='${shotType} transitioning to wide panorama', lighting='soft golden tones with subtle glints and steam when applicable', audio='ambient: wind chime, distant birds, soft city hum', mood='serene, restful conclusion — serenity in simplicity'`;
+
         const hardRules = `RULES: Character appearance MUST be EXACTLY THE SAME in every scene (face, fur colors/patterns, outfit, body proportions, unique marks). ${anchor} NO text overlay, NO subtitles, NO voice-over, NO human speech; only visuals with ambient sounds/music. ${negatives}`;
-        const sceneText = `SCENE ${segment.index} [${segment.timeRange}]: ${segment.focus || 'Anime scene'} — ${segment.prompt}`;
-        return `${animeEnforce} ${charBlock} ${styleBlock} ${sceneText} ${hardRules}`;
+        const sceneText = `SCENE ${segment.index} [${segment.timeRange}]: ${segment.focus || 'Anime scene'} — ${segment.prompt}. MOOD: chill, serene, heartwarming, everyday wonder.`;
+        return `${animeEnforce} ${charBlock} ${styleBlock} ${animFlavor}. ${sceneBlueprint} ${templateGuide}. ${continuity} ${sceneText} ${hardRules}`;
     }
 
     async function processOne(index) {
@@ -527,30 +575,8 @@ async function mergeVideos(monitorPromises, outputDir) {
     await execAsync(mergeCmd);
     console.log(`🎉 Đã ghép video: ${finalVideoPath}`);
 
-    // chèn nhạc nếu có Diamonds.mp3
-    let resultFinalVideoPath = finalVideoPath;
-    try {
-        const musicPath = path.resolve(path.join(__dirname, 'Diamonds.mp3'));
-        if (fs.existsSync(musicPath)) {
-            const finalWithAudioPath = finalVideoPath.replace(/\.mp4$/i, '_with_audio.mp4');
-            const videoHasAudio = await hasAudioStream(finalVideoPath);
-            if (videoHasAudio) {
-                const mixCmd = `ffmpeg -i "${finalVideoPath}" -stream_loop -1 -i "${musicPath}" -filter_complex "[0:a]volume=1.0[a0];[1:a]volume=0.5[a1];[a0][a1]amix=inputs=2:duration=shortest:dropout_transition=2[aout]" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -shortest "${finalWithAudioPath}"`;
-                await execAsync(mixCmd);
-                resultFinalVideoPath = finalWithAudioPath;
-                console.log(`🎵 Đã trộn nhạc nền: ${finalWithAudioPath}`);
-            } else {
-                const muxCmd = `ffmpeg -i "${finalVideoPath}" -stream_loop -1 -i "${musicPath}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest "${finalWithAudioPath}"`;
-                await execAsync(muxCmd);
-                resultFinalVideoPath = finalWithAudioPath;
-                console.log(`🎵 Đã thêm nhạc nền: ${finalWithAudioPath}`);
-            }
-        }
-    } catch (e) {
-        console.log(`⚠️ Lỗi khi chèn nhạc: ${e.message}`);
-    }
-
-    return { finalVideoPath: resultFinalVideoPath, successfulVideos: okFiles };
+    // Không chèn/mix nhạc nền (yêu cầu: giữ nguyên âm thanh gốc hoặc im lặng)
+    return { finalVideoPath, successfulVideos: okFiles };
 }
 
 // Main
