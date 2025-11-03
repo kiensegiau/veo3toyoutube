@@ -17,7 +17,7 @@ try {
 const execAsync = promisify(exec);
 
 // ENV
-const OPENAI_API_KEY = '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'
+const OPENAI_API_KEY = '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'
 const LABS_COOKIES = (process.env.LABS_COOKIES || '').trim();
 const RUN_MODE = (process.env.RUN_MODE || 'default').toLowerCase();
 const VEO_PROJECT_ID = (process.env.VEO_PROJECT_ID || '').trim();
@@ -44,7 +44,7 @@ async function fetchOpenAIWithRetry(payload, { maxRetries = 7, baseDelayMs = 150
     while (true) {
         attempt++;
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 90000);
+        const timeout = setTimeout(() => controller.abort(), 180000);
         try {
             const resp = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
@@ -237,16 +237,28 @@ async function createAnimeCharacterAndStory() {
     const randomContext = {
         season: randomChoice(['xuân', 'hạ', 'thu', 'đông']),
         timeOfDay: randomChoice(['bình minh', 'sáng', 'trưa', 'chiều', 'hoàng hôn', 'đêm']),
-        mainSetting: randomChoice(['thành phố tương lai', 'rừng tre cổ', 'đảo nổi trên mây', 'sa mạc tinh thể', 'thị trấn biển đêm', 'đền cổ trong núi tuyết', 'khu chợ đèn lồng', 'ga tàu hơi nước']),
-        subSettings: pickN(['cầu treo gió lớn', 'hẻm đèn neon', 'vườn anh đào', 'hang pha lê', 'thư viện bỏ hoang', 'đường ray bỏ dở', 'bờ biển sương mù', 'vách đá gió rít'], 3),
+        mainSetting: randomChoice(['đồi trà', 'sân thượng quán trà', 'thị trấn biển đêm', 'rừng tre cổ', 'khu chợ đèn lồng', 'ga tàu hơi nước', 'ven sông yên tĩnh', 'ruộng bậc thang', 'con dốc phố cổ', 'bến tàu nhỏ']),
+        subSettings: pickN(['cầu treo gió lớn', 'hẻm đèn neon', 'vườn anh đào', 'quán trà trên đồi', 'thư viện bỏ hoang', 'đường ray bỏ dở', 'bờ biển sương mù', 'vách đá gió rít', 'ruộng bậc thang', 'giàn tre và gió chuông'], 3),
         genreTone: randomChoice(['ấm áp', 'phiêu lưu nhẹ', 'kỳ ảo', 'hài hước', 'truyền cảm hứng']),
-        conflictType: randomChoice(['giải cứu', 'trả lại vật đánh mất', 'hộ tống an toàn', 'giải đố nghi lễ', 'khắc phục sự cố thiên nhiên']),
-        antagonist: randomChoice(['không có phản diện', 'bóng hình bí ẩn', 'robot lỗi nhịp', 'quái thú hiền lành bị hiểu lầm']),
+        conflictType: randomChoice(['trả lại vật đánh mất', 'giúp đỡ người xa lạ', 'kết nối gia đình', 'khám phá ký ức', 'ghi lại vẻ đẹp đời thường']),
+        antagonist: 'không có phản diện',
         colorPalette: randomChoice(['pastel ấm', 'vibrant tương phản', 'nocturne tím xanh', 'sunset cam hồng', 'aqua mát']),
         animationFlavor: randomChoice(['brush stroke nhẹ', 'cel-shade đậm', 'glow viền', 'hạt film nhẹ', 'bokeh mềm']),
         cameraStyles: pickN(['pan chậm', 'tilt lên', 'zoom nhấn', 'handheld nhẹ', 'track theo'], 2),
         musicVibe: randomChoice(['lofi ấm', 'orchestral nhẹ', 'guitar mộc', 'piano kể chuyện', 'synth mơ']),
-        nonce: makeNonce()
+        allowCrystals: Math.random() < 0.1, // chỉ 10% cho phép motif pha lê/đá quý
+        allowSnowIce: Math.random() < 0.1 && randomChoice(['xuân','hạ','thu','đông']) === 'đông',
+        nonce: makeNonce(),
+        microActions: [
+            'khuấy trà', 'thổi nguội tách trà', 'vuốt tóc', 'buộc lại dây tóc', 'điều chỉnh cổ áo', 'nhẹ nhàng đặt tay lên lan can tre', 'lật trang sổ tay', 'vẽ vài nét bút', 'nhặt chiếc lá rơi', 'chạm tay vào gió chuông', 'sửa quai túi', 'đặt balo xuống', 'đứng kiễng gót nhìn xa', 'hứng giọt mưa đầu mùa', 'lắc nhẹ cổ tay ngắm vòng tay'
+        ],
+        tactileDetails: [
+            'ơi ấm của tách trà', 'mát nhám của gỗ cũ', 'lạnh nhẹ của gió núi', 'láng mịn của trang giấy', 'xốp mềm của bông hoa', 'khô ráp của dây thừng', 'mịn mát của viên sỏi', 'mềm rủ của vạt áo'
+        ],
+        environmentMotifs: [
+            'đèn lồng giấy đung đưa', 'hơi nước mỏng từ ấm trà', 'mây chậm trôi', 'ánh nắng loang qua kẽ lá', 'tiếng chim xa', 'tiếng côn trùng nhẹ', 'bước chân xa trên đường ray bỏ dở', 'tiếng gió chuông ting tang'
+        ],
+        transitionStyles: ['match cut', 'whip pan nhẹ', 'dissolve chậm', 'rack focus', 'iris subtle', 'tilt reveal']
     };
     try { fs.writeFileSync(path.join(outputDir, 'random-context.json'), JSON.stringify(randomContext, null, 2), 'utf8'); } catch (_) {}
 
@@ -325,7 +337,7 @@ LƯU Ý:
         messages: [
             {
                 role: 'system',
-                content: 'Bạn là biên kịch anime 2D phong cách slice-of-life Nhật Bản (chill, ấm áp). Tạo câu chuyện 5 phút có cấu trúc rõ ràng và chia thành các cảnh 8 giây, nhịp nhẹ nhàng, tập trung cảm xúc và không khí. CHỈ TRẢ VỀ MỘT JSON HỢP LỆ, KHÔNG kèm giải thích.'
+                content: 'Bạn là biên kịch anime 2D phong cách slice-of-life Nhật Bản (chill, ấm áp). Tạo câu chuyện 5 phút XUYÊN SUỐT (một cốt truyện duy nhất, có mục tiêu nhỏ, tiến trình, cao trào cảm xúc, kết thúc). Chia thành các cảnh 8 giây, mỗi cảnh là hệ quả logic của cảnh trước (nguyên nhân → hành động → kết quả → dẫn tới cảnh sau). CHỈ TRẢ VỀ MỘT JSON HỢP LỆ, KHÔNG kèm giải thích.'
             },
             {
                 role: 'user',
@@ -358,6 +370,13 @@ TRẢ VỀ JSON:
   "colorScheme": string,
   "visualStyle": string,
   "outline": string,
+  "storyBeats": [ // nhịp truyện xuyên suốt
+    { "beat": "thiết lập", "goal": string, "location": string },
+    { "beat": "phát triển", "turningPoint": string },
+    { "beat": "cao trào cảm xúc", "realization": string },
+    { "beat": "kết thúc", "resolution": string }
+  ],
+  "propsPersistent": [string], // đồ vật/chi tiết sẽ xuất hiện nhiều cảnh (ví dụ: tách trà, sổ tay, vòng tay)
   "scenes": [
     { "index": 1, "timeStart": 0, "timeEnd": 8, "focus": string, "prompt": string },
     ... đủ ${NUM_SEGMENTS} cảnh, mỗi cảnh 8 giây liên tục, logic nối tiếp ...
@@ -408,12 +427,77 @@ TRẢ VỀ JSON:
         visualStyle: story.visualStyle || `2D anime cinematic, dynamic lighting (${randomContext.animationFlavor})`,
         character,
         segments: scenes,
+        storyBeats: Array.isArray(story.storyBeats) ? story.storyBeats : [],
+        propsPersistent: Array.isArray(story.propsPersistent) ? story.propsPersistent : [],
         randomContext
     };
     fs.writeFileSync(path.join(outputDir, 'anime-story.json'), JSON.stringify(analysis, null, 2), 'utf8');
     console.log(`✅ [Step 1] Đã tạo ${analysis.segments.length} cảnh`);
 
     return { analysis, outputDir, serverUrl };
+}
+
+// Enrich scenes theo 2 batch để tăng chi tiết, giảm trùng lặp
+async function enrichScenesInTwoBatches(analysis, outputDir) {
+    console.log('🧪 [Step 1.5] Enrich chi tiết cảnh theo 2 batch...');
+    const total = analysis.segments.length;
+    const mid = Math.floor(total / 2);
+    const batches = [
+        { label: 'PHẦN 1', start: 0, end: mid },
+        { label: 'PHẦN 2', start: mid, end: total }
+    ];
+
+    for (const b of batches) {
+        const segs = analysis.segments.slice(b.start, b.end).map(s => ({ index: s.index, timeStart: s.timeStart, timeEnd: s.timeEnd, focus: s.focus, prompt: s.prompt }));
+        const enrichRes = await fetchOpenAIWithRetry({
+            model: 'gpt-4o-mini',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Bạn là đạo diễn anime 2D Nhật Bản (slice-of-life). ENRICH các cảnh chi tiết, vẫn giữ logic, giữ nguyên index/time. CHỈ TRẢ VỀ JSON hợp lệ (array). Mỗi phần tử phải có: index, timeStart, timeEnd, action, camera_style, lighting, environment_details, audio, mood, detailedPrompt, character_snapshot { hair_state, outfit_state, jewelry_glint, posture, expression, hands_item }. Hành động phải là MICRO-ACTIONS phong phú, đa dạng, không lặp từ/cụm từ trong vòng 5 cảnh liền kề. Phải kết hợp cảm giác xúc giác (tactile), motif môi trường, và kiểu transition. Không chèn chữ/voice. Cấm tuyết/băng/trụ băng trừ khi explicit allowSnowIce=true. Cấm kim cương/pha lê/đá quý trừ khi explicit allowCrystals=true.'
+                },
+                {
+                    role: 'user',
+                    content: `Ngữ cảnh nhân vật (NHẤT QUÁN 100%):\n${JSON.stringify(analysis.character)}\n\nBối cảnh ngẫu nhiên và phong cách:\n${JSON.stringify(analysis.randomContext)}\n\nChủ đề: ${analysis.overallTheme}\nPhong cách: ${analysis.visualStyle}\nMàu sắc: ${analysis.colorScheme}\n\nNHỊP TRUYỆN XUYÊN SUỐT (storyBeats):\n${JSON.stringify(analysis.storyBeats)}\nĐẠO CỤ XUYÊN SUỐT (propsPersistent):\n${JSON.stringify(analysis.propsPersistent)}\n\nMICRO-ACTIONS (tham khảo, chọn khác nhau giữa các cảnh):\n${JSON.stringify(analysis.randomContext.microActions)}\n\nTACTILE DETAILS (tham khảo):\n${JSON.stringify(analysis.randomContext.tactileDetails)}\n\nENVIRONMENT MOTIFS (tham khảo):\n${JSON.stringify(analysis.randomContext.environmentMotifs)}\n\nTRANSITION STYLES (tham khảo):\n${JSON.stringify(analysis.randomContext.transitionStyles)}\n\n${b.label}: Enrich ${segs.length} cảnh thành JSON ARRAY. GIỮ NGUYÊN index, timeStart, timeEnd. BẮT BUỘC TRẢ VỀ cho mỗi cảnh: action (micro-action giàu chi tiết, không lặp), camera_style, lighting, environment_details (kết hợp motif), audio, mood, detailedPrompt (1 câu sinh động, anime Nhật chill), character_snapshot { hair_state, outfit_state, jewelry_glint, posture, expression, hands_item }, continuity { carriesProps: [string], objectiveProgress: string, locationLink: string }. Mỗi cảnh PHẢI là hệ quả logic của cảnh trước và dẫn tới cảnh sau.\n\nRÀNG BUỘC: ${analysis.randomContext.allowCrystals ? 'được phép motif pha lê/đá quý nếu hợp lý' : 'cấm motif kim cương/pha lê/đá quý'}. ${analysis.randomContext.allowSnowIce ? 'được phép tuyết/băng nếu hợp lý' : 'cấm tuyết/băng/glacier/frosted surfaces'}. Cấm realistic/live-action, cấm chữ/voice.\n\nCảnh đầu vào:\n${JSON.stringify(segs)}`
+                }
+            ],
+            response_format: { type: 'json_object' },
+            max_tokens: 3500,
+            temperature: 0.7
+        });
+        if (!enrichRes.choices) continue;
+        const content = enrichRes.choices[0].message.content;
+        let enriched;
+        try {
+            enriched = parseJsonFromText(content, outputDir, `enrich-${b.label.replace(/\s+/g,'-')}`);
+        } catch (_) {
+            // fallback: giữ nguyên nếu parse lỗi
+            continue;
+        }
+        let arr = Array.isArray(enriched) ? enriched : (Array.isArray(enriched.scenes) ? enriched.scenes : null);
+        if (!arr) continue;
+        // Gán lại vào segments
+        for (const item of arr) {
+            const idx = (item.index | 0) - 1;
+            if (idx >= 0 && idx < analysis.segments.length) {
+                const seg = analysis.segments[idx];
+                seg.action = item.action || seg.action;
+                seg.camera_style = item.camera_style || seg.camera_style;
+                seg.lighting = item.lighting || seg.lighting;
+                seg.environment_details = item.environment_details || seg.environment_details;
+                seg.audio = item.audio || seg.audio;
+                seg.mood = item.mood || seg.mood;
+                if (item.detailedPrompt) seg.enrichedPrompt = item.detailedPrompt;
+                if (item.character_snapshot) seg.character_snapshot = item.character_snapshot;
+                if (item.continuity) seg.continuity = item.continuity;
+            }
+        }
+    }
+
+    // Lưu lại bản enrich để kiểm tra
+    try { fs.writeFileSync(path.join(outputDir, 'anime-story-enriched.json'), JSON.stringify(analysis, null, 2), 'utf8'); } catch (_) {}
+    console.log('✅ [Step 1.5] Enrich xong (2 batch).');
+    return analysis;
 }
 
 // Bước 2: Gửi trực tiếp từng cảnh lên Veo 3 (KHÔNG tối ưu prompt)
@@ -468,7 +552,9 @@ async function sendScenesToVeo3(analysis, outputDir, serverUrl) {
         const charBlock = `CHARACTER (MUST REMAIN IDENTICAL IN ALL SCENES): ${character.name} — species: ${character.species}. Body: ${character.appearance?.body || 'slender human proportions, average height'}. Hair: ${character.appearance?.hair || 'soft, natural, anime style'}. Eyes: ${character.appearance?.eyes || 'bright anime eyes'}. Skin: ${character.appearance?.skin || 'natural tone'}. Unique marks: ${character.appearance?.uniqueMarks || 'subtle distinctive mark'}. Outfit: top ${character.outfit?.top || 'casual top'}, bottom ${character.outfit?.bottom || 'comfortable bottom'}, footwear ${character.outfit?.footwear || 'casual shoes'}, accessories ${character.outfit?.accessories || 'minimal accessories'}, jewelry ${character.outfit?.jewelry || 'simple jewelry'}. Props: ${character.props || 'small daily-life item'}. Color palette: ${character.colorPalette || 'soft, warm hues'}. Personality: ${character.personality || 'gentle and reflective'}.`;
         const animeEnforce = `ANIME STYLE ENFORCEMENT: Japanese 2D anime, hand-drawn/cel-shaded, slice-of-life, chill and gentle pacing, soft ambient lighting, sky gradients, subtle light bloom and lens haze, clean line art, atmospheric depth. Inspired by modern Japanese anime films (cityscapes, skies, tender color grading). Absolutely NOT realistic, NOT photorealistic, NOT live-action, NOT CGI-realistic.`;
         const styleBlock = `STYLE: ${analysis.visualStyle}. Color Scheme: ${analysis.colorScheme}. Japanese slice-of-life anime, calm and cinematic composition, soft gradients, pastel-to-vibrant skies, gentle camera moves, smooth limited animation.`;
-        const negatives = `NEGATIVE STYLE: no realism, no photorealism, no live-action look, no DSLR bokeh realism, no ray-traced CGI, no real human skin or pores, no text or subtitles on screen.`;
+        const crystalBan = analysis?.randomContext?.allowCrystals ? '' : ', no gems, no diamonds, no crystals, no jewel motifs';
+        const snowIceBan = analysis?.randomContext?.allowSnowIce ? '' : ', no snow, no ice, no glacier, no frosted surfaces';
+        const negatives = `NEGATIVE STYLE: no realism, no photorealism, no live-action look, no DSLR bokeh realism, no ray-traced CGI, no real human skin or pores, no text or subtitles on screen${crystalBan}${snowIceBan}.`;
         const anchor = analysis?.randomContext?.nonce ? `CHARACTER ANCHOR CODE: ${analysis.randomContext.nonce}. Always keep the same face, fur pattern/colors, outfit, body proportions, and unique marks tied to this anchor.` : '';
 
         // Chi tiết cảnh theo index để đa dạng and consistent với randomContext
@@ -486,19 +572,37 @@ async function sendScenesToVeo3(analysis, outputDir, serverUrl) {
         const colorFlavor = rc.colorPalette ? `color grade theo bảng màu ${rc.colorPalette}` : 'màu pastel ấm, trời gradient';
         const animFlavor = rc.animationFlavor ? `animation flavor: ${rc.animationFlavor}` : 'cel-shade đậm, viền sạch';
 
-        // Continuity từ segment trước/sau (nếu cần trong prompt cho model hiểu mạch)
+        // Continuity từ segment trước/sau
         const prev = analysis.segments[segment.index - 2];
         const next = analysis.segments[segment.index];
-        const continuity = `${prev ? `CONTINUITY PREV: ${prev.timeRange} - ${prev.focus}.` : 'OPENING: gentle fade-in.'} ${next ? `CONTINUITY NEXT: ${next.timeRange} - ${next.focus}.` : 'ENDING: gentle fade-out.'}`;
+        const carriesProps = Array.isArray(analysis.propsPersistent) && analysis.propsPersistent.length ? `CARRIED PROPS: ${analysis.propsPersistent.join(', ')}` : '';
+        const continuityMeta = segment.continuity ? `Objective=${segment.continuity.objectiveProgress || 'progressing'}, Link=${segment.continuity.locationLink || 'smooth link'}, Carries=${Array.isArray(segment.continuity.carriesProps) ? segment.continuity.carriesProps.join(', ') : ''}.` : '';
+        const continuity = `${prev ? `CONTINUITY PREV: ${prev.timeRange} - ${prev.focus}.` : 'OPENING: gentle fade-in.'} ${next ? `CONTINUITY NEXT: ${next.timeRange} - ${next.focus}.` : 'ENDING: gentle fade-out.'} ${carriesProps} ${continuityMeta}`;
 
         const sceneBlueprint = `SCENE BLUEPRINT: shot=${shotType}, lens=${lens}, cameraMove=${move}, composition=rule-of-thirds with strong leading lines and layered depth, lighting=soft ambient with rim light and sky glow, ${colorFlavor}, environment=${envBase} (details: ${envSubs}), timeOfDay=${timeLabel}, weather=${weather}, backgroundAction=subtle everyday motion (leaves, signage flicker, distant traffic), transition=smooth dissolve.`;
 
-        // Template kiểu người dùng đưa (không phải JSON output, chỉ là hướng dẫn mạnh)
+        // Template guide theo yêu cầu người dùng
         const templateGuide = `SCENE STRUCTURE TEMPLATE: title='${envBase} – tranquil moment', character={ name: ${character.name}, ethnicity: 'Japanese (anime style)', age: ${character.age || 'young adult'}, appearance: 'hair detail consistent with character, outfit as described, posture relaxed', expression: 'peaceful, soft contentment' }, setting={ location: '${envBase}', time_of_day: '${timeLabel}', environment_details: '${envSubs}' , weather: '${weather}' }, action='gentle everyday action (e.g., sip tea, gaze at view, adjust hair)', camera_style='${shotType} transitioning to wide panorama', lighting='soft golden tones with subtle glints and steam when applicable', audio='ambient: wind chime, distant birds, soft city hum', mood='serene, restful conclusion — serenity in simplicity'`;
 
+        // Ưu tiên enrichedPrompt nếu có
+        const enriched = segment.enrichedPrompt ? `ENRICHED: ${segment.enrichedPrompt}` : '';
+        const enrichedMetaParts = [];
+        if (segment.action) enrichedMetaParts.push(`action=${segment.action}`);
+        if (segment.camera_style) enrichedMetaParts.push(`camera_style=${segment.camera_style}`);
+        if (segment.lighting) enrichedMetaParts.push(`lighting=${segment.lighting}`);
+        if (segment.environment_details) enrichedMetaParts.push(`environment=${segment.environment_details}`);
+        if (segment.audio) enrichedMetaParts.push(`audio=${segment.audio}`);
+        if (segment.mood) enrichedMetaParts.push(`mood=${segment.mood}`);
+        const enrichedMeta = enrichedMetaParts.length ? `ENRICH META: ${enrichedMetaParts.join(', ')}.` : '';
+
         const hardRules = `RULES: Character appearance MUST be EXACTLY THE SAME in every scene (face, fur colors/patterns, outfit, body proportions, unique marks). ${anchor} NO text overlay, NO subtitles, NO voice-over, NO human speech; only visuals with ambient sounds/music. ${negatives}`;
-        const sceneText = `SCENE ${segment.index} [${segment.timeRange}]: ${segment.focus || 'Anime scene'} — ${segment.prompt}. MOOD: chill, serene, heartwarming, everyday wonder.`;
-        return `${animeEnforce} ${charBlock} ${styleBlock} ${animFlavor}. ${sceneBlueprint} ${templateGuide}. ${continuity} ${sceneText} ${hardRules}`;
+        const baseLine = segment.enrichedPrompt ? segment.enrichedPrompt : (segment.prompt || 'slice-of-life anime moment');
+        // Ảnh chụp nhân vật theo cảnh (ép hiển thị chi tiết trong từng cảnh)
+        const expr = segment.mood || 'soft contentment';
+        const charSnapshot = `CHARACTER PER-SCENE SNAPSHOT: hair=${character.appearance?.hair || 'anime hair, slightly wind-ruffled'}, outfit=${character.outfit?.top},${character.outfit?.bottom}, jewelry=${character.outfit?.jewelry || 'subtle glint'}, posture=relaxed natural posture, hands_item=${character.props || 'teacup / notebook'}, expression=${expr}.`;
+
+        const sceneText = `SCENE ${segment.index} [${segment.timeRange}]: ${segment.focus || 'Anime scene'} — ${baseLine}. MOOD: chill, serene, heartwarming, everyday wonder.`;
+        return `${animeEnforce} ${charBlock} ${charSnapshot} ${styleBlock} ${animFlavor}. ${sceneBlueprint} ${templateGuide}. ${continuity} ${sceneText} ${enriched} ${enrichedMeta} ${hardRules}`;
     }
 
     async function processOne(index) {
@@ -584,6 +688,7 @@ async function main() {
     try {
         console.log(`🚀 [START] Tạo video anime 5 phút (${NUM_SEGMENTS} cảnh x ${SEGMENT_DURATION}s)...`);
         const { analysis, outputDir, serverUrl } = await createAnimeCharacterAndStory();
+        await enrichScenesInTwoBatches(analysis, outputDir);
         const { veo3Results, monitorPromises } = await sendScenesToVeo3(analysis, outputDir, serverUrl);
         const { finalVideoPath, successfulVideos } = await mergeVideos(monitorPromises, outputDir);
 
