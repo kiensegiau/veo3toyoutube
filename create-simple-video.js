@@ -17,7 +17,7 @@ try {
 const execAsync = promisify(exec);
 
 // ENV
-const OPENAI_API_KEY = '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'
+const OPENAI_API_KEY = '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'
 const LABS_COOKIES = (process.env.LABS_COOKIES || '').trim();
 const VEO_PROJECT_ID = (process.env.VEO_PROJECT_ID || '').trim();
 const SERVER_URL = 'http://localhost:8888';
