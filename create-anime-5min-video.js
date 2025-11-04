@@ -237,8 +237,21 @@ async function createAnimeCharacterAndStory() {
     const randomContext = {
         season: randomChoice(['xuân', 'hạ', 'thu', 'đông']),
         timeOfDay: randomChoice(['bình minh', 'sáng', 'trưa', 'chiều', 'hoàng hôn', 'đêm']),
-        mainSetting: randomChoice(['đồi trà', 'sân thượng quán trà', 'thị trấn biển đêm', 'rừng tre cổ', 'khu chợ đèn lồng', 'ga tàu hơi nước', 'ven sông yên tĩnh', 'ruộng bậc thang', 'con dốc phố cổ', 'bến tàu nhỏ']),
-        subSettings: pickN(['cầu treo gió lớn', 'hẻm đèn neon', 'vườn anh đào', 'quán trà trên đồi', 'thư viện bỏ hoang', 'đường ray bỏ dở', 'bờ biển sương mù', 'vách đá gió rít', 'ruộng bậc thang', 'giàn tre và gió chuông'], 3),
+        mainSetting: randomChoice([
+            'rừng sâu', 'thành phố', 'ven sông', 'bờ biển', 'núi rừng', 'cánh đồng',
+            'đồi trà', 'sân thượng quán trà', 'thị trấn biển đêm', 'rừng tre cổ', 
+            'khu chợ đèn lồng', 'ga tàu hơi nước', 'ruộng bậc thang', 'con dốc phố cổ', 
+            'bến tàu nhỏ', 'ngọn núi', 'thung lũng', 'bờ sông', 'bãi biển', 'đồng lúa',
+            'phố cổ', 'khu phố hiện đại', 'công viên', 'vườn hoa', 'đường mòn rừng'
+        ]),
+        subSettings: pickN([
+            'cầu treo gió lớn', 'hẻm đèn neon', 'vườn anh đào', 'quán trà trên đồi', 
+            'thư viện bỏ hoang', 'đường ray bỏ dở', 'bờ biển sương mù', 'vách đá gió rít', 
+            'ruộng bậc thang', 'giàn tre và gió chuông', 'dòng suối nhỏ', 'thác nước',
+            'hang động nhỏ', 'cây cầu gỗ', 'bến cảng', 'chợ cá', 'quán cà phê góc phố',
+            'công viên ven sông', 'bờ đê', 'đường mòn núi', 'đỉnh đồi', 'bãi cỏ',
+            'khu vườn nhỏ', 'hẻm núi', 'bờ kè', 'cầu thang đá', 'lối đi rừng'
+        ], 4),
         genreTone: randomChoice(['ấm áp', 'phiêu lưu nhẹ', 'kỳ ảo', 'hài hước', 'truyền cảm hứng']),
         conflictType: randomChoice(['trả lại vật đánh mất', 'giúp đỡ người xa lạ', 'kết nối gia đình', 'khám phá ký ức', 'ghi lại vẻ đẹp đời thường']),
         antagonist: 'không có phản diện',
@@ -248,17 +261,7 @@ async function createAnimeCharacterAndStory() {
         musicVibe: randomChoice(['lofi ấm', 'orchestral nhẹ', 'guitar mộc', 'piano kể chuyện', 'synth mơ']),
         allowCrystals: Math.random() < 0.1, // chỉ 10% cho phép motif pha lê/đá quý
         allowSnowIce: Math.random() < 0.1 && randomChoice(['xuân','hạ','thu','đông']) === 'đông',
-        nonce: makeNonce(),
-        microActions: [
-            'khuấy trà', 'thổi nguội tách trà', 'vuốt tóc', 'buộc lại dây tóc', 'điều chỉnh cổ áo', 'nhẹ nhàng đặt tay lên lan can tre', 'lật trang sổ tay', 'vẽ vài nét bút', 'nhặt chiếc lá rơi', 'chạm tay vào gió chuông', 'sửa quai túi', 'đặt balo xuống', 'đứng kiễng gót nhìn xa', 'hứng giọt mưa đầu mùa', 'lắc nhẹ cổ tay ngắm vòng tay'
-        ],
-        tactileDetails: [
-            'ơi ấm của tách trà', 'mát nhám của gỗ cũ', 'lạnh nhẹ của gió núi', 'láng mịn của trang giấy', 'xốp mềm của bông hoa', 'khô ráp của dây thừng', 'mịn mát của viên sỏi', 'mềm rủ của vạt áo'
-        ],
-        environmentMotifs: [
-            'đèn lồng giấy đung đưa', 'hơi nước mỏng từ ấm trà', 'mây chậm trôi', 'ánh nắng loang qua kẽ lá', 'tiếng chim xa', 'tiếng côn trùng nhẹ', 'bước chân xa trên đường ray bỏ dở', 'tiếng gió chuông ting tang'
-        ],
-        transitionStyles: ['match cut', 'whip pan nhẹ', 'dissolve chậm', 'rack focus', 'iris subtle', 'tilt reveal']
+        nonce: makeNonce() 
     };
     try { fs.writeFileSync(path.join(outputDir, 'random-context.json'), JSON.stringify(randomContext, null, 2), 'utf8'); } catch (_) {}
 
@@ -312,7 +315,7 @@ YÊU CẦU TRẢ VỀ JSON:
     "accessories": string,
     "jewelry": string
   },
-  "props": string,         // đồ vật đi kèm (ốp lưng điện thoại, túi, sách, tách trà...)
+  "props": string,         // đồ vật đi kèm NHƯNG KHÔNG BẮT BUỘC luôn cầm tay (có thể là: túi xách, sách, điện thoại trong túi, vòng tay...). KHÔNG định nghĩa props là vật luôn cầm tay trong mọi cảnh. Việc cầm vật gì trong tay sẽ được quyết định theo từng cảnh.
   "colorPalette": string,  // bảng màu chủ đạo
   "animationStyle": "2D anime cinematic, vibrant, dynamic lighting"
 }
@@ -360,9 +363,11 @@ YẾU TỐ NGẪU NHIÊN (đảm bảo câu chuyện KHÁC BIỆT mỗi lần ch
 
 QUY TẮC ĐA DẠNG & LOGIC:
 - Mỗi cảnh 8s phải góp phần vào tiến trình câu chuyện; bối cảnh và hành động thay đổi hợp lý.
+- BỐI CẢNH PHẢI ĐA DẠNG VÀ TỰ NHIÊN: Nhân vật có thể di chuyển giữa các địa điểm khác nhau (rừng sâu, thành phố, sông, biển, núi, đồng, v.v.) nhưng PHẢI CÓ LOGIC. Ví dụ: từ rừng sâu → ven sông → bờ biển là hợp lý; từ rừng sâu → thành phố → biển là hợp lý nếu có phương tiện hoặc đường đi. Tránh nhảy cóc không logic (ví dụ: từ rừng sâu đột ngột đến biển mà không có chuyển cảnh).
+- Sự chuyển đổi giữa các bối cảnh phải TỰ NHIÊN và PHỤC VỤ câu chuyện (ví dụ: nhân vật đi tìm kiếm → di chuyển từ nơi này sang nơi khác; nhân vật khám phá → ghé qua nhiều địa điểm).
 - Tránh lặp lại hành động y hệt giữa các cảnh liên tiếp (trừ khi có dụng ý).
 - Nhân vật phải GIỮ NGUYÊN ngoại hình/trang phục/đặc điểm/tỉ lệ trong tất cả cảnh.
- - Tránh chiến đấu/đối đầu nặng; ưu tiên cảm xúc, quan sát, khám phá nhỏ, chuyển cảnh đẹp (bầu trời, gió, ánh sáng, nước, thành phố).
+- Tránh chiến đấu/đối đầu nặng; ưu tiên cảm xúc, quan sát, khám phá nhỏ, chuyển cảnh đẹp (bầu trời, gió, ánh sáng, nước, thành phố).
 
 TRẢ VỀ JSON:
 {
@@ -454,11 +459,11 @@ async function enrichScenesInTwoBatches(analysis, outputDir) {
             messages: [
                 {
                     role: 'system',
-                    content: 'Bạn là đạo diễn anime 2D Nhật Bản (slice-of-life). ENRICH các cảnh chi tiết, vẫn giữ logic, giữ nguyên index/time. CHỈ TRẢ VỀ JSON hợp lệ (array). Mỗi phần tử phải có: index, timeStart, timeEnd, action, camera_style, lighting, environment_details, audio, mood, detailedPrompt, character_snapshot { hair_state, outfit_state, jewelry_glint, posture, expression, hands_item }. Hành động phải là MICRO-ACTIONS phong phú, đa dạng, không lặp từ/cụm từ trong vòng 5 cảnh liền kề. Phải kết hợp cảm giác xúc giác (tactile), motif môi trường, và kiểu transition. Không chèn chữ/voice. Cấm tuyết/băng/trụ băng trừ khi explicit allowSnowIce=true. Cấm kim cương/pha lê/đá quý trừ khi explicit allowCrystals=true.'
+                    content: 'Bạn là đạo diễn anime 2D Nhật Bản (slice-of-life). ENRICH các cảnh chi tiết, vẫn giữ logic, giữ nguyên index/time. CHỈ TRẢ VỀ JSON hợp lệ (array). Mỗi phần tử phải có: index, timeStart, timeEnd, action, camera_style, lighting, environment_details, audio, mood, detailedPrompt, character_snapshot { hair_state, outfit_state, jewelry_glint, posture, expression, hands_item }, continuity { carriesProps: [string], objectiveProgress: string, locationLink: string }, microLocation. Hành động phải là micro-actions đa dạng, không lặp trong cửa sổ 7 cảnh. Địa điểm/bối cảnh vi mô đa dạng theo mainSetting/subSettings. Không chèn chữ/voice. Cấm tuyết/băng trừ khi allowSnowIce=true. Cấm kim cương/pha lê/đá quý trừ khi allowCrystals=true. Cấm hành động uống/nhấp/khuấy (uống nước/uống trà/sip/drink/stir) trừ khi xuất hiện duy nhất 1 lần toàn video. QUAN TRỌNG VỀ hands_item: hands_item PHẢI THAY ĐỔI theo từng cảnh và PHẢI PHÙ HỢP với action của nhân vật. Ví dụ: nếu action là "nhặt bình nhỏ" thì hands_item="cầm bình nhỏ", nếu action là "tìm kiếm" thì hands_item="tay đưa ra tìm kiếm, một tay trống", nếu action là "ngắm cảnh" thì hands_item="empty hands, đặt tay lên lan can", nếu action là "chạy" thì hands_item="tay vung tự nhiên khi chạy", nếu action là "nhìn lên trời" thì hands_item="tay đưa lên che mắt hoặc tay trống". KHÔNG được để tất cả cảnh đều có cùng hands_item. KHÔNG được để nhân vật luôn cầm cùng một vật trong mọi cảnh. hands_item phải ĐA DẠNG và LOGIC với action. QUAN TRỌNG VỀ continuity: continuity PHẢI đảm bảo mỗi cảnh là hệ quả logic của cảnh trước và dẫn tới cảnh sau. objectiveProgress phải thể hiện tiến trình của mục tiêu (ví dụ: "đang tìm kiếm", "phát hiện manh mối", "đạt được mục tiêu"). locationLink PHẢI THỂ HIỆN SỰ CHUYỂN ĐỔI VỊ TRÍ TỰ NHIÊN VÀ LOGIC - có thể di chuyển giữa rừng sâu, thành phố, sông, biển, núi, đồng nhưng phải có logic (ví dụ: "từ rừng sâu dọc theo dòng suối đến ven sông", "từ ven sông đi dọc bờ đến bờ biển", "từ thành phố qua cánh đồng đến núi", "trong cùng khu vườn", "từ khu vườn đến ruộng bậc thang"). KHÔNG được nhảy cóc không logic. carriesProps phải phù hợp với propsPersistent và action (ví dụ: nếu action là "nhặt bình" thì carriesProps=["bình nhỏ"], nếu action là "tìm kiếm" thì carriesProps có thể rỗng hoặc chỉ có props đang tìm). Không được thay đổi nhân vật gốc.'
                 },
                 {
                     role: 'user',
-                    content: `Ngữ cảnh nhân vật (NHẤT QUÁN 100%):\n${JSON.stringify(analysis.character)}\n\nBối cảnh ngẫu nhiên và phong cách:\n${JSON.stringify(analysis.randomContext)}\n\nChủ đề: ${analysis.overallTheme}\nPhong cách: ${analysis.visualStyle}\nMàu sắc: ${analysis.colorScheme}\n\nNHỊP TRUYỆN XUYÊN SUỐT (storyBeats):\n${JSON.stringify(analysis.storyBeats)}\nĐẠO CỤ XUYÊN SUỐT (propsPersistent):\n${JSON.stringify(analysis.propsPersistent)}\n\nMICRO-ACTIONS (tham khảo, chọn khác nhau giữa các cảnh):\n${JSON.stringify(analysis.randomContext.microActions)}\n\nTACTILE DETAILS (tham khảo):\n${JSON.stringify(analysis.randomContext.tactileDetails)}\n\nENVIRONMENT MOTIFS (tham khảo):\n${JSON.stringify(analysis.randomContext.environmentMotifs)}\n\nTRANSITION STYLES (tham khảo):\n${JSON.stringify(analysis.randomContext.transitionStyles)}\n\n${b.label}: Enrich ${segs.length} cảnh thành JSON ARRAY. GIỮ NGUYÊN index, timeStart, timeEnd. BẮT BUỘC TRẢ VỀ cho mỗi cảnh: action (micro-action giàu chi tiết, không lặp), camera_style, lighting, environment_details (kết hợp motif), audio, mood, detailedPrompt (1 câu sinh động, anime Nhật chill), character_snapshot { hair_state, outfit_state, jewelry_glint, posture, expression, hands_item }, continuity { carriesProps: [string], objectiveProgress: string, locationLink: string }. Mỗi cảnh PHẢI là hệ quả logic của cảnh trước và dẫn tới cảnh sau.\n\nRÀNG BUỘC: ${analysis.randomContext.allowCrystals ? 'được phép motif pha lê/đá quý nếu hợp lý' : 'cấm motif kim cương/pha lê/đá quý'}. ${analysis.randomContext.allowSnowIce ? 'được phép tuyết/băng nếu hợp lý' : 'cấm tuyết/băng/glacier/frosted surfaces'}. Cấm realistic/live-action, cấm chữ/voice.\n\nCảnh đầu vào:\n${JSON.stringify(segs)}`
+                    content: `Nhân vật GỐC (không được đổi):\n${JSON.stringify(analysis.character)}\n\nNgẫu nhiên & phong cách (bắt buộc dùng trong phân phối):\n${JSON.stringify(analysis.randomContext)}\n\nChủ đề: ${analysis.overallTheme}\nPhong cách: ${analysis.visualStyle}\nMàu sắc: ${analysis.colorScheme}\n\nNHỊP TRUYỆN XUYÊN SUỐT (storyBeats):\n${JSON.stringify(analysis.storyBeats)}\nĐẠO CỤ XUYÊN SUỐT (propsPersistent):\n${JSON.stringify(analysis.propsPersistent)}\n\n${b.label}: Enrich ${segs.length} cảnh thành JSON ARRAY. GIỮ NGUYÊN index, timeStart, timeEnd. BẮT BUỘC CHO MỖI CẢNH: action (micro-action cụ thể, không lặp trong 7 cảnh), camera_style, lighting, environment_details (đa dạng, gắn với bối cảnh), audio, mood, detailedPrompt (1 câu sinh động), character_snapshot { hair_state, outfit_state, jewelry_glint, posture, expression, hands_item (BẮT BUỘC: hands_item PHẢI THAY ĐỔI theo từng cảnh và PHẢI PHÙ HỢP với action. Ví dụ: nếu action là "nhặt bình" thì hands_item="cầm bình nhỏ", nếu action là "tìm kiếm" thì hands_item="tay đưa ra tìm kiếm", nếu action là "ngắm cảnh" thì hands_item="empty hands, đặt tay lên lan can", nếu action là "chạy" thì hands_item="tay vung tự nhiên", nếu action là "nhìn lên trời" thì hands_item="tay đưa lên che mắt hoặc tay trống". KHÔNG được để tất cả cảnh đều có cùng hands_item. KHÔNG lặp lại cùng một hands_item trong nhiều cảnh liên tiếp) }, continuity { carriesProps: [string] (BẮT BUỘC: phải phù hợp với action và propsPersistent - nếu action là "nhặt bình" thì carriesProps=["bình nhỏ"], nếu đang tìm kiếm thì carriesProps có thể rỗng hoặc chỉ có props đang tìm), objectiveProgress: string (BẮT BUỘC: thể hiện tiến trình của mục tiêu - ví dụ: "đang tìm kiếm", "phát hiện manh mối", "đạt được mục tiêu", "tiếp tục hành trình"), locationLink: string (BẮT BUỘC: thể hiện sự chuyển đổi vị trí TỰ NHIÊN VÀ LOGIC so với cảnh trước - có thể di chuyển giữa rừng sâu, thành phố, sông, biển, núi, đồng nhưng PHẢI CÓ LOGIC - ví dụ: "từ rừng sâu dọc theo dòng suối đến ven sông", "từ ven sông đi dọc bờ đến bờ biển", "từ thành phố qua cánh đồng đến núi", "trong cùng khu vườn", "từ khu vườn đến ruộng bậc thang", "từ đồng lúa đến bờ sông". KHÔNG được nhảy cóc không logic) }, microLocation (tên vi mô của địa điểm; tự nghĩ đa dạng từ mainSetting/subSettings).\n\nLƯU Ý: Batch chỉ xử lý ACTION/ĐỊA ĐIỂM/BỐI CẢNH và continuity. NHÂN VẬT sẽ GHÉP RIÊNG từ bước 1 khi render Veo 3, do đó không được thay đổi nhân vật gốc.\n\nRÀNG BUỘC: ${analysis.randomContext.allowCrystals ? 'được phép motif pha lê/đá quý nếu hợp lý' : 'cấm motif kim cương/pha lê/đá quý'}. ${analysis.randomContext.allowSnowIce ? 'được phép tuyết/băng nếu hợp lý' : 'cấm tuyết/băng/glacier/frosted surfaces'}. Cấm realistic/live-action, cấm chữ/voice.\n\nCảnh đầu vào:\n${JSON.stringify(segs)}`
                 }
             ],
             response_format: { type: 'json_object' },
@@ -490,6 +495,7 @@ async function enrichScenesInTwoBatches(analysis, outputDir) {
                 if (item.detailedPrompt) seg.enrichedPrompt = item.detailedPrompt;
                 if (item.character_snapshot) seg.character_snapshot = item.character_snapshot;
                 if (item.continuity) seg.continuity = item.continuity;
+                if (item.microLocation) seg.microLocation = item.microLocation;
             }
         }
     }
@@ -567,22 +573,32 @@ async function sendScenesToVeo3(analysis, outputDir, serverUrl) {
         const move = movements[segment.index % movements.length];
         const weather = rc.season === 'đông' ? 'lạnh, gió nhẹ' : rc.season === 'hạ' ? 'ấm, gió mát' : rc.season === 'thu' ? 'dịu, gió hiu hiu' : 'mát, không khí trong';
         const timeLabel = rc.timeOfDay || 'chiều muộn';
-        const envBase = rc.mainSetting || 'thành phố Nhật yên bình';
+        // Ưu tiên microLocation từ enriched snapshot, nếu không có thì dùng mainSetting
+        const envBase = segment.microLocation || segment.continuity?.locationLink?.split('đến')[1]?.trim() || rc.mainSetting || 'thành phố Nhật yên bình';
         const envSubs = Array.isArray(rc.subSettings) && rc.subSettings.length > 0 ? rc.subSettings.join(', ') : 'hàng cây, bầu trời nhiều mây, phố nhỏ';
         const colorFlavor = rc.colorPalette ? `color grade theo bảng màu ${rc.colorPalette}` : 'màu pastel ấm, trời gradient';
         const animFlavor = rc.animationFlavor ? `animation flavor: ${rc.animationFlavor}` : 'cel-shade đậm, viền sạch';
 
-        // Continuity từ segment trước/sau
+        // Continuity từ segment trước/sau và story arc
         const prev = analysis.segments[segment.index - 2];
         const next = analysis.segments[segment.index];
         const carriesProps = Array.isArray(analysis.propsPersistent) && analysis.propsPersistent.length ? `CARRIED PROPS: ${analysis.propsPersistent.join(', ')}` : '';
         const continuityMeta = segment.continuity ? `Objective=${segment.continuity.objectiveProgress || 'progressing'}, Link=${segment.continuity.locationLink || 'smooth link'}, Carries=${Array.isArray(segment.continuity.carriesProps) ? segment.continuity.carriesProps.join(', ') : ''}.` : '';
-        const continuity = `${prev ? `CONTINUITY PREV: ${prev.timeRange} - ${prev.focus}.` : 'OPENING: gentle fade-in.'} ${next ? `CONTINUITY NEXT: ${next.timeRange} - ${next.focus}.` : 'ENDING: gentle fade-out.'} ${carriesProps} ${continuityMeta}`;
+        
+        // Xác định story beat hiện tại dựa vào index (phân chia theo 4 beats)
+        const totalSegments = analysis.segments.length;
+        const beatIndex = Math.floor((segment.index - 1) / (totalSegments / 4));
+        const storyBeats = Array.isArray(analysis.storyBeats) ? analysis.storyBeats : [];
+        const currentBeat = storyBeats[beatIndex] || { beat: 'phát triển', goal: 'tiếp tục hành trình' };
+        const storyArc = storyBeats.length > 0 ? `STORY ARC: ${currentBeat.beat} - ${currentBeat.goal || currentBeat.turningPoint || currentBeat.realization || currentBeat.resolution || 'tiếp tục câu chuyện'}.` : '';
+        const overallTheme = analysis.overallTheme ? `THEME: ${analysis.overallTheme}.` : '';
+        
+        const continuity = `${storyArc} ${overallTheme} ${prev ? `CONTINUITY PREV: ${prev.timeRange} - ${prev.focus || 'previous scene'}.` : 'OPENING: gentle fade-in.'} ${next ? `CONTINUITY NEXT: ${next.timeRange} - ${next.focus || 'next scene'}.` : 'ENDING: gentle fade-out.'} ${carriesProps} ${continuityMeta}`;
 
         const sceneBlueprint = `SCENE BLUEPRINT: shot=${shotType}, lens=${lens}, cameraMove=${move}, composition=rule-of-thirds with strong leading lines and layered depth, lighting=soft ambient with rim light and sky glow, ${colorFlavor}, environment=${envBase} (details: ${envSubs}), timeOfDay=${timeLabel}, weather=${weather}, backgroundAction=subtle everyday motion (leaves, signage flicker, distant traffic), transition=smooth dissolve.`;
 
         // Template guide theo yêu cầu người dùng
-        const templateGuide = `SCENE STRUCTURE TEMPLATE: title='${envBase} – tranquil moment', character={ name: ${character.name}, ethnicity: 'Japanese (anime style)', age: ${character.age || 'young adult'}, appearance: 'hair detail consistent with character, outfit as described, posture relaxed', expression: 'peaceful, soft contentment' }, setting={ location: '${envBase}', time_of_day: '${timeLabel}', environment_details: '${envSubs}' , weather: '${weather}' }, action='gentle everyday action (e.g., sip tea, gaze at view, adjust hair)', camera_style='${shotType} transitioning to wide panorama', lighting='soft golden tones with subtle glints and steam when applicable', audio='ambient: wind chime, distant birds, soft city hum', mood='serene, restful conclusion — serenity in simplicity'`;
+        const templateGuide = `SCENE STRUCTURE TEMPLATE: title='${envBase} – tranquil moment', character={ name: ${character.name}, ethnicity: 'Japanese (anime style)', age: ${character.age || 'young adult'}, appearance: 'hair detail consistent with character, outfit as described, posture relaxed', expression: 'peaceful, soft contentment' }, setting={ location: '${envBase}', time_of_day: '${timeLabel}', environment_details: '${envSubs}' , weather: '${weather}' }, action='varied, non-repetitive gentle everyday action (use provided action; avoid drinking/sipping/stirring)', camera_style='${shotType} transitioning to wide panorama', lighting='soft golden tones with subtle glints', audio='ambient: wind chime, distant birds, soft city hum', mood='serene, restful conclusion — serenity in simplicity'`;
 
         // Ưu tiên enrichedPrompt nếu có
         const enriched = segment.enrichedPrompt ? `ENRICHED: ${segment.enrichedPrompt}` : '';
@@ -599,7 +615,58 @@ async function sendScenesToVeo3(analysis, outputDir, serverUrl) {
         const baseLine = segment.enrichedPrompt ? segment.enrichedPrompt : (segment.prompt || 'slice-of-life anime moment');
         // Ảnh chụp nhân vật theo cảnh (ép hiển thị chi tiết trong từng cảnh)
         const expr = segment.mood || 'soft contentment';
-        const charSnapshot = `CHARACTER PER-SCENE SNAPSHOT: hair=${character.appearance?.hair || 'anime hair, slightly wind-ruffled'}, outfit=${character.outfit?.top},${character.outfit?.bottom}, jewelry=${character.outfit?.jewelry || 'subtle glint'}, posture=relaxed natural posture, hands_item=${character.props || 'teacup / notebook'}, expression=${expr}.`;
+        // Ưu tiên hands_item từ enriched snapshot, nếu không có thì suy luận từ action và continuity
+        let handsItem = segment.character_snapshot?.hands_item;
+        if (!handsItem) {
+            // Suy luận hands_item từ action và continuity
+            const action = segment.action || segment.focus || '';
+            const carriesProps = Array.isArray(segment.continuity?.carriesProps) ? segment.continuity.carriesProps : [];
+            const propsPersistent = Array.isArray(analysis.propsPersistent) ? analysis.propsPersistent : [];
+            
+            // Nếu action liên quan đến cầm vật, suy luận từ action
+            if (action.match(/nhặt|cầm|giữ|đưa|nâng|mang|bế|ngắm nhìn.*bên trong/i)) {
+                // Tìm vật thể từ action hoặc propsPersistent
+                const itemMatch = action.match(/(?:nhặt|cầm|giữ|đưa|nâng|mang|bế|ngắm nhìn)\s+(?:chiếc\s+)?([^\s,]+(?:\s+[^\s,]+)?)/i);
+                if (itemMatch && itemMatch[1]) {
+                    handsItem = `cầm ${itemMatch[1]}`;
+                } else if (carriesProps.length > 0) {
+                    handsItem = `cầm ${carriesProps[0]}`;
+                } else if (propsPersistent.length > 0) {
+                    // Kiểm tra xem action có đề cập đến props không
+                    const actionLower = action.toLowerCase();
+                    for (const prop of propsPersistent) {
+                        if (actionLower.includes(prop.toLowerCase())) {
+                            handsItem = `cầm ${prop}`;
+                            break;
+                        }
+                    }
+                    if (!handsItem && Math.random() < 0.3) {
+                        handsItem = `có thể cầm ${propsPersistent[0]}`;
+                    }
+                }
+                if (!handsItem) {
+                    handsItem = 'empty hands, tay đưa ra theo hành động';
+                }
+            } else if (action.match(/tìm|kiếm|lục|sờ/i)) {
+                handsItem = 'tay đưa ra tìm kiếm, một tay trống';
+            } else if (action.match(/chạy|nhảy|di chuyển/i)) {
+                handsItem = 'tay vung tự nhiên khi di chuyển';
+            } else if (action.match(/nhìn|ngắm|quan sát/i)) {
+                handsItem = 'empty hands, đặt tay lên lan can hoặc tay trống';
+            } else if (action.match(/ngồi|đứng|nằm/i)) {
+                handsItem = 'empty hands, tay đặt tự nhiên';
+            } else {
+                // Fallback: đa dạng theo index
+                const handsVariants = [
+                    'empty hands, natural resting pose',
+                    'empty hands, tay đặt tự nhiên',
+                    'tay trống, tư thế tự nhiên',
+                    'empty hands, tay thả lỏng'
+                ];
+                handsItem = handsVariants[segment.index % handsVariants.length];
+            }
+        }
+        const charSnapshot = `CHARACTER PER-SCENE SNAPSHOT: hair=${segment.character_snapshot?.hair_state || character.appearance?.hair || 'anime hair, slightly wind-ruffled'}, outfit=${segment.character_snapshot?.outfit_state || `${character.outfit?.top},${character.outfit?.bottom}`}, jewelry=${segment.character_snapshot?.jewelry_glint || character.outfit?.jewelry || 'subtle glint'}, posture=${segment.character_snapshot?.posture || 'relaxed natural posture'}, hands_item=${handsItem}, expression=${segment.character_snapshot?.expression || expr}.`;
 
         const sceneText = `SCENE ${segment.index} [${segment.timeRange}]: ${segment.focus || 'Anime scene'} — ${baseLine}. MOOD: chill, serene, heartwarming, everyday wonder.`;
         return `${animeEnforce} ${charBlock} ${charSnapshot} ${styleBlock} ${animFlavor}. ${sceneBlueprint} ${templateGuide}. ${continuity} ${sceneText} ${enriched} ${enrichedMeta} ${hardRules}`;
@@ -655,6 +722,21 @@ async function sendScenesToVeo3(analysis, outputDir, serverUrl) {
 
     const savePath = path.join(outputDir, 'veo-direct-prompts.json');
     fs.writeFileSync(savePath, JSON.stringify(veo3Results, null, 2), 'utf8');
+    const successes = veo3Results.filter(x => x && x.success);
+    const failures = veo3Results.filter(x => !x || !x.success);
+    const summary = {
+        total: veo3Results.length,
+        success: successes.length,
+        failure: failures.length,
+        firstFailures: failures.slice(0, 5)
+    };
+    const summaryPath = path.join(outputDir, 'veo-direct-prompts-summary.json');
+    fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2), 'utf8');
+    if (failures.length > 0) {
+        const failPath = path.join(outputDir, 'veo-direct-prompts-failures.json');
+        fs.writeFileSync(failPath, JSON.stringify(failures, null, 2), 'utf8');
+        console.log(`⚠️  [Step 2] Prompts: ${summary.success}/${summary.total} thành công. Lỗi mẫu đã lưu: ${failPath}`);
+    }
     console.log(`✅ [Step 2] Đã lưu prompts gửi trực tiếp: ${savePath}`);
 
     return { veo3Results, monitorPromises };
