@@ -415,7 +415,7 @@ async function sendToVeo3(character, story, outputDir) {
         
         const prompt = buildPromptForScene(scene, character, story, index);
         let retry = 0;
-        const maxRetries = 8;
+        const maxRetries = 15;
         
         while (retry < maxRetries) {
             try {
