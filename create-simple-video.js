@@ -21,6 +21,21 @@ const OPENAI_API_KEY = 'sk-proj-Im9AQW_lu_5-nJHmJOSdrMz_VeC5YcrpJlshnkFs32YIJvyW
 const LABS_COOKIES = (process.env.LABS_COOKIES || '').trim();
 const VEO_PROJECT_ID = (process.env.VEO_PROJECT_ID || '').trim();
 const SERVER_URL = 'http://localhost:8888';
+const RANDOM_THEME = ((process.env.RANDOM_THEME || '1').trim() === '1');
+
+// Bộ chủ đề lớn để gợi ý ngẫu nhiên (tùy chọn, không bắt buộc)
+const THEME_POOL = [
+    'road-trip ven biển', 'leo núi tuyết', 'thám hiểm đô thị ban đêm', 'ẩm thực đường phố châu Á', 'lễ hội âm nhạc ngoài trời',
+    'đi bộ xuyên rừng thông', 'cắm trại bên hồ', 'truy tìm kho báu cổ', 'tàu đêm xuyên đồng quê', 'khám phá phố cổ châu Âu',
+    'chợ phiên cuối tuần', 'lướt sóng buổi sớm', 'đạp xe giữa cánh đồng oải hương', 'ngắm sao tại sa mạc', 'săn bình minh trên đỉnh núi',
+    'du lịch bằng tàu hỏa cổ', 'săn bắc cực quang', 'đi thuyền trên sông', 'đạp vịt trong công viên', 'tham quan thư viện cổ',
+    'ngày mưa nơi thị trấn nhỏ', 'đi bộ trên vách đá ven biển', 'picnic ở thảo nguyên', 'vườn thú mở', 'trang trại nho mùa thu hoạch',
+    'hành trình đường sắt ven biển', 'lễ hội hoa xuân', 'đêm pháo hoa', 'đi chợ Giáng Sinh', 'trượt băng trên hồ đông',
+    'khám phá hang động', 'làng chài bình minh', 'vượt thác nhẹ', 'đường mòn núi lửa', 'vườn bách thảo nhiệt đới',
+    'công viên quốc gia mùa lá đỏ', 'hải đăng cô đơn', 'đảo nhỏ hoang sơ', 'đồng lúa mùa gặt', 'cánh đồng hoa hướng dương',
+    'lễ hội đường phố', 'chợ nổi', 'vùng đầm lầy hoang dã', 'làng nghề truyền thống', 'đường tàu trên không',
+    'khu phố hiện đại tương lai', 'tàu điện ngầm giờ tan tầm', 'cảng biển tấp nập', 'cầu treo gió lớn', 'đường đèo sương mù'
+];
 
 // Cấu hình
 const SEGMENT_DURATION = 8; // mỗi segment 8s
@@ -214,6 +229,10 @@ TRẢ VỀ JSON:
 async function createStory(character, outputDir) {
     console.log(`🧭 [Bước 2] Tạo câu chuyện ${NUM_SEGMENTS} cảnh...`);
     
+    const suggestedTheme = RANDOM_THEME && THEME_POOL.length > 0
+        ? THEME_POOL[Math.floor(Math.random() * THEME_POOL.length)]
+        : null;
+
     const storyRes = await fetchOpenAIWithRetry({
         model: 'gpt-4o-mini',
         messages: [
@@ -235,8 +254,8 @@ YÊU CẦU CÂU CHUYỆN XUYÊN SUỐT (30 cảnh x 8 giây):
 - KHÔNG có chữ overlay, KHÔNG thoại/voice-over
 - Phong cách: phim live-action châu Âu, photorealistic
 
-BỐI CẢNH NGẪU NHIÊN:
- 
+${suggestedTheme ? `GỢI Ý CHỦ ĐỀ NGẪU NHIÊN (KHÔNG BẮT BUỘC): ${suggestedTheme}
+Bạn có thể bỏ qua gợi ý và chọn chủ đề khác.` : ''}
 
 TRẢ VỀ JSON:
 {
@@ -260,7 +279,9 @@ QUAN TRỌNG:
         ],
         response_format: { type: 'json_object' },
         max_tokens: 12000,
-        temperature: 1.0
+        temperature: 1.1,
+        top_p: 0.95,
+        presence_penalty: 0.8
     });
 
     if (!storyRes.choices) throw new Error('Không sinh được story');
