@@ -17,15 +17,15 @@ try {
 const execAsync = promisify(exec);
 
 // ENV
-const OPENAI_API_KEY = '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'
+const OPENAI_API_KEY = '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'
 const LABS_COOKIES = (process.env.LABS_COOKIES || '').trim();
 const VEO_PROJECT_ID = (process.env.VEO_PROJECT_ID || '').trim();
 const SERVER_URL = 'http://localhost:8888';
 
 // Cấu hình
 const SEGMENT_DURATION = 8; // mỗi segment 8s
-const TOTAL_DURATION_SECONDS = 5 * 60; // 300s (5 phút)
-const NUM_SEGMENTS = Math.floor(TOTAL_DURATION_SECONDS / SEGMENT_DURATION); // 37 cảnh
+const TOTAL_DURATION_SECONDS = SEGMENT_DURATION * 30; // 30 cảnh x 8s = 240s (~4 phút)
+const NUM_SEGMENTS = Math.floor(TOTAL_DURATION_SECONDS / SEGMENT_DURATION); // 30 cảnh
 const CONCURRENCY = 5;
 
 // Network helpers
@@ -168,6 +168,7 @@ async function createCharacter() {
 - Màu da: tông da châu Âu đẹp, mịn màng, sáng (trắng hồng, hồng phấn, nâu nhạt...)
 - Dáng người: cân đối, quyến rũ, chiều cao hợp lý, vóc dáng đẹp
 - Trang phục: áo, quần/váy, giày, phụ kiện thanh lịch, thời trang, quyến rũ
+ - Quốc gia (country) và chiều cao (heightCm, đơn vị cm)
 
 NHÂN VẬT PHẢI CỰC KỲ XINH ĐẸP, QUYẾN RŨ, HẤP DẪN như người mẫu/actress châu Âu. CHỈ tạo ngoại hình. Việc cầm vật gì trong tay sẽ được quyết định dựa trên hành động và bối cảnh của từng cảnh.
 
@@ -181,7 +182,9 @@ TRẢ VỀ JSON:
     "hairStyle": string,   // kiểu tóc, độ dài
     "eyeColor": string,    // màu mắt
     "skinColor": string,   // màu da
-    "body": string         // dáng người, chiều cao
+    "body": string,        // dáng người, chiều cao
+    "country": string,     // quốc gia
+    "heightCm": string     // chiều cao, ví dụ: "170 cm"
   },
   "outfit": {
     "top": string,
@@ -202,7 +205,7 @@ TRẢ VỀ JSON:
     const character = parseJsonFromText(characterText, outputDir);
     
     fs.writeFileSync(path.join(outputDir, 'character.json'), JSON.stringify(character, null, 2), 'utf8');
-    console.log(`✅ [Bước 1] Nhân vật: ${character.name} | Tóc: ${character.appearance.hairColor} | Mắt: ${character.appearance.eyeColor}`);
+    console.log(`✅ [Bước 1] Nhân vật: ${character.name} | Quốc gia: ${character.appearance.country || 'N/A'} | Chiều cao: ${character.appearance.heightCm || 'N/A'} | Tóc: ${character.appearance.hairColor} | Mắt: ${character.appearance.eyeColor}`);
     
     return { character, outputDir };
 }
@@ -211,53 +214,29 @@ TRẢ VỀ JSON:
 async function createStory(character, outputDir) {
     console.log(`🧭 [Bước 2] Tạo câu chuyện ${NUM_SEGMENTS} cảnh...`);
     
-    // Tạo bối cảnh ngẫu nhiên
-    const randomContext = {
-        season: randomChoice(['xuân', 'hạ', 'thu', 'đông']),
-        timeOfDay: randomChoice(['bình minh', 'sáng', 'trưa', 'chiều', 'hoàng hôn', 'đêm']),
-        mainSetting: randomChoice([
-            'rừng sâu', 'thành phố', 'ven sông', 'bờ biển', 'núi rừng', 'cánh đồng',
-            'ngọn núi', 'thung lũng', 'bờ sông', 'bãi biển', 'đồng lúa',
-            'phố cổ châu Âu', 'khu phố hiện đại', 'công viên', 'vườn hoa', 'đường mòn rừng',
-            'thị trấn ven biển', 'làng quê', 'đồng cỏ', 'rừng thông', 'hồ nước yên tĩnh'
-        ]),
-        genreTone: randomChoice(['ấm áp', 'phiêu lưu nhẹ', 'kỳ ảo', 'hài hước', 'truyền cảm hứng'])
-    };
-    
     const storyRes = await fetchOpenAIWithRetry({
         model: 'gpt-4o-mini',
         messages: [
             {
                 role: 'system',
-                content: 'Bạn là biên kịch phim live-action châu Âu. Tạo câu chuyện 5 phút XUYÊN SUỐT - MỘT CỐT TRUYỆN DUY NHẤT với nhiều sự kiện liên quan với nhau. Chia thành các cảnh 8 giây, mỗi cảnh là hệ quả logic của cảnh trước và dẫn tới cảnh sau (nguyên nhân → hành động → kết quả → dẫn tới cảnh tiếp theo). Mỗi cảnh có SỰ KIỆN/HÀNH ĐỘNG cụ thể. CẢNH PHẢI CỰC KỲ ĐA DẠNG - KHÔNG được lặp lại cùng một địa điểm, cùng một hành động, hoặc cùng một mô tả trong nhiều cảnh liên tiếp. Mỗi cảnh phải KHÁC BIỆT hoàn toàn. CHỈ TRẢ VỀ JSON hợp lệ.'
+                content: 'Bạn là biên kịch phim live-action châu Âu. Tạo câu chuyện XUYÊN SUỐT cho 30 cảnh (mỗi cảnh 8 giây) - MỘT CỐT TRUYỆN DUY NHẤT với nhiều sự kiện liên quan với nhau. Mỗi cảnh là hệ quả logic của cảnh trước và dẫn tới cảnh sau (nguyên nhân → hành động → kết quả → dẫn tới cảnh tiếp theo). CẢNH PHẢI CỰC KỲ ĐA DẠNG. CHỈ TRẢ VỀ JSON hợp lệ.'
             },
             {
                 role: 'user',
                 content: `Dùng nhân vật sau cho toàn bộ video:
 ${JSON.stringify(character)}
 
-YÊU CẦU CÂU CHUYỆN 5 PHÚT XUYÊN SUỐT:
+YÊU CẦU CÂU CHUYỆN XUYÊN SUỐT (30 cảnh x 8 giây):
 - Phải là MỘT CỐT TRUYỆN DUY NHẤT, có mục tiêu nhỏ, tiến trình, cao trào cảm xúc, kết thúc
 - Mỗi cảnh 8s phải là hệ quả logic của cảnh trước và dẫn tới cảnh sau (nguyên nhân → hành động → kết quả → dẫn tới cảnh tiếp theo)
-- Cấu trúc: Mở đầu (thiết lập không khí) → Phát triển (một mục tiêu nhỏ/việc cần làm) → Cao trào cảm xúc (khám phá/nhận ra điều ý nghĩa) → Kết thúc (dịu nhẹ, ấm áp)
-- Mỗi cảnh phải có SỰ KIỆN/HÀNH ĐỘNG cụ thể (không phải chỉ đi bộ/ngắm cảnh) và góp phần vào tiến trình câu chuyện
-- QUAN TRỌNG: CẢNH PHẢI CỰC KỲ ĐA DẠNG - KHÔNG được lặp lại:
-  * Cùng một địa điểm trong nhiều cảnh liên tiếp (tối đa 2 cảnh liên tiếp cùng địa điểm)
-  * Cùng một hành động/động từ trong nhiều cảnh liên tiếp (ví dụ: không được "đi bộ" trong 3+ cảnh liên tiếp)
-  * Cùng một mô tả/tình huống trong nhiều cảnh liên tiếp
-  * Mỗi cảnh phải KHÁC BIỆT hoàn toàn về location, action, description
-- BỐI CẢNH PHẢI ĐA DẠNG: di chuyển giữa nhiều địa điểm (rừng sâu, thành phố, sông, biển, núi, đồng, phố cổ, công viên, bờ hồ, thị trấn, làng quê...) - Mỗi nhóm 5-7 cảnh phải có ít nhất 4-5 địa điểm khác nhau
-- Sự chuyển đổi giữa các bối cảnh phải TỰ NHIÊN và PHỤC VỤ câu chuyện (ví dụ: nhân vật đi tìm kiếm → di chuyển từ nơi này sang nơi khác; nhân vật khám phá → ghé qua nhiều địa điểm)
-- Hành động phải ĐA DẠNG: nhặt vật, mở cửa, leo cầu thang, chạy, nhảy, ngồi, đứng, nhìn, tìm kiếm, khám phá, gặp gỡ, phát hiện, giải quyết vấn đề... - KHÔNG lặp lại cùng một hành động trong nhiều cảnh liên tiếp
+- Cấu trúc: Mở đầu → Phát triển → Cao trào cảm xúc → Kết thúc
+- Trả về TỐI GIẢN: mỗi cảnh chỉ có 1 trường duy nhất "scene" (mô tả văn bản liền mạch của cảnh, 1-3 câu), kèm index/timeStart/timeEnd để canh thời lượng.
 - Chủ đề tích cực, slice-of-life ấm áp, không bạo lực
 - KHÔNG có chữ overlay, KHÔNG thoại/voice-over
 - Phong cách: phim live-action châu Âu, photorealistic
 
 BỐI CẢNH NGẪU NHIÊN:
-- Mùa: ${randomContext.season}
-- Thời điểm: ${randomContext.timeOfDay}
-- Địa điểm chính: ${randomContext.mainSetting}
-- Tông thể loại: ${randomContext.genreTone}
+ 
 
 TRẢ VỀ JSON:
 {
@@ -268,24 +247,19 @@ TRẢ VỀ JSON:
       "index": 1,
       "timeStart": 0,
       "timeEnd": 8,
-      "location": string,      // địa điểm cụ thể (phải đa dạng)
-      "action": string,        // hành động/sự kiện cụ thể
-      "description": string,   // mô tả cảnh chi tiết
-      "continuity": string     // liên kết với cảnh trước và dẫn tới cảnh sau (ví dụ: "tiếp tục từ cảnh trước, nhân vật phát hiện...", "dẫn tới cảnh sau: nhân vật quyết định..."). QUAN TRỌNG: mỗi cảnh phải có location và action KHÁC BIỆT với cảnh trước và sau
+      "scene": string          // mô tả cảnh (1-3 câu), ví dụ: "Lila and Julien ride bicycles along a quiet riverside path..."
     },
     ... đủ ${NUM_SEGMENTS} cảnh ...
   ]
-}
+ }
 
-QUAN TRỌNG: 
-- Mỗi cảnh phải có continuity field giải thích rõ ràng cách cảnh đó liên kết với cảnh trước và dẫn tới cảnh sau, đảm bảo câu chuyện xuyên suốt và logic.
-- Mỗi cảnh PHẢI KHÁC BIỆT hoàn toàn về location, action, description - KHÔNG được lặp lại cùng một địa điểm, cùng một hành động, hoặc cùng một mô tả trong nhiều cảnh liên tiếp.
-- Mỗi nhóm 5-7 cảnh phải có ít nhất 4-5 địa điểm khác nhau.
-- Hành động phải đa dạng, không lặp lại trong nhiều cảnh liên tiếp.`
+QUAN TRỌNG:
+- Mỗi cảnh phải liền mạch về logic với cảnh trước/sau (diễn đạt ngay trong mô tả cảnh nếu cần).
+- Mô tả chỉ ở trường "scene", không trả về các trường khác trong mỗi cảnh.`
             }
         ],
         response_format: { type: 'json_object' },
-        max_tokens: 8000,
+        max_tokens: 12000,
         temperature: 1.0
     });
 
@@ -312,11 +286,11 @@ QUAN TRỌNG:
                 },
                 {
                     role: 'user',
-                    content: `Sinh lại story 5 phút theo đúng yêu cầu dưới dạng MỘT JSON HỢP LỆ duy nhất (dùng dấu ":", "," chuẩn, KHÔNG dấu thừa, KHÔNG bình luận, KHÔNG markdown). Thuộc tính bắt buộc: overallTheme, mainGoal, scenes (array ${NUM_SEGMENTS} phần tử với index, timeStart, timeEnd, location, action, description, continuity).\n\nNhân vật:\n${JSON.stringify(character)}\n\nNgữ cảnh ngẫu nhiên:\n${JSON.stringify(randomContext)}\n\nYêu cầu: MỘT CỐT TRUYỆN DUY NHẤT xuyên suốt, mỗi cảnh liên kết logic với cảnh trước và sau.`
+                    content: `Sinh lại story theo đúng yêu cầu (30 cảnh x 8 giây) dưới dạng MỘT JSON HỢP LỆ duy nhất (KHÔNG markdown). Thuộc tính bắt buộc: overallTheme, mainGoal, scenes (array ${NUM_SEGMENTS} phần tử với index, timeStart, timeEnd, scene).\n\nNhân vật:\n${JSON.stringify(character)}\n\nYêu cầu: mỗi cảnh chỉ có trường scene (1-3 câu), vẫn đảm bảo logic giữa các cảnh.`
                 }
             ],
             response_format: { type: 'json_object' },
-            max_tokens: 8000,
+            max_tokens: 12000,
             temperature: 0.3
         });
         
@@ -333,18 +307,18 @@ QUAN TRỌNG:
                 index: i + 1,
                 timeStart: i * SEGMENT_DURATION,
                 timeEnd: (i + 1) * SEGMENT_DURATION,
-                location: randomContext.mainSetting,
-                action: `Scene ${i + 1}`,
-                description: `Live-action scene ${i + 1}`
+                scene: `Live-action scene ${i + 1}`
             };
         }
         scenes[i].index = i + 1;
         scenes[i].timeStart = i * SEGMENT_DURATION;
         scenes[i].timeEnd = (i + 1) * SEGMENT_DURATION;
+        if (!scenes[i].scene || typeof scenes[i].scene !== 'string') {
+            scenes[i].scene = `Live-action scene ${i + 1}`;
+        }
     }
 
     story.scenes = scenes;
-    story.randomContext = randomContext;
     
     fs.writeFileSync(path.join(outputDir, 'story.json'), JSON.stringify(story, null, 2), 'utf8');
     console.log(`✅ [Bước 2] Đã tạo ${scenes.length} cảnh`);
@@ -417,29 +391,27 @@ async function sendToVeo3(character, story, outputDir) {
 
     // Tạo prompt cho từng cảnh
     function buildPromptForScene(scene, character, story, sceneIndex) {
-        const charDesc = `CHARACTER (MUST REMAIN IDENTICAL IN ALL SCENES): ${character.name}, age ${character.age}. Face: ${character.appearance.face} - BEAUTIFUL, ATTRACTIVE, ELEGANT. Hair: ${character.appearance.hairColor} ${character.appearance.hairStyle} - beautiful, elegant. Eyes: ${character.appearance.eyeColor} - beautiful, captivating. Skin: ${character.appearance.skinColor} - smooth, radiant, beautiful. Body: ${character.appearance.body} - attractive, elegant proportions. Outfit: ${character.outfit.top}, ${character.outfit.bottom}, ${character.outfit.footwear}, ${character.outfit.accessories} - fashionable, elegant. CHARACTER IS EXTREMELY BEAUTIFUL, ATTRACTIVE, ELEGANT, LIKE A EUROPEAN MODEL/ACTRESS.`;
-        
-        const styleEnforce = `PHOTOREALISTIC LIVE-ACTION: European live-action cinema, photorealistic, natural lighting, cinematic composition, real human skin texture, realistic facial features, natural hair movement, authentic clothing fabrics. ABSOLUTELY REALISTIC, PHOTOREALISTIC, LIVE-ACTION, NO animation, NO anime, NO cartoon.`;
-        
-        // Continuity từ cảnh trước và sau
+        const charDesc = `CHARACTER (MUST REMAIN IDENTICAL IN ALL SCENES): ${character.name}, age ${character.age}. Face: ${character.appearance.face}. Hair: ${character.appearance.hairColor} ${character.appearance.hairStyle}. Eyes: ${character.appearance.eyeColor}. Skin: ${character.appearance.skinColor}. Body: ${character.appearance.body}. Outfit: ${character.outfit.top}, ${character.outfit.bottom}, ${character.outfit.footwear}, ${character.outfit.accessories}.`;
+
+        const styleEnforce = `PHOTOREALISTIC LIVE-ACTION: European live-action cinema, photorealistic, natural lighting, cinematic composition, real human skin texture, realistic facial features, natural hair movement, authentic clothing fabrics. ABSOLUTELY REALISTIC, LIVE-ACTION, NO animation, NO anime, NO cartoon.`;
+
         const prevScene = sceneIndex > 0 ? story.scenes[sceneIndex - 1] : null;
         const nextScene = sceneIndex < story.scenes.length - 1 ? story.scenes[sceneIndex + 1] : null;
-        const continuityInfo = scene.continuity ? `CONTINUITY: ${scene.continuity}. ` : '';
-        const prevInfo = prevScene ? `PREVIOUS SCENE CONTEXT: ${prevScene.location} - ${prevScene.action}. ` : '';
-        const nextInfo = nextScene ? `NEXT SCENE CONTEXT: ${nextScene.location} - ${nextScene.action}. ` : '';
-        const storyContext = story.mainGoal ? `STORY GOAL: ${story.mainGoal}. ` : '';
-        
-        const sceneDesc = `SCENE [${scene.timeStart}-${scene.timeEnd}s]: ${storyContext}${prevInfo}${continuityInfo}${nextInfo}Location: ${scene.location}. Action: ${scene.action}. ${scene.description}.`;
-        
+        const prevInfo = prevScene && typeof prevScene.scene === 'string' ? `PREVIOUS SCENE: ${prevScene.scene}` : '';
+        const nextInfo = nextScene && typeof nextScene.scene === 'string' ? `NEXT SCENE: ${nextScene.scene}` : '';
+        const storyContext = story.mainGoal ? `STORY GOAL: ${story.mainGoal}` : '';
+
+        const sceneDesc = `SCENE [${scene.timeStart}-${scene.timeEnd}s]: ${scene.scene}`;
+
         const negatives = `NEGATIVE: no animation, no anime, no cartoon, no cel-shading, no hand-drawn, no text or subtitles on screen.`;
-        
-        return `${styleEnforce} ${charDesc} ${sceneDesc} ${negatives}`;
+
+        return `${styleEnforce} ${charDesc} ${storyContext} ${prevInfo} ${sceneDesc} ${nextInfo} ${negatives}`;
     }
 
     // Gửi từng cảnh
     async function processOne(index) {
         const scene = story.scenes[index];
-        console.log(`➡️  [Bước 3] Segment ${index + 1}/${story.scenes.length}: ${scene.location} | ${scene.action}`);
+        console.log(`➡️  [Bước 3] Segment ${index + 1}/${story.scenes.length}: ${String(scene.scene).slice(0, 80)}${String(scene.scene).length > 80 ? '...' : ''}`);
         
         const prompt = buildPromptForScene(scene, character, story, index);
         let retry = 0;
@@ -464,8 +436,7 @@ async function sendToVeo3(character, story, outputDir) {
                     const resultObj = {
                         segmentIndex: index,
                         timeRange: `${scene.timeStart}-${scene.timeEnd}s`,
-                        location: scene.location,
-                        action: scene.action,
+                        scene: scene.scene,
                         prompt,
                         operationId: json.operationName,
                         success: true
@@ -539,7 +510,10 @@ async function mergeVideos(monitorPromises, outputDir) {
 // Main
 async function main() {
     try {
-        console.log(`🚀 [START] Tạo video live-action 5 phút (${NUM_SEGMENTS} cảnh x ${SEGMENT_DURATION}s)...`);
+        const totalMin = Math.floor(TOTAL_DURATION_SECONDS / 60);
+        const totalSec = TOTAL_DURATION_SECONDS % 60;
+        const totalLabel = totalSec === 0 ? `${totalMin} phút` : `${totalMin} phút ${totalSec}s`;
+        console.log(`🚀 [START] Tạo video live-action ${totalLabel} (${NUM_SEGMENTS} cảnh x ${SEGMENT_DURATION}s)...`);
         
         const { character, outputDir } = await createCharacter();
         const { story, outputDir: storyOutputDir } = await createStory(character, outputDir);
@@ -553,8 +527,7 @@ async function main() {
                 overallTheme: story.overallTheme,
                 scenes: story.scenes.map(s => ({
                     index: s.index,
-                    location: s.location,
-                    action: s.action
+                    scene: s.scene
                 }))
             },
             veo3OperationsSent: veo3Results.filter(r => r.success).length,
