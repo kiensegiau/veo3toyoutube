@@ -156,19 +156,20 @@ async function createCharacter() {
         messages: [
             {
                 role: 'system',
-                content: 'Bạn là casting director cho phim live-action châu Âu. Tạo MỘT NHÂN VẬT CÔ GÁI CHÂU ÂU XINH ĐẸP cực kỳ chi tiết. Chỉ tạo ngoại hình (khuôn mặt, tóc, mắt, da, trang phục). Trả về JSON hợp lệ duy nhất.'
+                content: 'Bạn là casting director cho phim live-action châu Âu. Tạo MỘT NHÂN VẬT CÔ GÁI CHÂU ÂU CỰC KỲ XINH ĐẸP, QUYẾN RŨ, HẤP DẪN cực kỳ chi tiết. Nhân vật phải có vẻ đẹp tự nhiên, quyến rũ, hấp dẫn như người mẫu/actress châu Âu. Chỉ tạo ngoại hình (khuôn mặt, tóc, mắt, da, trang phục). Trả về JSON hợp lệ duy nhất.'
             },
             {
                 role: 'user',
-                content: `Tạo MỘT NHÂN VẬT CÔ GÁI CHÂU ÂU XINH ĐẸP cực kỳ chi tiết:
-- Khuôn mặt: mô tả chi tiết (hình dáng, đặc điểm nổi bật)
-- Màu tóc: màu tóc châu Âu tự nhiên (vàng, nâu, đen, đỏ...)
-- Kiểu tóc: độ dài, kiểu tóc cụ thể
-- Màu mắt: màu mắt châu Âu (xanh, xanh lá, nâu, xám...)
-- Màu da: tông da châu Âu (trắng, hồng, nâu nhạt...)
-- Trang phục: áo, quần/váy, giày, phụ kiện
+                content: `Tạo MỘT NHÂN VẬT CÔ GÁI CHÂU ÂU CỰC KỲ XINH ĐẸP, QUYẾN RŨ, HẤP DẪN cực kỳ chi tiết:
+- Khuôn mặt: mô tả chi tiết vẻ đẹp tự nhiên (khuôn mặt hài hòa, đối xứng, đường nét thanh tú, mũi thẳng, môi đầy đặn, cằm cân đối, làn da mịn màng, không tì vết)
+- Màu tóc: màu tóc châu Âu tự nhiên đẹp (vàng tươi, nâu sáng, đen bóng, đỏ tự nhiên...)
+- Kiểu tóc: độ dài, kiểu tóc đẹp, mượt mà, thanh lịch
+- Màu mắt: màu mắt châu Âu đẹp, long lanh (xanh biển, xanh lá, nâu mật, xám...)
+- Màu da: tông da châu Âu đẹp, mịn màng, sáng (trắng hồng, hồng phấn, nâu nhạt...)
+- Dáng người: cân đối, quyến rũ, chiều cao hợp lý, vóc dáng đẹp
+- Trang phục: áo, quần/váy, giày, phụ kiện thanh lịch, thời trang, quyến rũ
 
-CHỈ tạo ngoại hình. Việc cầm vật gì trong tay sẽ được quyết định dựa trên hành động và bối cảnh của từng cảnh.
+NHÂN VẬT PHẢI CỰC KỲ XINH ĐẸP, QUYẾN RŨ, HẤP DẪN như người mẫu/actress châu Âu. CHỈ tạo ngoại hình. Việc cầm vật gì trong tay sẽ được quyết định dựa trên hành động và bối cảnh của từng cảnh.
 
 TRẢ VỀ JSON:
 {
@@ -228,7 +229,7 @@ async function createStory(character, outputDir) {
         messages: [
             {
                 role: 'system',
-                content: 'Bạn là biên kịch phim live-action châu Âu. Tạo câu chuyện 5 phút XUYÊN SUỐT - MỘT CỐT TRUYỆN DUY NHẤT với nhiều sự kiện liên quan với nhau. Chia thành các cảnh 8 giây, mỗi cảnh là hệ quả logic của cảnh trước và dẫn tới cảnh sau (nguyên nhân → hành động → kết quả → dẫn tới cảnh tiếp theo). Mỗi cảnh có SỰ KIỆN/HÀNH ĐỘNG cụ thể. CẢNH PHẢI ĐA DẠNG VỀ ĐỊA ĐIỂM - không được lặp lại cùng một địa điểm trong nhiều cảnh liên tiếp. CHỈ TRẢ VỀ JSON hợp lệ.'
+                content: 'Bạn là biên kịch phim live-action châu Âu. Tạo câu chuyện 5 phút XUYÊN SUỐT - MỘT CỐT TRUYỆN DUY NHẤT với nhiều sự kiện liên quan với nhau. Chia thành các cảnh 8 giây, mỗi cảnh là hệ quả logic của cảnh trước và dẫn tới cảnh sau (nguyên nhân → hành động → kết quả → dẫn tới cảnh tiếp theo). Mỗi cảnh có SỰ KIỆN/HÀNH ĐỘNG cụ thể. CẢNH PHẢI CỰC KỲ ĐA DẠNG - KHÔNG được lặp lại cùng một địa điểm, cùng một hành động, hoặc cùng một mô tả trong nhiều cảnh liên tiếp. Mỗi cảnh phải KHÁC BIỆT hoàn toàn. CHỈ TRẢ VỀ JSON hợp lệ.'
             },
             {
                 role: 'user',
@@ -240,9 +241,14 @@ YÊU CẦU CÂU CHUYỆN 5 PHÚT XUYÊN SUỐT:
 - Mỗi cảnh 8s phải là hệ quả logic của cảnh trước và dẫn tới cảnh sau (nguyên nhân → hành động → kết quả → dẫn tới cảnh tiếp theo)
 - Cấu trúc: Mở đầu (thiết lập không khí) → Phát triển (một mục tiêu nhỏ/việc cần làm) → Cao trào cảm xúc (khám phá/nhận ra điều ý nghĩa) → Kết thúc (dịu nhẹ, ấm áp)
 - Mỗi cảnh phải có SỰ KIỆN/HÀNH ĐỘNG cụ thể (không phải chỉ đi bộ/ngắm cảnh) và góp phần vào tiến trình câu chuyện
-- BỐI CẢNH PHẢI ĐA DẠNG: di chuyển giữa nhiều địa điểm (rừng sâu, thành phố, sông, biển, núi, đồng...) - KHÔNG được lặp lại cùng một địa điểm trong nhiều cảnh liên tiếp
+- QUAN TRỌNG: CẢNH PHẢI CỰC KỲ ĐA DẠNG - KHÔNG được lặp lại:
+  * Cùng một địa điểm trong nhiều cảnh liên tiếp (tối đa 2 cảnh liên tiếp cùng địa điểm)
+  * Cùng một hành động/động từ trong nhiều cảnh liên tiếp (ví dụ: không được "đi bộ" trong 3+ cảnh liên tiếp)
+  * Cùng một mô tả/tình huống trong nhiều cảnh liên tiếp
+  * Mỗi cảnh phải KHÁC BIỆT hoàn toàn về location, action, description
+- BỐI CẢNH PHẢI ĐA DẠNG: di chuyển giữa nhiều địa điểm (rừng sâu, thành phố, sông, biển, núi, đồng, phố cổ, công viên, bờ hồ, thị trấn, làng quê...) - Mỗi nhóm 5-7 cảnh phải có ít nhất 4-5 địa điểm khác nhau
 - Sự chuyển đổi giữa các bối cảnh phải TỰ NHIÊN và PHỤC VỤ câu chuyện (ví dụ: nhân vật đi tìm kiếm → di chuyển từ nơi này sang nơi khác; nhân vật khám phá → ghé qua nhiều địa điểm)
-- Mỗi nhóm 5-7 cảnh phải có ít nhất 3-4 địa điểm khác nhau
+- Hành động phải ĐA DẠNG: nhặt vật, mở cửa, leo cầu thang, chạy, nhảy, ngồi, đứng, nhìn, tìm kiếm, khám phá, gặp gỡ, phát hiện, giải quyết vấn đề... - KHÔNG lặp lại cùng một hành động trong nhiều cảnh liên tiếp
 - Chủ đề tích cực, slice-of-life ấm áp, không bạo lực
 - KHÔNG có chữ overlay, KHÔNG thoại/voice-over
 - Phong cách: phim live-action châu Âu, photorealistic
@@ -265,17 +271,21 @@ TRẢ VỀ JSON:
       "location": string,      // địa điểm cụ thể (phải đa dạng)
       "action": string,        // hành động/sự kiện cụ thể
       "description": string,   // mô tả cảnh chi tiết
-      "continuity": string     // liên kết với cảnh trước và dẫn tới cảnh sau (ví dụ: "tiếp tục từ cảnh trước, nhân vật phát hiện...", "dẫn tới cảnh sau: nhân vật quyết định...")
+      "continuity": string     // liên kết với cảnh trước và dẫn tới cảnh sau (ví dụ: "tiếp tục từ cảnh trước, nhân vật phát hiện...", "dẫn tới cảnh sau: nhân vật quyết định..."). QUAN TRỌNG: mỗi cảnh phải có location và action KHÁC BIỆT với cảnh trước và sau
     },
     ... đủ ${NUM_SEGMENTS} cảnh ...
   ]
 }
 
-QUAN TRỌNG: Mỗi cảnh phải có continuity field giải thích rõ ràng cách cảnh đó liên kết với cảnh trước và dẫn tới cảnh sau, đảm bảo câu chuyện xuyên suốt và logic.`
+QUAN TRỌNG: 
+- Mỗi cảnh phải có continuity field giải thích rõ ràng cách cảnh đó liên kết với cảnh trước và dẫn tới cảnh sau, đảm bảo câu chuyện xuyên suốt và logic.
+- Mỗi cảnh PHẢI KHÁC BIỆT hoàn toàn về location, action, description - KHÔNG được lặp lại cùng một địa điểm, cùng một hành động, hoặc cùng một mô tả trong nhiều cảnh liên tiếp.
+- Mỗi nhóm 5-7 cảnh phải có ít nhất 4-5 địa điểm khác nhau.
+- Hành động phải đa dạng, không lặp lại trong nhiều cảnh liên tiếp.`
             }
         ],
         response_format: { type: 'json_object' },
-        max_tokens: 4000,
+        max_tokens: 8000,
         temperature: 1.0
     });
 
@@ -306,7 +316,7 @@ QUAN TRỌNG: Mỗi cảnh phải có continuity field giải thích rõ ràng c
                 }
             ],
             response_format: { type: 'json_object' },
-            max_tokens: 4000,
+            max_tokens: 8000,
             temperature: 0.3
         });
         
@@ -407,7 +417,7 @@ async function sendToVeo3(character, story, outputDir) {
 
     // Tạo prompt cho từng cảnh
     function buildPromptForScene(scene, character, story, sceneIndex) {
-        const charDesc = `CHARACTER (MUST REMAIN IDENTICAL IN ALL SCENES): ${character.name}, age ${character.age}. Face: ${character.appearance.face}. Hair: ${character.appearance.hairColor} ${character.appearance.hairStyle}. Eyes: ${character.appearance.eyeColor}. Skin: ${character.appearance.skinColor}. Body: ${character.appearance.body}. Outfit: ${character.outfit.top}, ${character.outfit.bottom}, ${character.outfit.footwear}, ${character.outfit.accessories}.`;
+        const charDesc = `CHARACTER (MUST REMAIN IDENTICAL IN ALL SCENES): ${character.name}, age ${character.age}. Face: ${character.appearance.face} - BEAUTIFUL, ATTRACTIVE, ELEGANT. Hair: ${character.appearance.hairColor} ${character.appearance.hairStyle} - beautiful, elegant. Eyes: ${character.appearance.eyeColor} - beautiful, captivating. Skin: ${character.appearance.skinColor} - smooth, radiant, beautiful. Body: ${character.appearance.body} - attractive, elegant proportions. Outfit: ${character.outfit.top}, ${character.outfit.bottom}, ${character.outfit.footwear}, ${character.outfit.accessories} - fashionable, elegant. CHARACTER IS EXTREMELY BEAUTIFUL, ATTRACTIVE, ELEGANT, LIKE A EUROPEAN MODEL/ACTRESS.`;
         
         const styleEnforce = `PHOTOREALISTIC LIVE-ACTION: European live-action cinema, photorealistic, natural lighting, cinematic composition, real human skin texture, realistic facial features, natural hair movement, authentic clothing fabrics. ABSOLUTELY REALISTIC, PHOTOREALISTIC, LIVE-ACTION, NO animation, NO anime, NO cartoon.`;
         
